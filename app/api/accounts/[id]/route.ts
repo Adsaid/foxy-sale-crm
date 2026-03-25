@@ -1,0 +1,47 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error, user } = await getApiUser(["SALES"]);
+  if (error) return error;
+
+  const { id } = await params;
+  const body = await request.json();
+
+  const existing = await prisma.account.findUnique({ where: { id } });
+  if (!existing || existing.ownerId !== user!.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const updated = await prisma.account.update({
+    where: { id },
+    data: {
+      ...(body.account !== undefined && { account: body.account }),
+      ...(body.type !== undefined && { type: body.type }),
+    },
+  });
+
+  return NextResponse.json(updated);
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error, user } = await getApiUser(["SALES"]);
+  if (error) return error;
+
+  const { id } = await params;
+
+  const existing = await prisma.account.findUnique({ where: { id } });
+  if (!existing || existing.ownerId !== user!.id) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await prisma.account.delete({ where: { id } });
+  return NextResponse.json({ success: true });
+}

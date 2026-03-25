@@ -19,6 +19,39 @@ enum Specialization {
   FULLSTACK
 }
 
+enum AccountType {
+  UPWORK
+  LINKEDIN
+}
+
+enum CallType {
+  HR
+  TECH
+  CLIENT
+  PM
+  CLIENT_TECH
+}
+
+enum CallStage {
+  HR
+  TECH
+  CLIENT
+  PM
+  CLIENT_TECH
+}
+
+enum CallStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum CallOutcome {
+  SUCCESS
+  UNSUCCESSFUL
+  PENDING
+}
+
 model User {
   id             String          @id @default(auto()) @map("_id") @db.ObjectId
   firstName      String
@@ -30,6 +63,9 @@ model User {
   technologyIds  String[]        @db.ObjectId
   technologies   Technology[]    @relation(fields: [technologyIds], references: [id])
   createdAt      DateTime        @default(now())
+  accounts       Account[]
+  callsAsdev     CallEvent[]     @relation("CallerDev")
+  createdCalls   CallEvent[]     @relation("CreatedBySales")
 }
 
 model Technology {
@@ -37,4 +73,39 @@ model Technology {
   name    String   @unique
   userIds String[] @db.ObjectId
   users   User[]   @relation(fields: [userIds], references: [id])
+}
+
+model Account {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  account   String
+  type      AccountType
+  ownerId   String      @db.ObjectId
+  owner     User        @relation(fields: [ownerId], references: [id])
+  calls     CallEvent[]
+  createdAt DateTime    @default(now())
+}
+
+model CallEvent {
+  id                   String       @id @default(auto()) @map("_id") @db.ObjectId
+  accountId            String       @db.ObjectId
+  account              Account      @relation(fields: [accountId], references: [id])
+  company              String
+  interviewerName      String
+  callType             CallType
+  callStartedAt        DateTime
+  callEndedAt          DateTime?
+  callerId             String       @db.ObjectId
+  caller               User         @relation("CallerDev", fields: [callerId], references: [id])
+  createdById          String       @db.ObjectId
+  createdBy            User         @relation("CreatedBySales", fields: [createdById], references: [id])
+  status               CallStatus   @default(SCHEDULED)
+  outcome              CallOutcome  @default(PENDING)
+  devFeedback          String?
+  movingToNextStage    Boolean      @default(false)
+  nextStep             CallStage?
+  nextStepDate         DateTime?
+  expectedFeedbackDate DateTime?
+  notes                String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 }
