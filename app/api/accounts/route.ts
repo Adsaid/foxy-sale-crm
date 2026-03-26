@@ -3,11 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 
 export async function GET() {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const accounts = await prisma.account.findMany({
-    where: { ownerId: user!.id },
+    where: user!.role === "ADMIN" ? {} : { ownerId: user!.id },
     orderBy: { createdAt: "desc" },
   });
 
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const body = await request.json();

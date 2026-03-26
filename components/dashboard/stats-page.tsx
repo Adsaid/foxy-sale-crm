@@ -83,21 +83,6 @@ function DevStatsView() {
   );
 }
 
-function AdminStatsView() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Панель адміністратора</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground">
-          Перейдіть до розділу «Користувачі» для управління SALES та DEV.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function StatsPage() {
   const { user, isLoading } = useAuth();
 
@@ -106,9 +91,8 @@ export function StatsPage() {
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Статистика</h2>
-      {user?.role === "SALES" && <SalesStatsView />}
+      {(user?.role === "SALES" || user?.role === "ADMIN") && <SalesStatsView />}
       {user?.role === "DEV" && <DevStatsView />}
-      {user?.role === "ADMIN" && <AdminStatsView />}
     </div>
   );
 }

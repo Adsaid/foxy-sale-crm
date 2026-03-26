@@ -7,7 +7,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const { id } = await params;
@@ -22,7 +22,10 @@ export async function POST(
   }
 
   const existing = await prisma.callEvent.findUnique({ where: { id } });
-  if (!existing || existing.createdById !== user!.id) {
+  if (
+    !existing ||
+    (user!.role !== "ADMIN" && existing.createdById !== user!.id)
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

@@ -71,6 +71,11 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Скасовано",
 };
 
+const accountTypeLabels: Record<string, string> = {
+  UPWORK: "Upwork",
+  LINKEDIN: "LinkedIn",
+};
+
 function isToday(dateStr: string) {
   const d = new Date(dateStr);
   const now = new Date();
@@ -100,13 +105,13 @@ function getTimeUntil(dateStr: string) {
 
 interface TodayCallCardProps {
   call: CallEvent;
-  isSales: boolean;
+  isSalesLike: boolean;
   onEdit: (call: CallEvent) => void;
   onComplete: (id: string) => void;
   canComplete: boolean;
 }
 
-function TodayCallCard({ call, isSales, onEdit, onComplete, canComplete }: TodayCallCardProps) {
+function TodayCallCard({ call, isSalesLike, onEdit, onComplete, canComplete }: TodayCallCardProps) {
   const timeUntil = getTimeUntil(call.callStartedAt);
   const isPast = new Date(call.callStartedAt) <= new Date();
   const isCompleted = call.status === "COMPLETED";
@@ -146,12 +151,12 @@ function TodayCallCard({ call, isSales, onEdit, onComplete, canComplete }: Today
         )}
         <div className="ml-auto flex items-center gap-1.5">
           <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
-          {isSales && isActive && (
+          {isSalesLike && isActive && (
             <Button variant="ghost" size="icon-sm" onClick={() => onEdit(call)}>
               <Pencil className="size-4" />
             </Button>
           )}
-          {!isSales && canComplete && (
+          {!isSalesLike && canComplete && (
             <Button variant="ghost" size="icon-sm" onClick={() => onComplete(call.id)}>
               <CheckCircle className="size-4" />
             </Button>
@@ -163,7 +168,7 @@ function TodayCallCard({ call, isSales, onEdit, onComplete, canComplete }: Today
         <p className="text-base font-semibold truncate">{call.company}</p>
         <p className="text-sm text-muted-foreground truncate">
           {call.interviewerName}
-          {isSales && call.caller && ` · ${call.caller.firstName} ${call.caller.lastName}`}
+          {isSalesLike && call.caller && ` · ${call.caller.firstName} ${call.caller.lastName}`}
         </p>
       </div>
     </div>
@@ -172,7 +177,7 @@ function TodayCallCard({ call, isSales, onEdit, onComplete, canComplete }: Today
 
 export function CallsPage() {
   const { user } = useAuth();
-  const isSales = user?.role === "SALES";
+  const isSalesLike = user?.role === "SALES" || user?.role === "ADMIN";
 
   const { data: calls, isLoading } = useCalls();
   const createMutation = useCreateCall();
@@ -190,7 +195,16 @@ export function CallsPage() {
 
   const table = useTable({
     data: calls,
-    searchableFields: ["company", "interviewerName", "callType", "status", "outcome", "notes"],
+    searchableFields: [
+      "company",
+      "interviewerName",
+      "callType",
+      "account.account",
+      "account.type",
+      "status",
+      "outcome",
+      "notes",
+    ],
     defaultSort: { column: "callStartedAt", direction: "desc" },
   });
 
@@ -205,7 +219,7 @@ export function CallsPage() {
     return new Date() >= new Date(callStartedAt);
   }
 
-  const colSpan = isSales ? 10 : 8;
+  const colSpan = isSalesLike ? 11 : 9;
 
   function canAdvanceToNextStage(call: CallEvent) {
     return call.status === "COMPLETED" && call.outcome === "SUCCESS";
@@ -215,7 +229,7 @@ export function CallsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Дзвінки</h2>
-        {isSales && (
+        {isSalesLike && (
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="mr-2 size-4" />
             Створити
@@ -223,7 +237,7 @@ export function CallsPage() {
         )}
       </div>
 
-      {isSales && (
+      {isSalesLike && (
         <>
           <CallCreateDialog
             open={createOpen}
@@ -260,7 +274,7 @@ export function CallsPage() {
         </>
       )}
 
-      {!isSales && (
+      {!isSalesLike && (
         <CallCompleteDialog
           open={!!completeId}
           onOpenChange={(o) => !o && setCompleteId(null)}
@@ -290,7 +304,7 @@ export function CallsPage() {
               <TodayCallCard
                 key={call.id}
                 call={call}
-                isSales={isSales}
+                isSalesLike={isSalesLike}
                 onEdit={setEditCall}
                 onComplete={setCompleteId}
                 canComplete={canComplete(call.callStartedAt, call.callEndedAt)}
@@ -317,12 +331,18 @@ export function CallsPage() {
                 <SortableHeader column="company" label="Компанія" sort={table.sort} onSort={table.toggleSort} />
                 <SortableHeader column="interviewerName" label="Інтерв'юер" sort={table.sort} onSort={table.toggleSort} />
                 <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
-                {isSales && <TableHead>DEV</TableHead>}
+                <SortableHeader
+                  column="account.account"
+                  label="Акаунт"
+                  sort={table.sort}
+                  onSort={table.toggleSort}
+                />
+                {isSalesLike && <TableHead>DEV</TableHead>}
                 <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
                 <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
                 <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
               <TableHead>Нотатки</TableHead>
-              {isSales && <TableHead className="w-28 text-center">Наступний етап</TableHead>}
+              {isSalesLike && <TableHead className="w-28 text-center">Наступний етап</TableHead>}
               <TableHead className="w-20" />
               </TableRow>
             </TableHeader>
@@ -347,7 +367,19 @@ export function CallsPage() {
                     <TableCell>
                       <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
                     </TableCell>
-                    {isSales && (
+                    <TableCell>
+                      {call.account ? (
+                        <span className="inline-flex flex-wrap items-center gap-1.5">
+                          <span className="font-medium">{call.account.account}</span>
+                          <Badge variant="outline" className="text-[10px]">
+                            {accountTypeLabels[call.account.type] ?? call.account.type}
+                          </Badge>
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    {isSalesLike && (
                       <TableCell>
                         {call.caller
                           ? `${call.caller.firstName} ${call.caller.lastName}`
@@ -381,7 +413,7 @@ export function CallsPage() {
                     <TableCell className="max-w-48 truncate">
                       {call.notes || "—"}
                     </TableCell>
-                    {isSales && (
+                    {isSalesLike && (
                       <TableCell className="text-center">
                         {canAdvanceToNextStage(call) ? (
                           <Button
@@ -400,7 +432,7 @@ export function CallsPage() {
                     )}
                     <TableCell>
                       <div className="flex gap-0.5">
-                        {isSales ? (
+                        {isSalesLike ? (
                           <>
                             <Button
                               variant="ghost"

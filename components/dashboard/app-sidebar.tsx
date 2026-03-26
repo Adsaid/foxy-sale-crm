@@ -45,9 +45,9 @@ interface NavItem {
 
 const allNavItems: NavItem[] = [
   { title: "Статистика", href: "/dashboard", icon: BarChart3, roles: ["SALES", "DEV", "ADMIN"] },
-  { title: "Акаунти", href: "/dashboard/accounts", icon: Building2, roles: ["SALES"] },
-  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV"] },
-  { title: "Підсумки", href: "/dashboard/summary", icon: ClipboardList, roles: ["SALES"] },
+  { title: "Акаунти", href: "/dashboard/accounts", icon: Building2, roles: ["SALES", "ADMIN"] },
+  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV", "ADMIN"] },
+  { title: "Підсумки", href: "/dashboard/summary", icon: ClipboardList, roles: ["SALES", "ADMIN"] },
   { title: "Користувачі", href: "/dashboard/users", icon: Users, roles: ["ADMIN"] },
 ];
 

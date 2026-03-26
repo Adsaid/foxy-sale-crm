@@ -6,14 +6,17 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const { id } = await params;
   const body = await request.json();
 
   const existing = await prisma.account.findUnique({ where: { id } });
-  if (!existing || existing.ownerId !== user!.id) {
+  if (
+    !existing ||
+    (user!.role !== "ADMIN" && existing.ownerId !== user!.id)
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -32,13 +35,16 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const { id } = await params;
 
   const existing = await prisma.account.findUnique({ where: { id } });
-  if (!existing || existing.ownerId !== user!.id) {
+  if (
+    !existing ||
+    (user!.role !== "ADMIN" && existing.ownerId !== user!.id)
+  ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

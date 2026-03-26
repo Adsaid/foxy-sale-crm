@@ -6,4 +6,8 @@ export const summaryService = {
     const res = await api.get<CallSummary[]>("/api/summaries");
     return res.data;
   },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/api/summaries/${id}`);
+  },
 };

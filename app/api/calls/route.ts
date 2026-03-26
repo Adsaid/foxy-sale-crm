@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { isSalesLike } from "@/lib/roles";
 
 export async function GET() {
-  const { error, user } = await getApiUser(["SALES", "DEV"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
   if (error) return error;
 
-  const where =
-    user!.role === "SALES"
-      ? { createdById: user!.id }
-      : { callerId: user!.id };
+  const where = isSalesLike(user!.role)
+    ? user!.role === "ADMIN"
+      ? {}
+      : { createdById: user!.id }
+    : { callerId: user!.id };
 
   const calls = await prisma.callEvent.findMany({
     where,
@@ -24,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const body = await request.json();
@@ -35,9 +37,14 @@ export async function POST(request: Request) {
   }
 
   const account = await prisma.account.findUnique({ where: { id: accountId } });
-  if (!account || account.ownerId !== user!.id) {
+  if (
+    !account ||
+    (user!.role !== "ADMIN" && account.ownerId !== user!.id)
+  ) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
+
+  const createdById = user!.role === "ADMIN" ? account.ownerId : user!.id;
 
   const call = await prisma.callEvent.create({
     data: {
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
       callType,
       callStartedAt: new Date(callStartedAt),
       callerId,
-      createdById: user!.id,
+      createdById,
     },
     include: {
       account: true,

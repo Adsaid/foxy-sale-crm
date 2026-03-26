@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 
 export async function GET() {
-  const { error } = await getApiUser(["SALES"]);
+  const { error } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const devs = await prisma.user.findMany({

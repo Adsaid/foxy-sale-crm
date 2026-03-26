@@ -5,7 +5,7 @@ import { normalizeInterviewerName } from "@/lib/interviewer-name";
 import type { CallType, CallStatus, CallOutcome } from "@prisma/client";
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["SALES"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -16,9 +16,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ matches: [] });
   }
 
+  const scopeWhere =
+    user!.role === "ADMIN" ? {} : { createdById: user!.id };
+
   const [events, summaries] = await Promise.all([
     prisma.callEvent.findMany({
-      where: { createdById: user!.id },
+      where: scopeWhere,
       select: {
         id: true,
         company: true,
@@ -31,7 +34,7 @@ export async function GET(request: Request) {
       },
     }),
     prisma.callSummary.findMany({
-      where: { createdById: user!.id },
+      where: scopeWhere,
       select: {
         id: true,
         company: true,

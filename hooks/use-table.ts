@@ -11,7 +11,8 @@ export interface SortState {
 
 export interface UseTableOptions<T> {
   data: T[] | undefined;
-  searchableFields: (keyof T)[];
+  /** Шляхи полів; крапка — вкладеність, напр. `account.account` */
+  searchableFields: readonly string[];
   defaultSort?: SortState;
   defaultPageSize?: number;
 }
@@ -43,7 +44,7 @@ export function useTable<T>({
     const q = search.toLowerCase();
     return data.filter((item) =>
       searchableFields.some((field) => {
-        const val = (item as Record<string, unknown>)[field as string];
+        const val = getNestedValue(item as Record<string, unknown>, field);
         if (val == null) return false;
         if (typeof val === "string") return val.toLowerCase().includes(q);
         if (typeof val === "number") return String(val).includes(q);
