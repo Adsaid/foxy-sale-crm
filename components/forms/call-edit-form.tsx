@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +14,8 @@ import {
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Building2, User, Clock, MessageSquare } from "lucide-react";
 import type { CallEvent, CallStatus, CallOutcome, UpdateCallInput } from "@/types/crm";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useEffect, useMemo, useState } from "react";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -51,6 +52,25 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     notes: call.notes ?? "",
   });
 
+  const [markTransferred, setMarkTransferred] = useState(false);
+  const [transferredReason, setTransferredReason] = useState("");
+
+  const isRescheduled = useMemo(() => {
+    const prev = new Date(call.callStartedAt).getTime();
+    const next = new Date(form.callStartedAt).getTime();
+    return prev !== next;
+  }, [call.callStartedAt, form.callStartedAt]);
+
+  useEffect(() => {
+    // Если дата/час не змінені — прибираємо чекбокс
+    if (!isRescheduled) setMarkTransferred(false);
+  }, [isRescheduled]);
+
+  useEffect(() => {
+    // Якщо зняли чек — чистимо reason, щоб не відправляти зайві дані
+    if (!markTransferred) setTransferredReason("");
+  }, [markTransferred]);
+
   const isCompleted = form.status === "COMPLETED";
   const isCancelled = form.status === "CANCELLED";
 
@@ -61,6 +81,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       callStartedAt: form.callStartedAt,
       expectedFeedbackDate: form.expectedFeedbackDate || null,
       notes: form.notes || null,
+      transferred: markTransferred || undefined,
+      transferredReason: markTransferred
+        ? transferredReason.trim() || null
+        : undefined,
     });
   }
 
@@ -100,6 +124,31 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
           onChange={(v) => setForm((f) => ({ ...f, callStartedAt: v }))}
         />
       </div>
+
+      {isRescheduled && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+          <Checkbox
+            checked={markTransferred}
+            onCheckedChange={(v) => setMarkTransferred(Boolean(v))}
+            id="mark-transferred"
+          />
+          <label htmlFor="mark-transferred" className="text-sm text-foreground cursor-pointer">
+            Записати як перенесений
+          </label>
+        </div>
+      )}
+
+      {markTransferred && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Причина переносу (опційно)</label>
+          <Textarea
+            placeholder="Наприклад: клієнт попросив перенести час..."
+            value={transferredReason}
+            onChange={(e) => setTransferredReason(e.target.value)}
+            rows={3}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div>

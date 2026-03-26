@@ -16,7 +16,17 @@ export async function POST(request: Request) {
       );
     }
 
-    const { firstName, lastName, email, password, role, specialization, technologyIds } = parsed.data;
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      role,
+      specialization,
+      technologyIds,
+      badgeBgColor,
+      badgeTextColor,
+    } = parsed.data;
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -37,6 +47,8 @@ export async function POST(request: Request) {
         role,
         specialization: role === "DEV" ? specialization : null,
         technologyIds: role === "DEV" && technologyIds ? technologyIds : [],
+        badgeBgColor: role === "SALES" ? badgeBgColor ?? null : null,
+        badgeTextColor: role === "SALES" ? badgeTextColor ?? null : null,
       },
     });
 
@@ -52,6 +64,8 @@ export async function POST(request: Request) {
           email: user.email,
           role: user.role,
           specialization: user.specialization,
+          badgeBgColor: user.badgeBgColor,
+          badgeTextColor: user.badgeTextColor,
         },
       },
       { status: 201 }

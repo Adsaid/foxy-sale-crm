@@ -53,6 +53,16 @@ export async function POST(
     include: {
       account: true,
       caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
   });
 

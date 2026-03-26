@@ -5,6 +5,8 @@ export interface AuthUser {
   email: string;
   role: "ADMIN" | "DEV" | "SALES";
   specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | null;
+  badgeBgColor?: string | null;
+  badgeTextColor?: string | null;
   technologies?: Technology[];
   createdAt: string;
 }

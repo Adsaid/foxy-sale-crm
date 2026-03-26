@@ -18,6 +18,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+import { ManagerBadge } from "@/components/ui/manager-badge";
+import { useAdminUsers } from "@/hooks/use-admin-users";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
 import {
@@ -28,14 +31,23 @@ import {
 import type { Account, AccountType } from "@/types/crm";
 
 export function AccountsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const { data: accounts, isLoading } = useAccounts();
+  const { data: salesUsers } = useAdminUsers("SALES", !!isAdmin);
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
   const deleteMutation = useDeleteAccount();
 
   const table = useTable({
     data: accounts,
-    searchableFields: ["account", "type"],
+    searchableFields: [
+      "account",
+      "type",
+      "owner.firstName",
+      "owner.lastName",
+      "owner.email",
+    ],
     defaultSort: { column: "createdAt", direction: "desc" },
   });
 
@@ -52,7 +64,7 @@ export function AccountsPage() {
     setDialogOpen(true);
   }
 
-  function handleSubmit(data: { account: string; type: AccountType }) {
+  function handleSubmit(data: { account: string; type: AccountType; ownerId?: string }) {
     if (editing) {
       updateMutation.mutate(
         { id: editing.id, data },
@@ -77,6 +89,8 @@ export function AccountsPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         account={editing}
+        isAdmin={!!isAdmin}
+        salesUsers={salesUsers}
         isPending={createMutation.isPending || updateMutation.isPending}
         onSubmit={handleSubmit}
       />
@@ -93,6 +107,14 @@ export function AccountsPage() {
             <TableRow>
               <SortableHeader column="account" label="Акаунт" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="type" label="Тип" sort={table.sort} onSort={table.toggleSort} />
+              {isAdmin && (
+                <SortableHeader
+                  column="owner.firstName"
+                  label="Менеджер"
+                  sort={table.sort}
+                  onSort={table.toggleSort}
+                />
+              )}
               <SortableHeader column="createdAt" label="Створено" sort={table.sort} onSort={table.toggleSort} />
               <TableHead className="w-24" />
             </TableRow>
@@ -100,13 +122,13 @@ export function AccountsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center">
+                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center">
                   Завантаження...
                 </TableCell>
               </TableRow>
             ) : !table.rows.length ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground">
                   {table.isFiltered ? "Нічого не знайдено" : "Немає акаунтів"}
                 </TableCell>
               </TableRow>
@@ -117,6 +139,19 @@ export function AccountsPage() {
                   <TableCell>
                     <Badge variant="outline">{acc.type}</Badge>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {acc.owner ? (
+                        <ManagerBadge
+                          name={`${acc.owner.firstName} ${acc.owner.lastName}`}
+                          bgColor={acc.owner.badgeBgColor}
+                          textColor={acc.owner.badgeTextColor}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {new Date(acc.createdAt).toLocaleDateString("uk-UA")}
                   </TableCell>

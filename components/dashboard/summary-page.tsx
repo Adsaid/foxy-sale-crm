@@ -15,6 +15,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -30,6 +36,7 @@ import {
   SortableHeader,
 } from "@/components/ui/data-table-controls";
 import { Trash2 } from "lucide-react";
+import { ManagerBadge } from "@/components/ui/manager-badge";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -45,6 +52,15 @@ const outcomeLabels: Record<string, string> = {
   PENDING: "Очікує",
 };
 
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("uk-UA", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatDuration(startedAt: string, endedAt: string | null | undefined) {
   if (!endedAt) return "—";
   const diffMs = new Date(endedAt).getTime() - new Date(startedAt).getTime();
@@ -57,12 +73,14 @@ function formatDuration(startedAt: string, endedAt: string | null | undefined) {
 export function SummaryPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  const showTransfer = user?.role === "ADMIN" || user?.role === "SALES";
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [transferDialog, setTransferDialog] = useState<any | null>(null);
   const deleteMutation = useDeleteSummary();
 
   const { data: summaries, isLoading } = useSummaries();
 
-  const colSpan = isAdmin ? 10 : 9;
+  const colSpan = isAdmin ? 13 : 10;
 
   const table = useTable({
     data: summaries,
@@ -75,6 +93,9 @@ export function SummaryPage() {
       "devFeedback",
       "callerFirstName",
       "callerLastName",
+      "createdByName",
+      "transferredByName",
+      "transferredReason",
       "notes",
     ],
     defaultSort: { column: "callStartedAt", direction: "desc" },
@@ -103,7 +124,24 @@ export function SummaryPage() {
               />
               <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="accountName" label="Акаунт" sort={table.sort} onSort={table.toggleSort} />
+              {isAdmin && (
+                <SortableHeader
+                  column="createdByName"
+                  label="Менеджер"
+                  sort={table.sort}
+                  onSort={table.toggleSort}
+                />
+              )}
               <TableHead>DEV</TableHead>
+              {isAdmin && (
+                <SortableHeader
+                  column="callCreatedAt"
+                  label="Створено"
+                  sort={table.sort}
+                  onSort={table.toggleSort}
+                />
+              )}
+              {showTransfer && <TableHead>Перенесено</TableHead>}
               <SortableHeader column="callStartedAt" label="Тривалість" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
               <TableHead>Наступний етап</TableHead>
@@ -133,9 +171,42 @@ export function SummaryPage() {
                     <Badge variant="outline">{callTypeLabels[s.callType]}</Badge>
                   </TableCell>
                   <TableCell>{s.accountName || "—"}</TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {s.createdByName && s.createdByName !== "—" ? (
+                        <ManagerBadge
+                          name={s.createdByName}
+                          bgColor={s.createdByBadgeBgColor}
+                          textColor={s.createdByBadgeTextColor}
+                        />
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {s.callerFirstName} {s.callerLastName}
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {s.callCreatedAt ? formatDateTime(s.callCreatedAt) : "—"}
+                    </TableCell>
+                  )}
+                  {showTransfer && (
+                    <TableCell>
+                      {s.isTransferred ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTransferDialog(s)}
+                        >
+                          Перенесено
+                        </Button>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {formatDuration(s.callStartedAt, s.callEndedAt)}
                   </TableCell>
@@ -201,6 +272,56 @@ export function SummaryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!transferDialog} onOpenChange={(o) => !o && setTransferDialog(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Деталі переносу</DialogTitle>
+          </DialogHeader>
+          {transferDialog && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Ким</p>
+                {transferDialog.transferredByName && transferDialog.transferredByName !== "—" ? (
+                  <ManagerBadge
+                    name={transferDialog.transferredByName}
+                    bgColor={transferDialog.transferredByBadgeBgColor}
+                    textColor={transferDialog.transferredByBadgeTextColor}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">З якої дати</p>
+                  <p className="text-sm font-medium">
+                    {transferDialog.transferredFromAt
+                      ? formatDateTime(transferDialog.transferredFromAt)
+                      : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">На яку дати</p>
+                  <p className="text-sm font-medium">
+                    {transferDialog.transferredToAt
+                      ? formatDateTime(transferDialog.transferredToAt)
+                      : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {transferDialog.transferredReason ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Причина (опційно)</p>
+                  <p className="text-sm whitespace-pre-wrap">{transferDialog.transferredReason}</p>
+                </div>
+              ) : null}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <TablePagination
         page={table.page}

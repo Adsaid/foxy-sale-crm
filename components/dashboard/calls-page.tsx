@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useCalls,
@@ -44,6 +44,7 @@ import { CallCreateDialog } from "@/components/dialogs/call-create-dialog";
 import { CallEditDialog } from "@/components/dialogs/call-edit-dialog";
 import { CallCompleteDialog } from "@/components/dialogs/call-complete-dialog";
 import { CallNextStageDialog } from "@/components/dialogs/call-next-stage-dialog";
+import { ManagerBadge } from "@/components/ui/manager-badge";
 import {
   TableToolbar,
   TablePagination,
@@ -93,51 +94,92 @@ function formatTime(dateStr: string) {
   });
 }
 
-function getTimeUntil(dateStr: string) {
-  const diff = new Date(dateStr).getTime() - Date.now();
+function getTimeUntil(dateStr: string, nowMs: number) {
+  const diff = new Date(dateStr).getTime() - nowMs;
   if (diff < 0) return null;
+  const totalSeconds = Math.floor(diff / 1000);
+  const secs = totalSeconds % 60;
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `через ${mins} хв`;
+  if (mins < 60) return `через ${mins}хв ${secs}с`;
   const hrs = Math.floor(mins / 60);
   const remainMins = mins % 60;
-  return `через ${hrs}г ${remainMins}хв`;
+  return `через ${hrs}г ${remainMins}хв ${secs}с`;
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) return undefined;
+  const intVal = Number.parseInt(normalized, 16);
+  if (Number.isNaN(intVal)) return undefined;
+  const r = (intVal >> 16) & 255;
+  const g = (intVal >> 8) & 255;
+  const b = intVal & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 interface TodayCallCardProps {
   call: CallEvent;
   isSalesLike: boolean;
+  showCreatedBy: boolean;
+  nowMs: number;
   onEdit: (call: CallEvent) => void;
   onComplete: (id: string) => void;
   canComplete: boolean;
 }
 
-function TodayCallCard({ call, isSalesLike, onEdit, onComplete, canComplete }: TodayCallCardProps) {
-  const timeUntil = getTimeUntil(call.callStartedAt);
+function TodayCallCard({
+  call,
+  isSalesLike,
+  showCreatedBy,
+  nowMs,
+  onEdit,
+  onComplete,
+  canComplete,
+}: TodayCallCardProps) {
+  const timeUntil = getTimeUntil(call.callStartedAt, nowMs);
   const isPast = new Date(call.callStartedAt) <= new Date();
   const isCompleted = call.status === "COMPLETED";
   const isCancelled = call.status === "CANCELLED";
   const isActive = !isCompleted && !isCancelled;
+  const accentBg = call.createdBy?.badgeBgColor ?? "#EEF2FF";
+  const accentText = call.createdBy?.badgeTextColor ?? "#3730A3";
+  const cardStyle =
+    !isCompleted && showCreatedBy
+      ? {
+          backgroundColor: hexToRgba(accentBg, 0.4) ?? accentBg,
+          borderColor: hexToRgba(accentText, 0.7) ?? accentText,
+        }
+      : undefined;
 
   return (
     <div
-      className={`rounded-xl border p-4 space-y-2 ${
+      className={`relative rounded-xl border p-4 space-y-2 ${
         isCompleted
           ? "opacity-50 bg-muted/30"
           : isCancelled
             ? "opacity-30"
-            : isPast && !call.callEndedAt
-              ? "border-orange-400/60 bg-orange-50 dark:bg-orange-950/20"
-              : timeUntil
-                ? "border-primary/30 bg-primary/5"
-                : ""
+            : ""
       }`}
+      style={cardStyle}
     >
+      <div className="absolute top-3 right-3">
+        {isSalesLike && isActive && (
+          <Button variant="ghost" size="icon-sm" onClick={() => onEdit(call)}>
+            <Pencil className="size-4" />
+          </Button>
+        )}
+        {!isSalesLike && canComplete && (
+          <Button variant="ghost" size="icon-sm" onClick={() => onComplete(call.id)}>
+            <CheckCircle className="size-4" />
+          </Button>
+        )}
+      </div>
       {/* Row 1: time + countdown + action */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2.5">
         <Clock className="size-4 shrink-0 text-muted-foreground" />
         <span className="text-xl font-bold tabular-nums">{formatTime(call.callStartedAt)}</span>
         {isActive && timeUntil && (
-          <span className="rounded-md bg-primary/15 px-2.5 py-1 text-sm font-semibold text-primary">
+          <span className="inline-flex min-w-24 sm:min-w-28 justify-center rounded-md bg-primary/15 px-2 py-1 text-sm font-semibold tabular-nums text-primary">
             {timeUntil}
           </span>
         )}
@@ -149,27 +191,26 @@ function TodayCallCard({ call, isSalesLike, onEdit, onComplete, canComplete }: T
         {isCompleted && (
           <Badge variant="secondary">Завершено</Badge>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
-          <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
-          {isSalesLike && isActive && (
-            <Button variant="ghost" size="icon-sm" onClick={() => onEdit(call)}>
-              <Pencil className="size-4" />
-            </Button>
-          )}
-          {!isSalesLike && canComplete && (
-            <Button variant="ghost" size="icon-sm" onClick={() => onComplete(call.id)}>
-              <CheckCircle className="size-4" />
-            </Button>
-          )}
-        </div>
+        {showCreatedBy && call.createdBy && (
+          <ManagerBadge
+            name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
+            bgColor={call.createdBy.badgeBgColor}
+            textColor={call.createdBy.badgeTextColor}
+          />
+        )}
       </div>
       {/* Row 2: company + details */}
-      <div className="space-y-0.5 pl-6">
-        <p className="text-base font-semibold truncate">{call.company}</p>
-        <p className="text-sm text-muted-foreground truncate">
-          {call.interviewerName}
-          {isSalesLike && call.caller && ` · ${call.caller.firstName} ${call.caller.lastName}`}
-        </p>
+      <div className="flex items-start justify-between gap-3 pl-6">
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <p className="text-base font-semibold truncate">{call.company}</p>
+            <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground truncate">
+            {call.interviewerName}
+            {isSalesLike && call.caller && ` · ${call.caller.firstName} ${call.caller.lastName}`}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -178,6 +219,7 @@ function TodayCallCard({ call, isSalesLike, onEdit, onComplete, canComplete }: T
 export function CallsPage() {
   const { user } = useAuth();
   const isSalesLike = user?.role === "SALES" || user?.role === "ADMIN";
+  const showCreatedByColumn = user?.role === "DEV" || user?.role === "ADMIN";
 
   const { data: calls, isLoading } = useCalls();
   const createMutation = useCreateCall();
@@ -201,6 +243,9 @@ export function CallsPage() {
       "callType",
       "account.account",
       "account.type",
+      "createdBy.firstName",
+      "createdBy.lastName",
+      "createdBy.email",
       "status",
       "outcome",
       "notes",
@@ -213,13 +258,19 @@ export function CallsPage() {
   const [completeId, setCompleteId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [nextStageCall, setNextStageCall] = useState<CallEvent | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   function canComplete(callStartedAt: string, callEndedAt: string | null | undefined) {
     if (callEndedAt) return false;
     return new Date() >= new Date(callStartedAt);
   }
 
-  const colSpan = isSalesLike ? 11 : 9;
+  const colSpan = (isSalesLike ? 11 : 9) + (showCreatedByColumn ? 1 : 0);
 
   function canAdvanceToNextStage(call: CallEvent) {
     return call.status === "COMPLETED" && call.outcome === "SUCCESS";
@@ -305,6 +356,8 @@ export function CallsPage() {
                 key={call.id}
                 call={call}
                 isSalesLike={isSalesLike}
+                showCreatedBy={showCreatedByColumn}
+                nowMs={nowMs}
                 onEdit={setEditCall}
                 onComplete={setCompleteId}
                 canComplete={canComplete(call.callStartedAt, call.callEndedAt)}
@@ -337,6 +390,14 @@ export function CallsPage() {
                   sort={table.sort}
                   onSort={table.toggleSort}
                 />
+                {showCreatedByColumn && (
+                  <SortableHeader
+                    column="createdBy.firstName"
+                    label="Менеджер"
+                    sort={table.sort}
+                    onSort={table.toggleSort}
+                  />
+                )}
                 {isSalesLike && <TableHead>DEV</TableHead>}
                 <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
                 <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
@@ -379,6 +440,19 @@ export function CallsPage() {
                         "—"
                       )}
                     </TableCell>
+                    {showCreatedByColumn && (
+                      <TableCell>
+                        {call.createdBy
+                          ? (
+                            <ManagerBadge
+                              name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
+                              bgColor={call.createdBy.badgeBgColor}
+                              textColor={call.createdBy.badgeTextColor}
+                            />
+                          )
+                          : "—"}
+                      </TableCell>
+                    )}
                     {isSalesLike && (
                       <TableCell>
                         {call.caller

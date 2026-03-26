@@ -18,6 +18,16 @@ export async function GET() {
     include: {
       account: true,
       caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
     orderBy: { callStartedAt: "desc" },
   });
@@ -59,6 +69,16 @@ export async function POST(request: Request) {
     include: {
       account: true,
       caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
   });
 

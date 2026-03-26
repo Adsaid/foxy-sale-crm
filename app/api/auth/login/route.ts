@@ -43,6 +43,8 @@ export async function POST(request: Request) {
         email: user.email,
         role: user.role,
         specialization: user.specialization,
+        badgeBgColor: user.badgeBgColor,
+        badgeTextColor: user.badgeTextColor,
       },
     });
   } catch (error) {

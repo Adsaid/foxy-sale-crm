@@ -23,6 +23,10 @@ export async function PATCH(
   if (body.email !== undefined) updateData.email = body.email;
   if (body.specialization !== undefined) updateData.specialization = body.specialization || null;
   if (body.technologyIds !== undefined) updateData.technologyIds = body.technologyIds;
+  if (existing.role === "SALES") {
+    if (body.badgeBgColor !== undefined) updateData.badgeBgColor = body.badgeBgColor || null;
+    if (body.badgeTextColor !== undefined) updateData.badgeTextColor = body.badgeTextColor || null;
+  }
 
   const updated = await prisma.user.update({
     where: { id },

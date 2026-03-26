@@ -11,6 +11,9 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await request.json();
+  const markTransferred = body.transferred === true;
+  const transferredReason =
+    typeof body.transferredReason === "string" ? body.transferredReason.trim() : null;
 
   const existing = await prisma.callEvent.findUnique({ where: { id } });
   if (
@@ -20,10 +23,12 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  const statusAfter = (body.status ?? existing.status) as typeof existing.status;
+
   if (
     body.outcome !== undefined &&
     (body.outcome === "SUCCESS" || body.outcome === "UNSUCCESSFUL") &&
-    existing.status !== "COMPLETED"
+    statusAfter !== "COMPLETED"
   ) {
     return NextResponse.json(
       { error: "Успіх / неуспіх можна виставити лише для завершеного дзвінка" },
@@ -46,10 +51,27 @@ export async function PATCH(
     include: {
       account: true,
       caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
   });
 
-  if (updated.status === "COMPLETED") {
+  const existingSummary = await prisma.callSummary.findUnique({
+    where: { callEventId: updated.id },
+    select: { id: true },
+  });
+
+  const shouldUpsertSummary = updated.status === "COMPLETED" || markTransferred || !!existingSummary;
+
+  if (shouldUpsertSummary) {
     const summaryData = {
       company: updated.company,
       accountName: updated.account?.account ?? "",
@@ -67,6 +89,12 @@ export async function PATCH(
       nextStepDate: updated.nextStepDate,
       notes: updated.notes,
       createdById: updated.createdById,
+      isTransferred: markTransferred,
+      transferredById: markTransferred ? user!.id : null,
+      transferredAt: markTransferred ? new Date() : null,
+      transferredFromAt: markTransferred ? existing.callStartedAt : null,
+      transferredToAt: markTransferred ? updated.callStartedAt : null,
+      transferredReason: markTransferred ? transferredReason : null,
     };
 
     await prisma.callSummary.upsert({

@@ -13,6 +13,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminUser, UpdateUserInput } from "@/types/crm";
+import { cn } from "@/lib/utils";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+
+const SALES_BADGE_PRESETS = [
+  { bg: "#EEF2FF", text: "#3730A3" },
+  { bg: "#ECFDF3", text: "#166534" },
+  { bg: "#FFF7ED", text: "#9A3412" },
+  { bg: "#FDF2F8", text: "#9D174D" },
+  { bg: "#F0F9FF", text: "#0C4A6E" },
+  { bg: "#F5F3FF", text: "#5B21B6" },
+];
 
 interface UserEditFormProps {
   user: AdminUser;
@@ -29,6 +40,8 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
     email: user.email,
     specialization: user.specialization ?? "",
     technologyIds: user.technologies.map((t) => t.id),
+    badgeBgColor: user.badgeBgColor ?? "#EEF2FF",
+    badgeTextColor: user.badgeTextColor ?? "#3730A3",
   });
 
   function toggleTechnology(techId: string) {
@@ -47,6 +60,8 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
       email: form.email,
       specialization: form.specialization || null,
       technologyIds: form.technologyIds,
+      badgeBgColor: user.role === "SALES" ? form.badgeBgColor : null,
+      badgeTextColor: user.role === "SALES" ? form.badgeTextColor : null,
     });
   }
 
@@ -98,6 +113,86 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
             </div>
           </div>
         </>
+      )}
+      {user.role === "SALES" && (
+        <div className="space-y-2 rounded-lg border p-3">
+          <p className="text-sm font-medium">Стиль бейджа менеджера</p>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Приклад:</span>
+            <Badge
+              variant="outline"
+              className="h-6 px-2.5 text-sm"
+              style={{
+                backgroundColor: form.badgeBgColor,
+                color: form.badgeTextColor,
+                borderColor: form.badgeTextColor,
+              }}
+            >
+              Менеджер: {form.firstName} {form.lastName}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Колір фону</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="#EEF2FF"
+                  value={form.badgeBgColor}
+                  onChange={(e) => setForm((f) => ({ ...f, badgeBgColor: e.target.value }))}
+                />
+                <ColorPickerPopover
+                  value={form.badgeBgColor || "#EEF2FF"}
+                  onChange={(value) => setForm((f) => ({ ...f, badgeBgColor: value }))}
+                  ariaLabel="Вибрати колір фону"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Колір тексту</p>
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="#3730A3"
+                  value={form.badgeTextColor}
+                  onChange={(e) => setForm((f) => ({ ...f, badgeTextColor: e.target.value }))}
+                />
+                <ColorPickerPopover
+                  value={form.badgeTextColor || "#3730A3"}
+                  onChange={(value) => setForm((f) => ({ ...f, badgeTextColor: value }))}
+                  ariaLabel="Вибрати колір тексту"
+                />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">Готові стилі</p>
+            <div className="flex flex-wrap gap-2">
+              {SALES_BADGE_PRESETS.map((preset) => {
+                const active =
+                  form.badgeBgColor.toLowerCase() === preset.bg.toLowerCase() &&
+                  form.badgeTextColor.toLowerCase() === preset.text.toLowerCase();
+                return (
+                  <button
+                    key={`${preset.bg}-${preset.text}`}
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        badgeBgColor: preset.bg,
+                        badgeTextColor: preset.text,
+                      }))
+                    }
+                    className={cn(
+                      "h-7 w-7 rounded-full border transition",
+                      active ? "ring-2 ring-primary ring-offset-2" : "hover:scale-105"
+                    )}
+                    style={{ backgroundColor: preset.bg, borderColor: preset.text }}
+                    aria-label={`preset ${preset.bg}`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
       <Button onClick={handleSubmit} disabled={isPending}>
         Зберегти

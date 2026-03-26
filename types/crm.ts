@@ -9,6 +9,14 @@ export interface Account {
   account: string;
   type: AccountType;
   ownerId: string;
+  owner?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    badgeBgColor?: string | null;
+    badgeTextColor?: string | null;
+  };
   createdAt: string;
 }
 
@@ -24,6 +32,14 @@ export interface CallEvent {
   callerId: string;
   caller?: { id: string; firstName: string; lastName: string; email: string };
   createdById: string;
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    badgeBgColor?: string | null;
+    badgeTextColor?: string | null;
+  };
   status: CallStatus;
   outcome: CallOutcome;
   devFeedback?: string | null;
@@ -39,11 +55,13 @@ export interface CallEvent {
 export interface CreateAccountInput {
   account: string;
   type: AccountType;
+  ownerId?: string;
 }
 
 export interface UpdateAccountInput {
   account?: string;
   type?: AccountType;
+  ownerId?: string;
 }
 
 export interface CreateCallInput {
@@ -64,6 +82,9 @@ export interface UpdateCallInput {
   nextStepDate?: string | null;
   expectedFeedbackDate?: string | null;
   notes?: string | null;
+  /** Mark call as rescheduled/transfered when editing datetime (used for CallSummary) */
+  transferred?: boolean;
+  transferredReason?: string | null;
 }
 
 export interface CompleteCallInput {
@@ -109,6 +130,19 @@ export interface CallSummary {
   nextStepDate?: string | null;
   notes?: string | null;
   createdById: string;
+  createdByName?: string;
+  createdByBadgeBgColor?: string | null;
+  createdByBadgeTextColor?: string | null;
+  isTransferred?: boolean;
+  transferredById?: string | null;
+  transferredByName?: string | null;
+  transferredByBadgeBgColor?: string | null;
+  transferredByBadgeTextColor?: string | null;
+  transferredAt?: string | null;
+  transferredFromAt?: string | null;
+  transferredToAt?: string | null;
+  transferredReason?: string | null;
+  callCreatedAt?: string | null;
   createdAt: string;
 }
 
@@ -144,6 +178,8 @@ export interface AdminUser {
   email: string;
   role: string;
   specialization?: string | null;
+  badgeBgColor?: string | null;
+  badgeTextColor?: string | null;
   technologies: { id: string; name: string }[];
   createdAt: string;
 }
@@ -154,4 +190,6 @@ export interface UpdateUserInput {
   email?: string;
   specialization?: string | null;
   technologyIds?: string[];
+  badgeBgColor?: string | null;
+  badgeTextColor?: string | null;
 }

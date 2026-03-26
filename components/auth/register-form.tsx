@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardHeader,
@@ -32,6 +33,17 @@ import {
 } from "@/components/ui/select";
 import { TechnologyMultiSelect } from "./technology-multi-select";
 import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
+import { cn } from "@/lib/utils";
+import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+
+const SALES_BADGE_PRESETS = [
+  { bg: "#EEF2FF", text: "#3730A3" },
+  { bg: "#ECFDF3", text: "#166534" },
+  { bg: "#FFF7ED", text: "#9A3412" },
+  { bg: "#FDF2F8", text: "#9D174D" },
+  { bg: "#F0F9FF", text: "#0C4A6E" },
+  { bg: "#F5F3FF", text: "#5B21B6" },
+];
 
 export function RegisterForm() {
   const { mutate: register, isPending } = useRegister();
@@ -47,10 +59,14 @@ export function RegisterForm() {
       role: "SALES",
       specialization: undefined,
       technologyIds: [],
+      badgeBgColor: "#EEF2FF",
+      badgeTextColor: "#3730A3",
     },
   });
 
   const watchRole = form.watch("role");
+  const watchBadgeBg = form.watch("badgeBgColor");
+  const watchBadgeText = form.watch("badgeTextColor");
 
   return (
     <Card className="w-full max-w-md">
@@ -156,6 +172,10 @@ export function RegisterForm() {
                         form.setValue("specialization", undefined);
                         form.setValue("technologyIds", []);
                       }
+                      if (val !== "SALES") {
+                        form.setValue("badgeBgColor", "#EEF2FF");
+                        form.setValue("badgeTextColor", "#3730A3");
+                      }
                     }}
                     defaultValue={field.value}
                   >
@@ -220,6 +240,106 @@ export function RegisterForm() {
                   )}
                 />
               </>
+            )}
+
+            {watchRole === "SALES" && (
+              <div className="rounded-lg border p-3 space-y-3">
+                <p className="text-sm font-medium">Стиль бейджа менеджера</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Приклад:</span>
+                  <Badge
+                    variant="outline"
+                    className="h-6 px-2.5 text-sm"
+                    style={{
+                      backgroundColor: watchBadgeBg || "#EEF2FF",
+                      color: watchBadgeText || "#3730A3",
+                      borderColor: watchBadgeText || "#3730A3",
+                    }}
+                  >
+                    Менеджер: {form.getValues("firstName") || "Ім'я"} {form.getValues("lastName") || "Прізвище"}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="badgeBgColor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Колір фону</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="#EEF2FF"
+                              value={field.value ?? ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
+                            <ColorPickerPopover
+                              value={field.value || "#EEF2FF"}
+                              onChange={field.onChange}
+                              ariaLabel="Вибрати колір фону"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="badgeTextColor"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Колір тексту</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="#3730A3"
+                              value={field.value ?? ""}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
+                            <ColorPickerPopover
+                              value={field.value || "#3730A3"}
+                              onChange={field.onChange}
+                              ariaLabel="Вибрати колір тексту"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Готові стилі</p>
+                  <div className="flex flex-wrap gap-2">
+                    {SALES_BADGE_PRESETS.map((preset) => {
+                      const active =
+                        (watchBadgeBg || "").toLowerCase() === preset.bg.toLowerCase() &&
+                        (watchBadgeText || "").toLowerCase() === preset.text.toLowerCase();
+                      return (
+                        <button
+                          key={`${preset.bg}-${preset.text}`}
+                          type="button"
+                          onClick={() => {
+                            form.setValue("badgeBgColor", preset.bg, { shouldDirty: true, shouldValidate: true });
+                            form.setValue("badgeTextColor", preset.text, { shouldDirty: true, shouldValidate: true });
+                          }}
+                          className={cn(
+                            "h-7 w-7 rounded-full border transition",
+                            active ? "ring-2 ring-primary ring-offset-2" : "hover:scale-105"
+                          )}
+                          style={{ backgroundColor: preset.bg, borderColor: preset.text }}
+                          aria-label={`preset ${preset.bg}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             )}
 
             <Button type="submit" className="w-full" disabled={isPending}>

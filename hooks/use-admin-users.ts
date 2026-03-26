@@ -5,10 +5,11 @@ import { toast } from "sonner";
 import { userService } from "@/services/user-service";
 import type { UpdateUserInput } from "@/types/crm";
 
-export function useAdminUsers(role?: string) {
+export function useAdminUsers(role?: string, enabled = true) {
   return useQuery({
     queryKey: ["admin", "users", role],
     queryFn: () => userService.getAdminUsers(role),
+    enabled,
   });
 }
 

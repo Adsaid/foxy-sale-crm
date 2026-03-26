@@ -36,6 +36,16 @@ export async function PATCH(
     include: {
       account: true,
       caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
   });
 
@@ -58,6 +68,12 @@ export async function PATCH(
       nextStepDate: updated.nextStepDate,
       notes: updated.notes,
       createdById: updated.createdById,
+      isTransferred: false,
+      transferredById: null,
+      transferredAt: null,
+      transferredFromAt: null,
+      transferredToAt: null,
+      transferredReason: null,
     },
   });
 

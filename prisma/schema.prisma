@@ -60,6 +60,8 @@ model User {
   password       String
   role           Role
   specialization Specialization?
+  badgeBgColor   String?
+  badgeTextColor String?
   technologyIds  String[]        @db.ObjectId
   technologies   Technology[]    @relation(fields: [technologyIds], references: [id])
   createdAt      DateTime        @default(now())
@@ -129,5 +131,11 @@ model CallSummary {
   nextStepDate     DateTime?
   notes            String?
   createdById      String      @db.ObjectId
+  isTransferred   Boolean     @default(false)
+  transferredById String?     @db.ObjectId
+  transferredAt   DateTime?
+  transferredFromAt DateTime?
+  transferredToAt   DateTime?
+  transferredReason String?
   createdAt        DateTime    @default(now())
 }

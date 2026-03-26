@@ -20,11 +20,34 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  if (body.ownerId !== undefined && user!.role === "ADMIN") {
+    const owner = await prisma.user.findUnique({
+      where: { id: body.ownerId },
+      select: { id: true, role: true },
+    });
+    if (!owner || owner.role !== "SALES") {
+      return NextResponse.json({ error: "Sales owner not found" }, { status: 404 });
+    }
+  }
+
   const updated = await prisma.account.update({
     where: { id },
     data: {
       ...(body.account !== undefined && { account: body.account }),
       ...(body.type !== undefined && { type: body.type }),
+      ...(user!.role === "ADMIN" && body.ownerId !== undefined && { ownerId: body.ownerId }),
+    },
+    include: {
+      owner: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
     },
   });
 

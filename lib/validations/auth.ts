@@ -15,6 +15,8 @@ export const registerSchema = z
     role: z.enum(["ADMIN", "DEV", "SALES"]),
     specialization: z.enum(["FRONTEND", "BACKEND", "FULLSTACK"]).optional(),
     technologyIds: z.array(z.string()).optional(),
+    badgeBgColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір фону").optional(),
+    badgeTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір тексту").optional(),
   })
   .superRefine((data, ctx) => {
     if (data.password !== data.confirmPassword) {
@@ -37,6 +39,22 @@ export const registerSchema = z
           code: "custom",
           message: "Оберіть хоча б одну технологію",
           path: ["technologyIds"],
+        });
+      }
+    }
+    if (data.role === "SALES") {
+      if (!data.badgeBgColor) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Оберіть колір фону бейджа",
+          path: ["badgeBgColor"],
+        });
+      }
+      if (!data.badgeTextColor) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Оберіть колір тексту бейджа",
+          path: ["badgeTextColor"],
         });
       }
     }
