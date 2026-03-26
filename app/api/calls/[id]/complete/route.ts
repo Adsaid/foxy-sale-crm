@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { createNotification } from "@/lib/notifications";
+import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
 
 export async function PATCH(
   request: Request,
@@ -76,6 +78,32 @@ export async function PATCH(
       transferredReason: null,
     },
   });
+
+  const devName = `${updated.caller?.firstName ?? ""} ${updated.caller?.lastName ?? ""}`.trim();
+  const startStr = formatNotificationDateTime(updated.callStartedAt);
+  const endStr = formatNotificationDateTime(now);
+  const typeLabel = callTypeLabelUk(updated.callType);
+  await createNotification({
+    userId: updated.createdById,
+    type: "CALL_COMPLETED",
+    title: `Дзвінок завершено — ${updated.company}`,
+    message: [
+      `${devName} завершив дзвінок.`,
+      `Компанія: ${updated.company}`,
+      `Тип: ${typeLabel}`,
+      `Інтерв'юер: ${updated.interviewerName}`,
+      `Початок: ${startStr}`,
+      `Завершено: ${endStr}`,
+    ].join("\n"),
+    payload: {
+      callId: updated.id,
+      company: updated.company,
+      callType: updated.callType,
+      callStartedAt: updated.callStartedAt.toISOString(),
+      callEndedAt: now.toISOString(),
+      interviewerName: updated.interviewerName,
+    },
+  }).catch((err) => console.error("[notification] CALL_COMPLETED", err));
 
   return NextResponse.json(updated);
 }

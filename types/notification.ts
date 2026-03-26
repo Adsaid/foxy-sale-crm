@@ -1,0 +1,28 @@
+export type NotificationType =
+  | "CALL_ASSIGNED"
+  | "CALL_RESCHEDULED"
+  | "CALL_COMPLETED"
+  | "ACCOUNT_REASSIGNED"
+  | "CALL_CANCELLED"
+  | "ACCOUNT_UPDATED_BY_ADMIN"
+  | "CALL_STARTING_SOON";
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  payload?: Record<string, unknown> | null;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+export interface NotificationsResponse {
+  notifications: Notification[];
+  serverNow: string;
+}
+
+export interface UnreadCountResponse {
+  count: number;
+}

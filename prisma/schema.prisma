@@ -139,3 +139,18 @@ model CallSummary {
   transferredReason String?
   createdAt        DateTime    @default(now())
 }
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  type      String
+  title     String
+  message   String
+  payload   Json?
+  dedupeKey String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([dedupeKey])
+}
