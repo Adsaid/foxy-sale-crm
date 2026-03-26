@@ -45,6 +45,7 @@ import { CallEditDialog } from "@/components/dialogs/call-edit-dialog";
 import { CallCompleteDialog } from "@/components/dialogs/call-complete-dialog";
 import { CallNextStageDialog } from "@/components/dialogs/call-next-stage-dialog";
 import { ManagerBadge } from "@/components/ui/manager-badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import {
   TableToolbar,
   TablePagination,
@@ -70,11 +71,6 @@ const statusLabels: Record<string, string> = {
   SCHEDULED: "Заплановано",
   COMPLETED: "Завершено",
   CANCELLED: "Скасовано",
-};
-
-const accountTypeLabels: Record<string, string> = {
-  UPWORK: "Upwork",
-  LINKEDIN: "LinkedIn",
 };
 
 function isToday(dateStr: string) {
@@ -432,9 +428,7 @@ export function CallsPage() {
                       {call.account ? (
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                           <span className="font-medium">{call.account.account}</span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {accountTypeLabels[call.account.type] ?? call.account.type}
-                          </Badge>
+                          <AccountTypeBadge type={call.account.type} />
                         </span>
                       ) : (
                         "—"

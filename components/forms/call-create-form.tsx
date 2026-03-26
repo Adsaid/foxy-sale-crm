@@ -7,6 +7,7 @@ import { callService } from "@/services/call-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import {
   Select,
   SelectContent,
@@ -150,7 +151,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
 
   return (
     <div className="grid gap-3 py-4">
-      <Popover open={accountOpen} onOpenChange={setAccountOpen}>
+      <Popover modal={false} open={accountOpen} onOpenChange={setAccountOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -179,9 +180,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
                     }}
                   >
                     <span className="font-medium">{a.account}</span>
-                    <Badge variant="outline" className="ml-auto">
-                      {a.type}
-                    </Badge>
+                    <AccountTypeBadge type={a.type} className="ml-auto" />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -285,7 +284,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
             ))}
           </div>
         </div>
-        <Popover open={devOpen} onOpenChange={setDevOpen}>
+        <Popover modal={false} open={devOpen} onOpenChange={setDevOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"

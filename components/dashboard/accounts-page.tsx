@@ -17,9 +17,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { ManagerBadge } from "@/components/ui/manager-badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
@@ -137,7 +137,7 @@ export function AccountsPage() {
                 <TableRow key={acc.id}>
                   <TableCell className="font-medium">{acc.account}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{acc.type}</Badge>
+                    <AccountTypeBadge type={acc.type} />
                   </TableCell>
                   {isAdmin && (
                     <TableCell>

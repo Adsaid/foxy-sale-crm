@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import type { Account, AccountType, AdminUser } from "@/types/crm";
 import { ManagerBadge } from "@/components/ui/manager-badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 
 interface AccountFormProps {
   initial?: Account | null;
@@ -52,12 +53,16 @@ export function AccountForm({
         onChange={(e) => setAccount(e.target.value)}
       />
       <Select value={type} onValueChange={(v) => setType(v as AccountType)}>
-        <SelectTrigger>
-          <SelectValue />
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Тип платформи" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="UPWORK">Upwork</SelectItem>
-          <SelectItem value="LINKEDIN">LinkedIn</SelectItem>
+          <SelectItem value="UPWORK">
+            <AccountTypeBadge type="UPWORK" />
+          </SelectItem>
+          <SelectItem value="LINKEDIN">
+            <AccountTypeBadge type="LINKEDIN" />
+          </SelectItem>
         </SelectContent>
       </Select>
       {isAdmin && (

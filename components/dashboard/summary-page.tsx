@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/data-table-controls";
 import { Trash2 } from "lucide-react";
 import { ManagerBadge } from "@/components/ui/manager-badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -87,6 +88,7 @@ export function SummaryPage() {
     searchableFields: [
       "company",
       "accountName",
+      "accountType",
       "callType",
       "interviewerName",
       "outcome",
@@ -170,7 +172,16 @@ export function SummaryPage() {
                   <TableCell>
                     <Badge variant="outline">{callTypeLabels[s.callType]}</Badge>
                   </TableCell>
-                  <TableCell>{s.accountName || "—"}</TableCell>
+                  <TableCell>
+                    {s.accountName ? (
+                      <span className="inline-flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">{s.accountName}</span>
+                        <AccountTypeBadge type={s.accountType} />
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
                   {isAdmin && (
                     <TableCell>
                       {s.createdByName && s.createdByName !== "—" ? (

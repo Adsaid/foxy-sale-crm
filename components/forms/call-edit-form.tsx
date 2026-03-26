@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -107,9 +108,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
             </span>
           )}
           {call.account && (
-            <span className="flex items-center gap-1.5">
-              <Clock className="size-3.5" />
-              {call.account.account} ({call.account.type})
+            <span className="flex flex-wrap items-center gap-1.5">
+              <Clock className="size-3.5 shrink-0" />
+              <span className="font-medium">{call.account.account}</span>
+              <AccountTypeBadge type={call.account.type} />
             </span>
           )}
         </div>
