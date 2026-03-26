@@ -58,6 +58,7 @@ export interface CreateCallInput {
 export interface UpdateCallInput {
   status?: CallStatus;
   outcome?: CallOutcome;
+  callStartedAt?: string;
   movingToNextStage?: boolean;
   nextStep?: CallStage | null;
   nextStepDate?: string | null;
@@ -67,6 +68,48 @@ export interface UpdateCallInput {
 
 export interface CompleteCallInput {
   devFeedback?: string;
+}
+
+export interface AdvanceCallStageInput {
+  callType: CallType;
+  callStartedAt: string;
+}
+
+export type InterviewerMatchSource = "active" | "history";
+
+export interface InterviewerDuplicateMatch {
+  source: InterviewerMatchSource;
+  id: string;
+  company: string;
+  interviewerName: string;
+  callType: CallType;
+  callStartedAt: string;
+  /** Ім'я DEV на дзвінку (прізвище та ім'я) */
+  devName: string;
+  status?: CallStatus;
+  outcome?: CallOutcome;
+}
+
+export interface CallSummary {
+  id: string;
+  callEventId?: string | null;
+  company: string;
+  accountName: string;
+  accountType: AccountType;
+  callType: CallType;
+  callerFirstName: string;
+  callerLastName: string;
+  interviewerName: string;
+  callStartedAt: string;
+  callEndedAt?: string | null;
+  outcome: CallOutcome;
+  devFeedback?: string | null;
+  movingToNextStage: boolean;
+  nextStep?: CallStage | null;
+  nextStepDate?: string | null;
+  notes?: string | null;
+  createdById: string;
+  createdAt: string;
 }
 
 export interface DevUser {

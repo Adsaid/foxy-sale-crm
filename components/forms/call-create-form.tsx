@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useDevs } from "@/hooks/use-devs";
+import { callService } from "@/services/call-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +28,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { ChevronsUpDown } from "lucide-react";
-import type { CallType, CreateCallInput } from "@/types/crm";
+import { ChevronsUpDown, AlertTriangle } from "lucide-react";
+import type { CallType, CreateCallInput, InterviewerDuplicateMatch } from "@/types/crm";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -36,6 +37,18 @@ const callTypeLabels: Record<string, string> = {
   CLIENT: "Client",
   PM: "PM",
   CLIENT_TECH: "Client Tech",
+};
+
+const statusLabels: Record<string, string> = {
+  SCHEDULED: "Заплановано",
+  COMPLETED: "Завершено",
+  CANCELLED: "Скасовано",
+};
+
+const outcomeLabels: Record<string, string> = {
+  SUCCESS: "Успіх",
+  UNSUCCESSFUL: "Неуспіх",
+  PENDING: "Очікує",
 };
 
 const specLabels: Record<string, string> = {
@@ -47,6 +60,16 @@ const specLabels: Record<string, string> = {
 interface CallCreateFormProps {
   isPending: boolean;
   onSubmit: (data: CreateCallInput) => void;
+}
+
+function formatCallWhen(iso: string) {
+  return new Date(iso).toLocaleString("uk-UA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
@@ -66,6 +89,11 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
   const [devOpen, setDevOpen] = useState(false);
   const [specFilter, setSpecFilter] = useState<string>("");
 
+  const [duplicateWarning, setDuplicateWarning] = useState<InterviewerDuplicateMatch[] | null>(
+    null
+  );
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
   const selectedAccount = accounts?.find((a) => a.id === form.accountId);
   const selectedDev = devs?.find((d) => d.id === form.callerId);
 
@@ -77,13 +105,51 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
   const isValid =
     form.accountId &&
     form.company &&
-    form.interviewerName &&
+    form.interviewerName.trim() &&
     form.callStartedAt &&
     form.callerId;
 
+  function resetDuplicateState() {
+    setDuplicateWarning(null);
+  }
+
+  function onInterviewerChange(value: string) {
+    setForm((f) => ({ ...f, interviewerName: value }));
+    resetDuplicateState();
+  }
+
+  async function handleCreateClick() {
+    if (!isValid || isPending) return;
+
+    if (duplicateWarning === null) {
+      setCheckingDuplicates(true);
+      try {
+        const matches = await callService.checkInterviewerDuplicates(form.interviewerName);
+        if (matches.length > 0) {
+          setDuplicateWarning(matches);
+          setCheckingDuplicates(false);
+          return;
+        }
+      } catch {
+        setCheckingDuplicates(false);
+        return;
+      }
+      setCheckingDuplicates(false);
+    } else if (duplicateWarning.length > 0) {
+      return;
+    }
+
+    onSubmit(form);
+    resetDuplicateState();
+  }
+
+  function handleForceCreate() {
+    onSubmit(form);
+    resetDuplicateState();
+  }
+
   return (
     <div className="grid gap-3 py-4">
-      {/* Account — searchable combobox */}
       <Popover open={accountOpen} onOpenChange={setAccountOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -132,8 +198,46 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
       <Input
         placeholder="Ім'я інтерв'юера"
         value={form.interviewerName}
-        onChange={(e) => setForm((f) => ({ ...f, interviewerName: e.target.value }))}
+        onChange={(e) => onInterviewerChange(e.target.value)}
       />
+
+      {duplicateWarning && duplicateWarning.length > 0 && (
+        <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
+          <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
+            <AlertTriangle className="size-4 shrink-0 text-muted-foreground" />
+            Знайдено дзвінки з таким самим іменем інтерв&apos;юера
+          </div>
+          <ul className="max-h-40 space-y-2 overflow-y-auto text-muted-foreground">
+            {duplicateWarning.map((m) => (
+              <li key={`${m.source}-${m.id}`} className="rounded-md border border-border bg-background px-2 py-1.5">
+                <div className="font-medium text-foreground">{m.company}</div>
+                <div className="text-xs">
+                  {formatCallWhen(m.callStartedAt)} · {callTypeLabels[m.callType]}
+                  {m.devName ? <> · DEV: {m.devName}</> : null}
+                  {m.source === "active" && m.status && (
+                    <> · {statusLabels[m.status] ?? m.status}</>
+                  )}
+                  {m.source === "history" && m.outcome && (
+                    <> · {outcomeLabels[m.outcome] ?? m.outcome}</>
+                  )}
+                  <Badge variant="outline" className="ml-1.5 text-[10px]">
+                    {m.source === "active" ? "У розкладі" : "Історія"}
+                  </Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Button
+            type="button"
+            variant="default"
+            className="mt-2 w-full"
+            onClick={handleForceCreate}
+            disabled={isPending}
+          >
+            Все одно створити
+          </Button>
+        </div>
+      )}
 
       <Select
         value={form.callType}
@@ -149,7 +253,6 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
         </SelectContent>
       </Select>
 
-      {/* Date — ShadCN Calendar + time */}
       <div>
         <label className="mb-1 block text-xs text-muted-foreground">Дата та час дзвінка</label>
         <DateTimePicker
@@ -159,7 +262,6 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
         />
       </div>
 
-      {/* DEV — searchable combobox with filters */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <label className="text-xs text-muted-foreground">DEV (який вийде на дзвінок)</label>
@@ -241,9 +343,14 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
         </Popover>
       </div>
 
-      <Button onClick={() => onSubmit(form)} disabled={!isValid || isPending}>
-        Створити
-      </Button>
+      {(!duplicateWarning || duplicateWarning.length === 0) && (
+        <Button
+          onClick={handleCreateClick}
+          disabled={!isValid || isPending || checkingDuplicates}
+        >
+          {checkingDuplicates ? "Перевірка..." : "Створити"}
+        </Button>
+      )}
     </div>
   );
 }

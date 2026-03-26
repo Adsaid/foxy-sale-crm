@@ -39,5 +39,27 @@ export async function PATCH(
     },
   });
 
+  await prisma.callSummary.create({
+    data: {
+      callEventId: updated.id,
+      company: updated.company,
+      accountName: updated.account?.account ?? "",
+      accountType: updated.account?.type ?? "UPWORK",
+      callType: updated.callType,
+      callerFirstName: updated.caller?.firstName ?? "",
+      callerLastName: updated.caller?.lastName ?? "",
+      interviewerName: updated.interviewerName,
+      callStartedAt: updated.callStartedAt,
+      callEndedAt: now,
+      outcome: updated.outcome,
+      devFeedback: body.devFeedback || null,
+      movingToNextStage: updated.movingToNextStage,
+      nextStep: updated.nextStep,
+      nextStepDate: updated.nextStepDate,
+      notes: updated.notes,
+      createdById: updated.createdById,
+    },
+  });
+
   return NextResponse.json(updated);
 }

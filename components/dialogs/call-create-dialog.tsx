@@ -28,7 +28,9 @@ export function CallCreateDialog({
         <DialogHeader>
           <DialogTitle>Новий дзвінок</DialogTitle>
         </DialogHeader>
-        <CallCreateForm isPending={isPending} onSubmit={onSubmit} />
+        {open ? (
+          <CallCreateForm isPending={isPending} onSubmit={onSubmit} />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

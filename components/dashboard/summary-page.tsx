@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
-import { useCalls } from "@/hooks/use-calls";
+import { useSummaries } from "@/hooks/use-summaries";
 import { useTable } from "@/hooks/use-table";
 import {
   Table,
@@ -42,15 +41,11 @@ function formatDuration(startedAt: string, endedAt: string | null | undefined) {
 }
 
 export function SummaryPage() {
-  const { data: calls, isLoading } = useCalls();
-  const completedCalls = useMemo(
-    () => calls?.filter((c) => c.status === "COMPLETED") ?? [],
-    [calls]
-  );
+  const { data: summaries, isLoading } = useSummaries();
 
   const table = useTable({
-    data: completedCalls,
-    searchableFields: ["company", "callType", "outcome", "devFeedback", "notes"],
+    data: summaries,
+    searchableFields: ["company", "accountName", "callType", "outcome", "devFeedback", "callerFirstName", "callerLastName", "notes"],
     defaultSort: { column: "callStartedAt", direction: "desc" },
   });
 
@@ -69,7 +64,7 @@ export function SummaryPage() {
           <TableHeader>
             <TableRow>
               <SortableHeader column="company" label="Компанія" sort={table.sort} onSort={table.toggleSort} />
-              <TableHead>Акаунт</TableHead>
+              <SortableHeader column="accountName" label="Акаунт" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
               <TableHead>DEV</TableHead>
               <SortableHeader column="callStartedAt" label="Тривалість" sort={table.sort} onSort={table.toggleSort} />
@@ -92,39 +87,37 @@ export function SummaryPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              table.rows.map((call) => (
-                <TableRow key={call.id}>
-                  <TableCell className="font-medium">{call.company}</TableCell>
-                  <TableCell>{call.account?.account ?? "—"}</TableCell>
+              table.rows.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium">{s.company}</TableCell>
+                  <TableCell>{s.accountName || "—"}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
+                    <Badge variant="outline">{callTypeLabels[s.callType]}</Badge>
                   </TableCell>
                   <TableCell>
-                    {call.caller
-                      ? `${call.caller.firstName} ${call.caller.lastName}`
-                      : "—"}
+                    {s.callerFirstName} {s.callerLastName}
                   </TableCell>
                   <TableCell>
-                    {formatDuration(call.callStartedAt, call.callEndedAt)}
+                    {formatDuration(s.callStartedAt, s.callEndedAt)}
                   </TableCell>
                   <TableCell>
                     <Badge
                       variant={
-                        call.outcome === "SUCCESS"
+                        s.outcome === "SUCCESS"
                           ? "default"
-                          : call.outcome === "UNSUCCESSFUL"
+                          : s.outcome === "UNSUCCESSFUL"
                             ? "destructive"
                             : "outline"
                       }
                     >
-                      {outcomeLabels[call.outcome]}
+                      {outcomeLabels[s.outcome]}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {call.nextStep ? callTypeLabels[call.nextStep] : "—"}
+                    {s.nextStep ? callTypeLabels[s.nextStep] : "—"}
                   </TableCell>
                   <TableCell className="max-w-48 truncate">
-                    {call.devFeedback || "—"}
+                    {s.devFeedback || "—"}
                   </TableCell>
                 </TableRow>
               ))

@@ -109,3 +109,25 @@ model CallEvent {
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
 }
+
+model CallSummary {
+  id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  callEventId      String?     @unique @db.ObjectId
+  company          String
+  accountName      String
+  accountType      AccountType
+  callType         CallType
+  callerFirstName  String
+  callerLastName   String
+  interviewerName  String
+  callStartedAt    DateTime
+  callEndedAt      DateTime?
+  outcome          CallOutcome
+  devFeedback      String?
+  movingToNextStage Boolean    @default(false)
+  nextStep         CallStage?
+  nextStepDate     DateTime?
+  notes            String?
+  createdById      String      @db.ObjectId
+  createdAt        DateTime    @default(now())
+}

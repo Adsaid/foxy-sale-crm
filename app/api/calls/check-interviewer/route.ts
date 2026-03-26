@@ -1,0 +1,98 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getApiUser } from "@/lib/api-auth";
+import { normalizeInterviewerName } from "@/lib/interviewer-name";
+import type { CallType, CallStatus, CallOutcome } from "@prisma/client";
+
+export async function GET(request: Request) {
+  const { error, user } = await getApiUser(["SALES"]);
+  if (error) return error;
+
+  const { searchParams } = new URL(request.url);
+  const rawName = searchParams.get("name") ?? "";
+  const target = normalizeInterviewerName(rawName);
+
+  if (!target) {
+    return NextResponse.json({ matches: [] });
+  }
+
+  const [events, summaries] = await Promise.all([
+    prisma.callEvent.findMany({
+      where: { createdById: user!.id },
+      select: {
+        id: true,
+        company: true,
+        interviewerName: true,
+        callType: true,
+        callStartedAt: true,
+        status: true,
+        outcome: true,
+        caller: { select: { firstName: true, lastName: true } },
+      },
+    }),
+    prisma.callSummary.findMany({
+      where: { createdById: user!.id },
+      select: {
+        id: true,
+        company: true,
+        interviewerName: true,
+        callType: true,
+        callStartedAt: true,
+        outcome: true,
+        callerFirstName: true,
+        callerLastName: true,
+      },
+    }),
+  ]);
+
+  type Match = {
+    source: "active" | "history";
+    id: string;
+    company: string;
+    interviewerName: string;
+    callType: CallType;
+    callStartedAt: string;
+    devName: string;
+    status?: CallStatus;
+    outcome?: CallOutcome;
+  };
+
+  const matches: Match[] = [];
+
+  for (const e of events) {
+    if (normalizeInterviewerName(e.interviewerName) !== target) continue;
+    const devName = `${e.caller.firstName} ${e.caller.lastName}`.trim();
+    matches.push({
+      source: "active",
+      id: e.id,
+      company: e.company,
+      interviewerName: e.interviewerName,
+      callType: e.callType,
+      callStartedAt: e.callStartedAt.toISOString(),
+      devName,
+      status: e.status,
+      outcome: e.outcome,
+    });
+  }
+
+  for (const s of summaries) {
+    if (normalizeInterviewerName(s.interviewerName) !== target) continue;
+    const devName = `${s.callerFirstName} ${s.callerLastName}`.trim();
+    matches.push({
+      source: "history",
+      id: s.id,
+      company: s.company,
+      interviewerName: s.interviewerName,
+      callType: s.callType,
+      callStartedAt: s.callStartedAt.toISOString(),
+      devName,
+      outcome: s.outcome,
+    });
+  }
+
+  matches.sort(
+    (a, b) => new Date(b.callStartedAt).getTime() - new Date(a.callStartedAt).getTime()
+  );
+
+  return NextResponse.json({ matches });
+}

@@ -3,12 +3,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { callService } from "@/services/call-service";
-import type { CreateCallInput, UpdateCallInput, CompleteCallInput } from "@/types/crm";
+import type { CreateCallInput, UpdateCallInput, CompleteCallInput, AdvanceCallStageInput } from "@/types/crm";
 
 export function useCalls() {
   return useQuery({
     queryKey: ["calls"],
-    queryFn: callService.getAll,
+    queryFn: () => callService.getAll(),
   });
 }
 
@@ -33,9 +33,40 @@ export function useUpdateCall() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["calls"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["summaries"] });
       toast.success("Дзвінок оновлено");
     },
     onError: () => toast.error("Помилка оновлення дзвінка"),
+  });
+}
+
+export function useAdvanceCallStage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AdvanceCallStageInput }) =>
+      callService.advanceToNextStage(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["calls"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["summaries"] });
+      toast.success("Створено дзвінок наступного етапу");
+    },
+    onError: (err: Error & { response?: { data?: { error?: string } } }) => {
+      toast.error(err.response?.data?.error ?? "Помилка переходу на наступний етап");
+    },
+  });
+}
+
+export function useDeleteCall() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => callService.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["calls"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      toast.success("Дзвінок видалено");
+    },
+    onError: () => toast.error("Помилка видалення дзвінка"),
   });
 }
 
@@ -48,6 +79,7 @@ export function useCompleteCall() {
       qc.invalidateQueries({ queryKey: ["calls"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       toast.success("Дзвінок завершено");
+      qc.invalidateQueries({ queryKey: ["summaries"] });
     },
     onError: (err: Error & { response?: { data?: { error?: string } } }) => {
       toast.error(err.response?.data?.error ?? "Помилка завершення дзвінка");
