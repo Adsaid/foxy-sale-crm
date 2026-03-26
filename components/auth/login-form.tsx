@@ -23,6 +23,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
 
 export function LoginForm() {
   const { mutate: login, isPending } = useLogin();
@@ -34,7 +35,8 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader>
+      <CardHeader className="text-center">
+        <AuthFoxLogo />
         <CardTitle className="text-2xl">Вхід</CardTitle>
         <CardDescription>
           Увійдіть у ваш акаунт Foxy Sale CRM

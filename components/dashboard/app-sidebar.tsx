@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -35,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FOX_LOGO_SRC } from "@/components/auth/auth-fox-logo";
 
 interface NavItem {
   title: string;
@@ -76,8 +78,15 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <span className="text-sm font-bold">FS</span>
+                <div className="relative flex size-9 shrink-0 overflow-hidden rounded-lg bg-muted/40">
+                  <Image
+                    src={FOX_LOGO_SRC}
+                    alt=""
+                    width={36}
+                    height={36}
+                    className="size-full object-contain object-center"
+                    priority
+                  />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">Foxy Sale</span>

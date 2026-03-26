@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TechnologyMultiSelect } from "./technology-multi-select";
+import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
 
 export function RegisterForm() {
   const { mutate: register, isPending } = useRegister();
@@ -53,7 +54,8 @@ export function RegisterForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader>
+      <CardHeader className="text-center">
+        <AuthFoxLogo />
         <CardTitle className="text-2xl">Реєстрація</CardTitle>
         <CardDescription>
           Створіть новий акаунт у Foxy Sale CRM
