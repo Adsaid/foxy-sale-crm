@@ -39,19 +39,30 @@ import {
   Clock,
   CalendarDays,
   StepForward,
+  Video,
+  Banknote,
 } from "lucide-react";
 import { CallCreateDialog } from "@/components/dialogs/call-create-dialog";
 import { CallEditDialog } from "@/components/dialogs/call-edit-dialog";
 import { CallCompleteDialog } from "@/components/dialogs/call-complete-dialog";
 import { CallNextStageDialog } from "@/components/dialogs/call-next-stage-dialog";
+import { CallDetailSheet } from "@/components/sheets/call-detail-sheet";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import {
   TableToolbar,
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
 import type { CallEvent } from "@/types/crm";
+import { cn } from "@/lib/utils";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -113,6 +124,15 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+/** Мінімальна «цільова» ширина картки; фактична = min(контейнер каруселі, це значення) — скільки влізе в ряд, стільки й видно. */
+const TODAY_CALLS_SLIDE_CLASS = "basis-[min(100%,32rem)]";
+
+/** На мобільних мінімальна висота слайдів (без стрибків стрілок між картками). */
+const TODAY_CALLS_CAROUSEL_ITEM_CLASS = cn(
+  TODAY_CALLS_SLIDE_CLASS,
+  "flex max-md:min-h-[19.6rem]"
+);
+
 interface TodayCallCardProps {
   call: CallEvent;
   isSalesLike: boolean;
@@ -121,6 +141,10 @@ interface TodayCallCardProps {
   onEdit: (call: CallEvent) => void;
   onComplete: (id: string) => void;
   canComplete: boolean;
+  /** Розтягнути картку по висоті батька (карусель з min-height). */
+  fillHeight?: boolean;
+  /** Клік по картці (крім кнопок і зовнішніх посилань) — наприклад відкрити sheet з деталями. */
+  onOpenDetails?: () => void;
 }
 
 function TodayCallCard({
@@ -131,6 +155,8 @@ function TodayCallCard({
   onEdit,
   onComplete,
   canComplete,
+  fillHeight = false,
+  onOpenDetails,
 }: TodayCallCardProps) {
   const timeUntil = getTimeUntil(call.callStartedAt, nowMs);
   const isPast = new Date(call.callStartedAt) <= new Date();
@@ -140,72 +166,185 @@ function TodayCallCard({
   const accentBg = call.createdBy?.badgeBgColor ?? "#EEF2FF";
   const accentText = call.createdBy?.badgeTextColor ?? "#3730A3";
   const cardStyle =
-    !isCompleted && showCreatedBy
+    !isCompleted && !isCancelled && call.createdBy && showCreatedBy
       ? {
           backgroundColor: hexToRgba(accentBg, 0.4) ?? accentBg,
           borderColor: hexToRgba(accentText, 0.7) ?? accentText,
         }
       : undefined;
 
+  const linkHref = call.callLink?.trim();
+  const showSalary =
+    call.salaryFrom != null || call.salaryTo != null;
+  const showMetaBlock = !!(linkHref || showSalary);
+
+  const participantLabelClass =
+    "text-[10px] font-medium uppercase tracking-wide text-muted-foreground";
+
   return (
     <div
-      className={`relative rounded-xl border p-4 space-y-2 ${
-        isCompleted
-          ? "opacity-50 bg-muted/30"
-          : isCancelled
-            ? "opacity-30"
-            : ""
-      }`}
+      role={onOpenDetails ? "button" : undefined}
+      tabIndex={onOpenDetails ? 0 : undefined}
+      aria-label={onOpenDetails ? `Деталі дзвінка: ${call.company}` : undefined}
+      onClick={onOpenDetails ? () => onOpenDetails() : undefined}
+      onKeyDown={
+        onOpenDetails
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenDetails();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "rounded-xl border p-3",
+        onOpenDetails && "cursor-pointer transition-[box-shadow,transform] hover:bg-muted/20 hover:shadow-sm active:scale-[0.99]",
+        fillHeight && "flex h-full min-h-0 flex-col",
+        isCompleted && "opacity-50 bg-muted/30",
+        isCancelled && "opacity-30"
+      )}
       style={cardStyle}
     >
-      <div className="absolute top-3 right-3">
-        {isSalesLike && isActive && (
-          <Button variant="ghost" size="icon-sm" onClick={() => onEdit(call)}>
-            <Pencil className="size-4" />
-          </Button>
+      <div
+        className={cn(
+          "flex flex-col gap-2.5",
+          fillHeight && "min-h-0 flex-1"
         )}
-        {!isSalesLike && canComplete && (
-          <Button variant="ghost" size="icon-sm" onClick={() => onComplete(call.id)}>
-            <CheckCircle className="size-4" />
-          </Button>
-        )}
-      </div>
-      {/* Row 1: time + countdown + action */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Clock className="size-4 shrink-0 text-muted-foreground" />
-        <span className="text-xl font-bold tabular-nums">{formatTime(call.callStartedAt)}</span>
-        {isActive && timeUntil && (
-          <span className="inline-flex min-w-24 sm:min-w-28 justify-center rounded-md bg-primary/15 px-2 py-1 text-sm font-semibold tabular-nums text-primary">
-            {timeUntil}
-          </span>
-        )}
-        {isActive && isPast && !call.callEndedAt && (
-          <span className="rounded-md bg-orange-100 px-2.5 py-1 text-sm font-semibold text-orange-600 dark:bg-orange-900/40 dark:text-orange-400">
-            Йде зараз
-          </span>
-        )}
-        {isCompleted && (
-          <Badge variant="secondary">Завершено</Badge>
-        )}
-        {showCreatedBy && call.createdBy && (
-          <ManagerBadge
-            name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
-            bgColor={call.createdBy.badgeBgColor}
-            textColor={call.createdBy.badgeTextColor}
-          />
-        )}
-      </div>
-      {/* Row 2: company + details */}
-      <div className="flex items-start justify-between gap-3 pl-6">
-        <div className="min-w-0 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <p className="text-base font-semibold truncate">{call.company}</p>
-            <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1">
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-muted/50 px-2 py-0.5 ring-1 ring-border/40">
+              <Clock className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="text-lg font-bold tabular-nums leading-none tracking-tight">
+                {formatTime(call.callStartedAt)}
+              </span>
+            </span>
+            {isActive && timeUntil && (
+              <span className="inline-flex min-w-[6rem] justify-center rounded-md bg-primary/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary ring-1 ring-primary/15">
+                {timeUntil}
+              </span>
+            )}
+            {isActive && isPast && !call.callEndedAt && (
+              <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-orange-200/80 dark:bg-orange-950/50 dark:text-orange-300 dark:ring-orange-900/50">
+                Йде зараз
+              </span>
+            )}
+            {isCompleted && (
+              <Badge variant="secondary" className="h-6 px-2 text-xs font-medium">
+                Завершено
+              </Badge>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {call.interviewerName}
-            {isSalesLike && call.caller && ` · ${call.caller.firstName} ${call.caller.lastName}`}
-          </p>
+          <div className="flex shrink-0 items-center">
+            {isSalesLike && isActive && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Редагувати"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(call);
+                }}
+              >
+                <Pencil className="size-4" />
+              </Button>
+            )}
+            {!isSalesLike && canComplete && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Завершити"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComplete(call.id);
+                }}
+              >
+                <CheckCircle className="size-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-stretch sm:gap-x-0">
+          <div className="min-w-0 space-y-1.5 sm:col-span-4 sm:pr-2">
+            <h3 className="font-heading w-full min-w-0 break-words text-base font-semibold leading-snug tracking-tight text-foreground [overflow-wrap:anywhere]">
+              {call.company}
+            </h3>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1.5">
+              <Badge variant="outline" className="h-6 w-fit max-w-full shrink-0 px-2 text-xs font-medium">
+                {callTypeLabels[call.callType]}
+              </Badge>
+              {showCreatedBy && call.createdBy && (
+                <ManagerBadge
+                  name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
+                  bgColor={call.createdBy.badgeBgColor}
+                  textColor={call.createdBy.badgeTextColor}
+                  className="h-auto min-h-6 max-w-full min-w-0 shrink py-0.5 text-xs leading-tight whitespace-normal sm:text-sm"
+                />
+              )}
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "min-w-0 border-t border-border/60 pt-3 sm:border-t-0 sm:border-l sm:border-border/60 sm:pt-0 sm:pl-5",
+              showMetaBlock ? "sm:col-span-4" : "sm:col-span-8"
+            )}
+          >
+            <div className="flex flex-col gap-2">
+              <div className="min-w-0 space-y-0.5">
+                <p className={participantLabelClass}>Інтерв&apos;юер</p>
+                <p className="text-sm font-medium leading-snug text-foreground">{call.interviewerName}</p>
+              </div>
+              {isSalesLike && call.caller && (
+                <div className="min-w-0 space-y-0.5">
+                  <p className={participantLabelClass}>DEV</p>
+                  <p className="text-sm font-medium leading-snug text-foreground">
+                    {call.caller.firstName} {call.caller.lastName}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showMetaBlock && (
+            <div
+              className={cn(
+                "flex flex-col justify-center gap-2.5 border-t border-border/60 pt-3 text-sm sm:col-span-4",
+                "sm:border-t-0 sm:border-l sm:border-border/60 sm:pt-0 sm:pl-5"
+              )}
+            >
+              {linkHref && (
+                <a
+                  href={linkHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 font-semibold text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Video className="size-4" />
+                  </span>
+                  Відкрити дзвінок
+                </a>
+              )}
+              {showSalary && (
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                    <Banknote className="size-4 opacity-80" />
+                  </span>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-[11px] font-medium leading-none text-muted-foreground">Зарплата ($)</p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-foreground">
+                      {call.salaryFrom != null ? call.salaryFrom : "—"}
+                      {call.salaryTo != null ? ` – ${call.salaryTo}` : ""}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -254,6 +393,7 @@ export function CallsPage() {
   const [completeId, setCompleteId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [nextStageCall, setNextStageCall] = useState<CallEvent | null>(null);
+  const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -338,29 +478,59 @@ export function CallsPage() {
 
       {/* Today's calls */}
       {todayCalls.length > 0 && (
-        <div className="space-y-3">
+        <Carousel
+          opts={{ align: "start", loop: false }}
+          className="w-full"
+        >
           <div className="flex items-center gap-2">
-            <CalendarDays className="size-4 text-primary" />
+            <CalendarDays className="size-4 shrink-0 text-primary" />
             <h3 className="text-sm font-semibold">
               Дзвінки на сьогодні
-              <span className="ml-1.5 text-muted-foreground font-normal">({todayCalls.length})</span>
+              <span className="ml-1.5 text-muted-foreground font-normal">
+                ({todayCalls.length})
+              </span>
             </h3>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {todayCalls.map((call) => (
-              <TodayCallCard
-                key={call.id}
-                call={call}
-                isSalesLike={isSalesLike}
-                showCreatedBy={showCreatedByColumn}
-                nowMs={nowMs}
-                onEdit={setEditCall}
-                onComplete={setCompleteId}
-                canComplete={canComplete(call.callStartedAt, call.callEndedAt)}
+          <div className="mt-3 flex items-center gap-3 sm:gap-4">
+            {todayCalls.length > 1 && (
+              <CarouselPrevious
+                hideWhenDisabled
+                variant="outline"
+                size="icon-sm"
+                className="static z-10 shrink-0 translate-y-0 bg-background shadow-sm"
               />
-            ))}
+            )}
+            <div className="min-w-0 min-h-0 flex-1 max-md:pl-1 max-md:pr-3">
+              <CarouselContent>
+                {todayCalls.map((call) => (
+                  <CarouselItem key={call.id} className={TODAY_CALLS_CAROUSEL_ITEM_CLASS}>
+                    <div className="flex h-full w-full min-w-0 flex-col">
+                      <TodayCallCard
+                        fillHeight
+                        call={call}
+                        isSalesLike={isSalesLike}
+                        showCreatedBy={showCreatedByColumn || user?.role === "SALES"}
+                        nowMs={nowMs}
+                        onEdit={setEditCall}
+                        onComplete={setCompleteId}
+                        canComplete={canComplete(call.callStartedAt, call.callEndedAt)}
+                        onOpenDetails={() => setSheetCall(call)}
+                      />
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </div>
+            {todayCalls.length > 1 && (
+              <CarouselNext
+                hideWhenDisabled
+                variant="outline"
+                size="icon-sm"
+                className="static z-10 shrink-0 translate-y-0 bg-background shadow-sm"
+              />
+            )}
           </div>
-        </div>
+        </Carousel>
       )}
 
       {/* All calls table */}
@@ -418,7 +588,11 @@ export function CallsPage() {
                 </TableRow>
               ) : (
                 table.rows.map((call) => (
-                  <TableRow key={call.id}>
+                  <TableRow
+                    key={call.id}
+                    className="cursor-pointer"
+                    onClick={() => setSheetCall(call)}
+                  >
                     <TableCell className="font-medium">{call.company}</TableCell>
                     <TableCell>{call.interviewerName}</TableCell>
                     <TableCell>
@@ -482,7 +656,7 @@ export function CallsPage() {
                       {call.notes || "—"}
                     </TableCell>
                     {isSalesLike && (
-                      <TableCell className="text-center">
+                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                         {canAdvanceToNextStage(call) ? (
                           <Button
                             variant="outline"
@@ -499,7 +673,7 @@ export function CallsPage() {
                       </TableCell>
                     )}
                     <TableCell>
-                      <div className="flex gap-0.5">
+                      <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
                         {isSalesLike ? (
                           <>
                             <Button
@@ -573,6 +747,12 @@ export function CallsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CallDetailSheet
+        call={sheetCall}
+        open={!!sheetCall}
+        onOpenChange={(o) => !o && setSheetCall(null)}
+      />
     </div>
   );
 }

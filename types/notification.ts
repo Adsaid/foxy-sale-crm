@@ -5,7 +5,8 @@ export type NotificationType =
   | "ACCOUNT_REASSIGNED"
   | "CALL_CANCELLED"
   | "ACCOUNT_UPDATED_BY_ADMIN"
-  | "CALL_STARTING_SOON";
+  | "CALL_STARTING_SOON"
+  | "CALL_LINK_UPDATED";
 
 export interface Notification {
   id: string;

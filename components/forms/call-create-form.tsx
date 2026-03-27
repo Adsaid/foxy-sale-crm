@@ -6,6 +6,8 @@ import { useDevs } from "@/hooks/use-devs";
 import { callService } from "@/services/call-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import {
@@ -84,6 +86,10 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     callType: "HR",
     callStartedAt: "",
     callerId: "",
+    salaryFrom: 0,
+    salaryTo: undefined,
+    callLink: "",
+    description: "",
   });
 
   const [accountOpen, setAccountOpen] = useState(false);
@@ -108,7 +114,8 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     form.company &&
     form.interviewerName.trim() &&
     form.callStartedAt &&
-    form.callerId;
+    form.callerId &&
+    form.salaryFrom > 0;
 
   function resetDuplicateState() {
     setDuplicateWarning(null);
@@ -150,7 +157,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
   }
 
   return (
-    <div className="grid gap-3 py-4">
+    <div className="grid min-w-0 gap-3 py-4">
       <Popover modal={false} open={accountOpen} onOpenChange={setAccountOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -340,6 +347,48 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
             </Command>
           </PopoverContent>
         </Popover>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Зарплата ($)</Label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Від *"
+            min={0}
+            value={form.salaryFrom || ""}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, salaryFrom: Number(e.target.value) || 0 }))
+            }
+          />
+          <Input
+            type="number"
+            placeholder="До (опційно)"
+            min={0}
+            value={form.salaryTo ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setForm((f) => ({ ...f, salaryTo: v ? Number(v) : undefined }));
+            }}
+          />
+        </div>
+      </div>
+
+      <Input
+        placeholder="Посилання на дзвінок (Zoom / Meet)"
+        value={form.callLink ?? ""}
+        onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
+      />
+
+      <div className="min-w-0 space-y-2">
+        <Label>Опис</Label>
+        <Textarea
+          placeholder="Опис дзвінка..."
+          value={form.description ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          rows={3}
+          className="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
+        />
       </div>
 
       {(!duplicateWarning || duplicateWarning.length === 0) && (

@@ -1,7 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { Separator } from "@/components/ui/separator";
@@ -51,6 +53,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     callStartedAt: call.callStartedAt,
     expectedFeedbackDate: call.expectedFeedbackDate ?? "",
     notes: call.notes ?? "",
+    salaryFrom: call.salaryFrom ?? 0,
+    salaryTo: call.salaryTo as number | undefined,
+    callLink: call.callLink ?? "",
+    description: call.description ?? "",
   });
 
   const [markTransferred, setMarkTransferred] = useState(false);
@@ -82,6 +88,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       callStartedAt: form.callStartedAt,
       expectedFeedbackDate: form.expectedFeedbackDate || null,
       notes: form.notes || null,
+      salaryFrom: form.salaryFrom || undefined,
+      salaryTo: form.salaryTo || null,
+      callLink: form.callLink || null,
+      description: form.description || null,
       transferred: markTransferred || undefined,
       transferredReason: markTransferred
         ? transferredReason.trim() || null
@@ -249,6 +259,50 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
           placeholder="Додайте нотатки..."
           value={form.notes}
           onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Зарплата ($)</Label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Від"
+            min={0}
+            value={form.salaryFrom || ""}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, salaryFrom: Number(e.target.value) || 0 }))
+            }
+          />
+          <Input
+            type="number"
+            placeholder="До (опційно)"
+            min={0}
+            value={form.salaryTo ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setForm((f) => ({ ...f, salaryTo: v ? Number(v) : undefined }));
+            }}
+          />
+        </div>
+      </div>
+
+      <div>
+        <Label className="mb-1.5">Посилання на дзвінок</Label>
+        <Input
+          placeholder="https://..."
+          value={form.callLink}
+          onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
+        />
+      </div>
+
+      <div>
+        <Label className="mb-1.5">Опис</Label>
+        <Textarea
+          placeholder="Опис дзвінка..."
+          value={form.description}
+          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={3}
         />
       </div>

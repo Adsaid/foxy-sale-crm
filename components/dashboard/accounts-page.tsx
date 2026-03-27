@@ -23,6 +23,7 @@ import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
+import { AccountDetailSheet } from "@/components/sheets/account-detail-sheet";
 import {
   TableToolbar,
   TablePagination,
@@ -53,6 +54,7 @@ export function AccountsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
+  const [sheetAccount, setSheetAccount] = useState<Account | null>(null);
 
   function handleOpenCreate() {
     setEditing(null);
@@ -64,7 +66,7 @@ export function AccountsPage() {
     setDialogOpen(true);
   }
 
-  function handleSubmit(data: { account: string; type: AccountType; ownerId?: string }) {
+  function handleSubmit(data: { account: string; type: AccountType; profileLinks?: string[]; description?: string; ownerId?: string }) {
     if (editing) {
       updateMutation.mutate(
         { id: editing.id, data },
@@ -134,7 +136,11 @@ export function AccountsPage() {
               </TableRow>
             ) : (
               table.rows.map((acc) => (
-                <TableRow key={acc.id}>
+                <TableRow
+                  key={acc.id}
+                  className="cursor-pointer"
+                  onClick={() => setSheetAccount(acc)}
+                >
                   <TableCell className="font-medium">{acc.account}</TableCell>
                   <TableCell>
                     <AccountTypeBadge type={acc.type} />
@@ -156,7 +162,7 @@ export function AccountsPage() {
                     {new Date(acc.createdAt).toLocaleDateString("uk-UA")}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -188,6 +194,12 @@ export function AccountsPage() {
         totalItems={table.totalItems}
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
+      />
+
+      <AccountDetailSheet
+        account={sheetAccount}
+        open={!!sheetAccount}
+        onOpenChange={(o) => !o && setSheetAccount(null)}
       />
     </div>
   );

@@ -45,6 +45,12 @@ export async function PATCH(
     data: {
       ...(body.account !== undefined && { account: body.account }),
       ...(body.type !== undefined && { type: body.type }),
+      ...(body.profileLinks !== undefined && {
+        profileLinks: Array.isArray(body.profileLinks)
+          ? body.profileLinks.filter((l: string) => l.trim())
+          : [],
+      }),
+      ...(body.description !== undefined && { description: body.description || null }),
       ...(user!.role === "ADMIN" && body.ownerId !== undefined && { ownerId: body.ownerId }),
     },
     include: {

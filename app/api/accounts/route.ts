@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const body = await request.json();
-  const { account, type, ownerId } = body;
+  const { account, type, ownerId, profileLinks, description } = body;
 
   if (!account || !type) {
     return NextResponse.json({ error: "account and type are required" }, { status: 400 });
@@ -53,7 +53,13 @@ export async function POST(request: Request) {
   }
 
   const created = await prisma.account.create({
-    data: { account, type, ownerId: resolvedOwnerId },
+    data: {
+      account,
+      type,
+      ownerId: resolvedOwnerId,
+      profileLinks: Array.isArray(profileLinks) ? profileLinks.filter((l: string) => l.trim()) : [],
+      ...(description !== undefined && { description }),
+    },
     include: {
       owner: {
         select: {

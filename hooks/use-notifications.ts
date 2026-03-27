@@ -17,6 +17,7 @@ const toastConfig: Record<NotificationType, { variant: "info" | "success"; icon?
   CALL_CANCELLED: { variant: "info" },
   ACCOUNT_UPDATED_BY_ADMIN: { variant: "info" },
   CALL_STARTING_SOON: { variant: "info" },
+  CALL_LINK_UPDATED: { variant: "info" },
 };
 
 export function useUnreadCount() {

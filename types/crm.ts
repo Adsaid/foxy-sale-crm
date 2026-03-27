@@ -8,6 +8,8 @@ export interface Account {
   id: string;
   account: string;
   type: AccountType;
+  profileLinks: string[];
+  description?: string | null;
   ownerId: string;
   owner?: {
     id: string;
@@ -18,6 +20,17 @@ export interface Account {
     badgeTextColor?: string | null;
   };
   createdAt: string;
+}
+
+/** Дані з CallSummary, якщо дзвінок було перенесено (лише коли є підсумок). */
+export interface CallTransferInfo {
+  isTransferred: boolean;
+  transferredFromAt: string | null;
+  transferredToAt: string | null;
+  transferredReason: string | null;
+  transferredByName: string | null;
+  transferredByBadgeBgColor?: string | null;
+  transferredByBadgeTextColor?: string | null;
 }
 
 export interface CallEvent {
@@ -48,6 +61,12 @@ export interface CallEvent {
   nextStepDate?: string | null;
   expectedFeedbackDate?: string | null;
   notes?: string | null;
+  salaryFrom?: number | null;
+  salaryTo?: number | null;
+  callLink?: string | null;
+  description?: string | null;
+  /** Заповнюється в GET /api/calls/[id], якщо для дзвінка є CallSummary з переносом. */
+  transferInfo?: CallTransferInfo | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,12 +74,16 @@ export interface CallEvent {
 export interface CreateAccountInput {
   account: string;
   type: AccountType;
+  profileLinks?: string[];
+  description?: string;
   ownerId?: string;
 }
 
 export interface UpdateAccountInput {
   account?: string;
   type?: AccountType;
+  profileLinks?: string[];
+  description?: string | null;
   ownerId?: string;
 }
 
@@ -71,6 +94,10 @@ export interface CreateCallInput {
   callType: CallType;
   callStartedAt: string;
   callerId: string;
+  salaryFrom: number;
+  salaryTo?: number;
+  callLink?: string;
+  description?: string;
 }
 
 export interface UpdateCallInput {
@@ -82,6 +109,10 @@ export interface UpdateCallInput {
   nextStepDate?: string | null;
   expectedFeedbackDate?: string | null;
   notes?: string | null;
+  salaryFrom?: number;
+  salaryTo?: number | null;
+  callLink?: string | null;
+  description?: string | null;
   /** Mark call as rescheduled/transfered when editing datetime (used for CallSummary) */
   transferred?: boolean;
   transferredReason?: string | null;

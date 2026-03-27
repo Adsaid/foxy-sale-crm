@@ -11,6 +11,7 @@ import {
   Ban,
   Shield,
   Clock,
+  Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_CANCELLED: Ban,
   ACCOUNT_UPDATED_BY_ADMIN: Shield,
   CALL_STARTING_SOON: Clock,
+  CALL_LINK_UPDATED: Link2,
 };
 
 function formatRelativeTime(dateStr: string) {

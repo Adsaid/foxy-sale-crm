@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -12,7 +14,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Plus, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,7 +31,13 @@ interface AccountFormProps {
   isAdmin: boolean;
   salesUsers?: AdminUser[];
   isPending: boolean;
-  onSubmit: (data: { account: string; type: AccountType; ownerId?: string }) => void;
+  onSubmit: (data: {
+    account: string;
+    type: AccountType;
+    profileLinks?: string[];
+    description?: string;
+    ownerId?: string;
+  }) => void;
 }
 
 export function AccountForm({
@@ -41,6 +49,10 @@ export function AccountForm({
 }: AccountFormProps) {
   const [account, setAccount] = useState(initial?.account ?? "");
   const [type, setType] = useState<AccountType>(initial?.type ?? "UPWORK");
+  const [profileLinks, setProfileLinks] = useState<string[]>(
+    initial?.profileLinks?.length ? initial.profileLinks : [""]
+  );
+  const [description, setDescription] = useState(initial?.description ?? "");
   const [ownerId, setOwnerId] = useState(initial?.ownerId ?? "");
   const [ownerOpen, setOwnerOpen] = useState(false);
   const selectedOwner = salesUsers?.find((s) => s.id === ownerId);
@@ -65,6 +77,55 @@ export function AccountForm({
           </SelectItem>
         </SelectContent>
       </Select>
+
+      <div className="space-y-2">
+        <Label>Посилання на акаунт</Label>
+        {profileLinks.map((link, i) => (
+          <div key={i} className="flex gap-2">
+            <Input
+              placeholder="https://..."
+              value={link}
+              onChange={(e) => {
+                const next = [...profileLinks];
+                next[i] = e.target.value;
+                setProfileLinks(next);
+              }}
+            />
+            {profileLinks.length > 1 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0"
+                onClick={() => setProfileLinks(profileLinks.filter((_, j) => j !== i))}
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1"
+          onClick={() => setProfileLinks([...profileLinks, ""])}
+        >
+          <Plus className="size-3.5" />
+          Додати посилання
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Опис</Label>
+        <Textarea
+          placeholder="Опис акаунту..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+        />
+      </div>
+
       {isAdmin && (
         <Popover open={ownerOpen} onOpenChange={setOwnerOpen}>
           <PopoverTrigger asChild>
@@ -105,7 +166,15 @@ export function AccountForm({
         </Popover>
       )}
       <Button
-        onClick={() => onSubmit({ account, type, ownerId: isAdmin ? ownerId : undefined })}
+        onClick={() =>
+          onSubmit({
+            account,
+            type,
+            profileLinks: profileLinks.filter((l) => l.trim()),
+            description: description.trim() || undefined,
+            ownerId: isAdmin ? ownerId : undefined,
+          })
+        }
         disabled={!account || isPending || (isAdmin && !ownerId)}
       >
         {initial ? "Зберегти" : "Створити"}

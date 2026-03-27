@@ -14,6 +14,11 @@ export const callService = {
     return res.data;
   },
 
+  async getById(id: string): Promise<CallEvent> {
+    const res = await api.get<CallEvent>(`/api/calls/${id}`);
+    return res.data;
+  },
+
   async create(data: CreateCallInput): Promise<CallEvent> {
     const res = await api.post<CallEvent>("/api/calls", data);
     return res.data;

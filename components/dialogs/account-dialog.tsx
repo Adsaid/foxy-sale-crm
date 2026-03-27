@@ -16,7 +16,7 @@ interface AccountDialogProps {
   isAdmin: boolean;
   salesUsers?: AdminUser[];
   isPending: boolean;
-  onSubmit: (data: { account: string; type: AccountType; ownerId?: string }) => void;
+  onSubmit: (data: { account: string; type: AccountType; profileLinks?: string[]; description?: string; ownerId?: string }) => void;
 }
 
 export function AccountDialog({

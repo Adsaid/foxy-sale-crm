@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useSummaries, useDeleteSummary } from "@/hooks/use-summaries";
 import { useAuth } from "@/hooks/use-auth";
 import { useTable } from "@/hooks/use-table";
+import { callService } from "@/services/call-service";
 import {
   Table,
   TableBody,
@@ -14,12 +15,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +33,8 @@ import {
 import { Trash2 } from "lucide-react";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
+import { CallDetailSheet } from "@/components/sheets/call-detail-sheet";
+import type { CallEvent } from "@/types/crm";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -76,8 +73,23 @@ export function SummaryPage() {
   const isAdmin = user?.role === "ADMIN";
   const showTransfer = user?.role === "ADMIN" || user?.role === "SALES";
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [transferDialog, setTransferDialog] = useState<any | null>(null);
   const deleteMutation = useDeleteSummary();
+  const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
+  const [sheetLoading, setSheetLoading] = useState(false);
+
+  const handleRowClick = useCallback(async (callEventId: string | null | undefined) => {
+    if (!callEventId) return;
+    setSheetLoading(true);
+    setSheetCall(null);
+    try {
+      const call = await callService.getById(callEventId);
+      setSheetCall(call);
+    } catch {
+      setSheetLoading(false);
+    } finally {
+      setSheetLoading(false);
+    }
+  }, []);
 
   const { data: summaries, isLoading } = useSummaries();
 
@@ -143,7 +155,7 @@ export function SummaryPage() {
                   onSort={table.toggleSort}
                 />
               )}
-              {showTransfer && <TableHead>Перенесено</TableHead>}
+              {showTransfer && <TableHead>Дія</TableHead>}
               <SortableHeader column="callStartedAt" label="Тривалість" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
               <TableHead>Наступний етап</TableHead>
@@ -166,7 +178,11 @@ export function SummaryPage() {
               </TableRow>
             ) : (
               table.rows.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow
+                  key={s.id}
+                  className={s.callEventId ? "cursor-pointer" : ""}
+                  onClick={() => handleRowClick(s.callEventId)}
+                >
                   <TableCell className="font-medium">{s.company}</TableCell>
                   <TableCell>{s.interviewerName?.trim() || "—"}</TableCell>
                   <TableCell>
@@ -206,13 +222,9 @@ export function SummaryPage() {
                   {showTransfer && (
                     <TableCell>
                       {s.isTransferred ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setTransferDialog(s)}
-                        >
+                        <span className="text-sm font-bold text-destructive">
                           Перенесено
-                        </Button>
+                        </span>
                       ) : (
                         "—"
                       )}
@@ -241,7 +253,7 @@ export function SummaryPage() {
                     {s.devFeedback || "—"}
                   </TableCell>
                   {isAdmin && (
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="icon-sm"
@@ -284,56 +296,6 @@ export function SummaryPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={!!transferDialog} onOpenChange={(o) => !o && setTransferDialog(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Деталі переносу</DialogTitle>
-          </DialogHeader>
-          {transferDialog && (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Ким</p>
-                {transferDialog.transferredByName && transferDialog.transferredByName !== "—" ? (
-                  <ManagerBadge
-                    name={transferDialog.transferredByName}
-                    bgColor={transferDialog.transferredByBadgeBgColor}
-                    textColor={transferDialog.transferredByBadgeTextColor}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">—</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">З якої дати</p>
-                  <p className="text-sm font-medium">
-                    {transferDialog.transferredFromAt
-                      ? formatDateTime(transferDialog.transferredFromAt)
-                      : "—"}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">На яку дати</p>
-                  <p className="text-sm font-medium">
-                    {transferDialog.transferredToAt
-                      ? formatDateTime(transferDialog.transferredToAt)
-                      : "—"}
-                  </p>
-                </div>
-              </div>
-
-              {transferDialog.transferredReason ? (
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Причина (опційно)</p>
-                  <p className="text-sm whitespace-pre-wrap">{transferDialog.transferredReason}</p>
-                </div>
-              ) : null}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       <TablePagination
         page={table.page}
         totalPages={table.totalPages}
@@ -341,6 +303,18 @@ export function SummaryPage() {
         totalItems={table.totalItems}
         onPageChange={table.setPage}
         onPageSizeChange={table.setPageSize}
+      />
+
+      <CallDetailSheet
+        call={sheetCall}
+        open={sheetLoading || !!sheetCall}
+        onOpenChange={(o) => {
+          if (!o) {
+            setSheetCall(null);
+            setSheetLoading(false);
+          }
+        }}
+        isLoading={sheetLoading}
       />
     </div>
   );

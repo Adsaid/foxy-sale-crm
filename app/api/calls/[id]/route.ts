@@ -1,8 +1,105 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { isSalesLike } from "@/lib/roles";
 import { createNotification } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+
+const callInclude = {
+  account: true,
+  caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+  createdBy: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      badgeBgColor: true,
+      badgeTextColor: true,
+    },
+  },
+} as const;
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
+  if (error) return error;
+
+  const { id } = await params;
+  const call = await prisma.callEvent.findUnique({
+    where: { id },
+    include: callInclude,
+  });
+
+  if (!call) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const canAccess =
+    user!.role === "ADMIN" ||
+    (isSalesLike(user!.role) && call.createdById === user!.id) ||
+    call.callerId === user!.id;
+
+  if (!canAccess) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const summary = await prisma.callSummary.findUnique({
+    where: { callEventId: id },
+    select: {
+      isTransferred: true,
+      transferredFromAt: true,
+      transferredToAt: true,
+      transferredReason: true,
+      transferredById: true,
+    },
+  });
+
+  let transferInfo: {
+    isTransferred: boolean;
+    transferredFromAt: string | null;
+    transferredToAt: string | null;
+    transferredReason: string | null;
+    transferredByName: string | null;
+    transferredByBadgeBgColor: string | null;
+    transferredByBadgeTextColor: string | null;
+  } | null = null;
+
+  if (summary?.isTransferred) {
+    let transferredByName: string | null = null;
+    let transferredByBadgeBgColor: string | null = null;
+    let transferredByBadgeTextColor: string | null = null;
+    if (summary.transferredById) {
+      const by = await prisma.user.findUnique({
+        where: { id: summary.transferredById },
+        select: {
+          firstName: true,
+          lastName: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      });
+      if (by) {
+        transferredByName = `${by.firstName} ${by.lastName}`.trim();
+        transferredByBadgeBgColor = by.badgeBgColor ?? null;
+        transferredByBadgeTextColor = by.badgeTextColor ?? null;
+      }
+    }
+    transferInfo = {
+      isTransferred: true,
+      transferredFromAt: summary.transferredFromAt?.toISOString() ?? null,
+      transferredToAt: summary.transferredToAt?.toISOString() ?? null,
+      transferredReason: summary.transferredReason,
+      transferredByName,
+      transferredByBadgeBgColor,
+      transferredByBadgeTextColor,
+    };
+  }
+
+  return NextResponse.json({ ...call, transferInfo });
+}
 
 export async function PATCH(
   request: Request,
@@ -49,21 +146,12 @@ export async function PATCH(
       ...(body.nextStepDate !== undefined && { nextStepDate: body.nextStepDate ? new Date(body.nextStepDate) : null }),
       ...(body.expectedFeedbackDate !== undefined && { expectedFeedbackDate: body.expectedFeedbackDate ? new Date(body.expectedFeedbackDate) : null }),
       ...(body.notes !== undefined && { notes: body.notes }),
+      ...(body.salaryFrom !== undefined && { salaryFrom: body.salaryFrom }),
+      ...(body.salaryTo !== undefined && { salaryTo: body.salaryTo }),
+      ...(body.callLink !== undefined && { callLink: body.callLink || null }),
+      ...(body.description !== undefined && { description: body.description || null }),
     },
-    include: {
-      account: true,
-      caller: { select: { id: true, firstName: true, lastName: true, email: true } },
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          badgeBgColor: true,
-          badgeTextColor: true,
-        },
-      },
-    },
+    include: callInclude,
   });
 
   const shouldNotifyCancelled =
@@ -162,6 +250,35 @@ export async function PATCH(
         cancelledCallStartedAt: existing.callStartedAt.toISOString(),
       },
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
+  }
+
+  const linkChanged =
+    body.callLink !== undefined &&
+    existing.status === "SCHEDULED" &&
+    (existing.callLink ?? "") !== (body.callLink ?? "");
+
+  if (linkChanged) {
+    const salesName = `${updated.createdBy?.firstName ?? ""} ${updated.createdBy?.lastName ?? ""}`.trim();
+    const when = formatNotificationDateTime(updated.callStartedAt);
+    const typeLabel = callTypeLabelUk(updated.callType);
+    await createNotification({
+      userId: updated.callerId,
+      type: "CALL_LINK_UPDATED",
+      title: `Посилання оновлено — ${updated.company}`,
+      message: [
+        `${salesName} оновив посилання на дзвінок.`,
+        `Компанія: ${updated.company}`,
+        `Тип: ${typeLabel}`,
+        `Час: ${when}`,
+        `Нове посилання: ${updated.callLink ?? "—"}`,
+      ].join("\n"),
+      payload: {
+        callId: updated.id,
+        company: updated.company,
+        oldLink: existing.callLink,
+        newLink: updated.callLink,
+      },
+    }).catch((err) => console.error("[notification] CALL_LINK_UPDATED", err));
   }
 
   return NextResponse.json(updated);

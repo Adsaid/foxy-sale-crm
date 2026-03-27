@@ -42,10 +42,14 @@ export async function POST(request: Request) {
   if (error) return error;
 
   const body = await request.json();
-  const { accountId, company, interviewerName, callType, callStartedAt, callerId } = body;
+  const { accountId, company, interviewerName, callType, callStartedAt, callerId, salaryFrom, salaryTo, callLink, description } = body;
 
   if (!accountId || !company || !interviewerName || !callType || !callStartedAt || !callerId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
+
+  if (salaryFrom === undefined || salaryFrom === null || typeof salaryFrom !== "number") {
+    return NextResponse.json({ error: "salaryFrom is required" }, { status: 400 });
   }
 
   const account = await prisma.account.findUnique({ where: { id: accountId } });
@@ -67,6 +71,10 @@ export async function POST(request: Request) {
       callStartedAt: new Date(callStartedAt),
       callerId,
       createdById,
+      salaryFrom,
+      ...(salaryTo !== undefined && { salaryTo }),
+      ...(callLink !== undefined && { callLink }),
+      ...(description !== undefined && { description }),
     },
     include: {
       account: true,
