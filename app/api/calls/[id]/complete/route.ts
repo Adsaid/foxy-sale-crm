@@ -76,6 +76,7 @@ export async function PATCH(
       transferredFromAt: null,
       transferredToAt: null,
       transferredReason: null,
+      transferHistory: [],
     },
   });
 

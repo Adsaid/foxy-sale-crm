@@ -22,15 +22,28 @@ export interface Account {
   createdAt: string;
 }
 
+/** Один запис з історії переносів (для бічної панелі). */
+export interface CallTransferEntry {
+  transferredFromAt: string;
+  transferredToAt: string;
+  transferredReason: string | null;
+  transferredByName: string | null;
+  transferredByBadgeBgColor?: string | null;
+  transferredByBadgeTextColor?: string | null;
+}
+
 /** Дані з CallSummary, якщо дзвінок було перенесено (лише коли є підсумок). */
 export interface CallTransferInfo {
   isTransferred: boolean;
+  /** Останній перенос (дублює останній елемент transfers). */
   transferredFromAt: string | null;
   transferredToAt: string | null;
   transferredReason: string | null;
   transferredByName: string | null;
   transferredByBadgeBgColor?: string | null;
   transferredByBadgeTextColor?: string | null;
+  /** Усі переноси в хронологічному порядку. */
+  transfers: CallTransferEntry[];
 }
 
 export interface CallEvent {

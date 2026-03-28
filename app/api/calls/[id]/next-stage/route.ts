@@ -49,6 +49,9 @@ export async function POST(
       outcome: "PENDING",
       notes: existing.notes,
       expectedFeedbackDate: existing.expectedFeedbackDate,
+      salaryFrom: existing.salaryFrom,
+      salaryTo: existing.salaryTo,
+      description: existing.description,
     },
     include: {
       account: true,
@@ -69,6 +72,7 @@ export async function POST(
   await prisma.callSummary.updateMany({
     where: { callEventId: id },
     data: {
+      callEventId: newCall.id,
       movingToNextStage: true,
       nextStep: callType as CallStage,
       nextStepDate: new Date(callStartedAt),

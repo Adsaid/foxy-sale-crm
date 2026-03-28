@@ -14,6 +14,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Users, CalendarClock, Link2, FileText, StickyNote, MessageSquare } from "lucide-react";
 import type { CallEvent } from "@/types/crm";
 import { cn } from "@/lib/utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -190,6 +196,9 @@ export function CallDetailSheet({
               {call.transferInfo?.isTransferred ? (
                 <Badge variant="outline" className={badgeSheet}>
                   Перенесено
+                  {call.transferInfo.transfers.length > 1
+                    ? ` (${call.transferInfo.transfers.length})`
+                    : ""}
                 </Badge>
               ) : null}
             </div>
@@ -232,52 +241,6 @@ export function CallDetailSheet({
                   </span>
                 </DetailRow>
               )}
-            </Section>
-
-            <Section title="Час і умови" icon={CalendarClock}>
-              <DetailRow label="Дата та час">
-                {formatDateTime(call.callStartedAt)}
-              </DetailRow>
-
-              {call.transferInfo?.isTransferred && (
-                <>
-                  <DetailRow label="Перенесено">
-                    <Badge variant="secondary" className={badgeSheet}>
-                      Так
-                    </Badge>
-                  </DetailRow>
-                  {call.transferInfo.transferredFromAt && (
-                    <DetailRow label="Було заплановано на">
-                      {formatDateTime(call.transferInfo.transferredFromAt)}
-                    </DetailRow>
-                  )}
-                  {call.transferInfo.transferredToAt && (
-                    <DetailRow label="Перенесено на">
-                      {formatDateTime(call.transferInfo.transferredToAt)}
-                    </DetailRow>
-                  )}
-                  {call.transferInfo.transferredByName && (
-                    <DetailRow label="Переніс">
-                      <ManagerBadge
-                        name={call.transferInfo.transferredByName}
-                        bgColor={call.transferInfo.transferredByBadgeBgColor}
-                        textColor={call.transferInfo.transferredByBadgeTextColor}
-                        className="h-7 px-3 text-sm"
-                      />
-                    </DetailRow>
-                  )}
-                  {call.transferInfo.transferredReason ? (
-                    <div className="border-t border-border/40 pt-3">
-                      <p className="mb-1.5 text-sm font-medium text-muted-foreground">
-                        Причина переносу
-                      </p>
-                      <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
-                        {call.transferInfo.transferredReason}
-                      </p>
-                    </div>
-                  ) : null}
-                </>
-              )}
 
               {(call.salaryFrom != null || call.salaryTo != null) && (
                 <DetailRow label="Зарплата ($)">
@@ -287,6 +250,84 @@ export function CallDetailSheet({
                   </span>
                 </DetailRow>
               )}
+            </Section>
+
+            <Section title="Дата та час" icon={CalendarClock}>
+              <DetailRow label="Час початку">
+                {formatDateTime(call.callStartedAt)}
+              </DetailRow>
+
+              {call.transferInfo?.isTransferred &&
+                call.transferInfo.transfers.length > 0 && (
+                  <>
+                    <DetailRow label="Перенесено">
+                      <Badge variant="secondary" className={badgeSheet}>
+                        Так
+                      </Badge>
+                    </DetailRow>
+                    <div className="mt-1 -mx-1">
+                      <Accordion
+                        type="multiple"
+                        defaultValue={
+                          call.transferInfo.transfers.length === 1
+                            ? ["transfer-0"]
+                            : []
+                        }
+                        className="rounded-xl border border-border/60 bg-background/60 shadow-sm"
+                      >
+                        {call.transferInfo.transfers.map((t, i) => (
+                          <AccordionItem
+                            key={`${t.transferredFromAt}-${t.transferredToAt}-${i}`}
+                            value={`transfer-${i}`}
+                            className="border-border/50 px-0"
+                          >
+                            <AccordionTrigger className="px-4 py-3.5 hover:no-underline">
+                              <div className="flex min-w-0 flex-1 flex-col items-start gap-1 text-left">
+                                <span className="text-sm font-semibold text-foreground">
+                                  Перенос {i + 1}
+                                </span>
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  {formatDateTime(t.transferredFromAt)} →{" "}
+                                  {formatDateTime(t.transferredToAt)}
+                                </span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-0 pb-0">
+                              <div className="space-y-0 border-t border-border/40 px-4 pb-4 pt-1">
+                                <DetailRow label="Було заплановано на">
+                                  {formatDateTime(t.transferredFromAt)}
+                                </DetailRow>
+                                <DetailRow label="Перенесено на">
+                                  {formatDateTime(t.transferredToAt)}
+                                </DetailRow>
+                                {t.transferredByName ? (
+                                  <DetailRow label="Переніс">
+                                    <ManagerBadge
+                                      name={t.transferredByName}
+                                      bgColor={t.transferredByBadgeBgColor}
+                                      textColor={t.transferredByBadgeTextColor}
+                                      className="h-7 px-3 text-sm"
+                                    />
+                                  </DetailRow>
+                                ) : null}
+                                {t.transferredReason ? (
+                                  <div className="border-t border-border/40 pt-3">
+                                    <p className="mb-1.5 text-sm font-medium text-muted-foreground">
+                                      Причина переносу
+                                    </p>
+                                    <p className="whitespace-pre-wrap text-base leading-relaxed text-foreground">
+                                      {t.transferredReason}
+                                    </p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </div>
+                  </>
+                )}
 
               {call.expectedFeedbackDate && (
                 <DetailRow label="Очікуваний фідбек">

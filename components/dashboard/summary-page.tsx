@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useSummaries, useDeleteSummary } from "@/hooks/use-summaries";
 import { useAuth } from "@/hooks/use-auth";
 import { useTable } from "@/hooks/use-table";
-import { callService } from "@/services/call-service";
+import { summaryService } from "@/services/summary-service";
 import {
   Table,
   TableBody,
@@ -77,12 +77,11 @@ export function SummaryPage() {
   const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
   const [sheetLoading, setSheetLoading] = useState(false);
 
-  const handleRowClick = useCallback(async (callEventId: string | null | undefined) => {
-    if (!callEventId) return;
+  const handleRowClick = useCallback(async (summaryId: string) => {
     setSheetLoading(true);
     setSheetCall(null);
     try {
-      const call = await callService.getById(callEventId);
+      const call = await summaryService.getDetailForSheet(summaryId);
       setSheetCall(call);
     } catch {
       setSheetLoading(false);
@@ -180,8 +179,8 @@ export function SummaryPage() {
               table.rows.map((s) => (
                 <TableRow
                   key={s.id}
-                  className={s.callEventId ? "cursor-pointer" : ""}
-                  onClick={() => handleRowClick(s.callEventId)}
+                  className="cursor-pointer"
+                  onClick={() => handleRowClick(s.id)}
                 >
                   <TableCell className="font-medium">{s.company}</TableCell>
                   <TableCell>{s.interviewerName?.trim() || "—"}</TableCell>

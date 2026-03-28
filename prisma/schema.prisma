@@ -143,6 +143,8 @@ model CallSummary {
   transferredFromAt DateTime?
   transferredToAt   DateTime?
   transferredReason String?
+  /** Масив записів переносу: з якого часу на який, хто, причина (хронологія). */
+  transferHistory   Json?
   createdAt        DateTime    @default(now())
 }
 

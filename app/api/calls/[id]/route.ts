@@ -4,6 +4,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
 import { createNotification } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
 
 const callInclude = {
   account: true,
@@ -54,49 +55,11 @@ export async function GET(
       transferredToAt: true,
       transferredReason: true,
       transferredById: true,
+      transferHistory: true,
     },
   });
 
-  let transferInfo: {
-    isTransferred: boolean;
-    transferredFromAt: string | null;
-    transferredToAt: string | null;
-    transferredReason: string | null;
-    transferredByName: string | null;
-    transferredByBadgeBgColor: string | null;
-    transferredByBadgeTextColor: string | null;
-  } | null = null;
-
-  if (summary?.isTransferred) {
-    let transferredByName: string | null = null;
-    let transferredByBadgeBgColor: string | null = null;
-    let transferredByBadgeTextColor: string | null = null;
-    if (summary.transferredById) {
-      const by = await prisma.user.findUnique({
-        where: { id: summary.transferredById },
-        select: {
-          firstName: true,
-          lastName: true,
-          badgeBgColor: true,
-          badgeTextColor: true,
-        },
-      });
-      if (by) {
-        transferredByName = `${by.firstName} ${by.lastName}`.trim();
-        transferredByBadgeBgColor = by.badgeBgColor ?? null;
-        transferredByBadgeTextColor = by.badgeTextColor ?? null;
-      }
-    }
-    transferInfo = {
-      isTransferred: true,
-      transferredFromAt: summary.transferredFromAt?.toISOString() ?? null,
-      transferredToAt: summary.transferredToAt?.toISOString() ?? null,
-      transferredReason: summary.transferredReason,
-      transferredByName,
-      transferredByBadgeBgColor,
-      transferredByBadgeTextColor,
-    };
-  }
+  const transferInfo = summary ? await buildCallTransferInfo(summary) : null;
 
   return NextResponse.json({ ...call, transferInfo });
 }
@@ -159,13 +122,13 @@ export async function PATCH(
 
   const existingSummary = await prisma.callSummary.findUnique({
     where: { callEventId: updated.id },
-    select: { id: true },
+    select: { id: true, transferHistory: true },
   });
 
   const shouldUpsertSummary = updated.status === "COMPLETED" || markTransferred || !!existingSummary;
 
   if (shouldUpsertSummary) {
-    const summaryData = {
+    const baseSummaryData = {
       company: updated.company,
       accountName: updated.account?.account ?? "",
       accountType: updated.account?.type ?? "UPWORK",
@@ -182,18 +145,59 @@ export async function PATCH(
       nextStepDate: updated.nextStepDate,
       notes: updated.notes,
       createdById: updated.createdById,
-      isTransferred: markTransferred,
-      transferredById: markTransferred ? user!.id : null,
-      transferredAt: markTransferred ? new Date() : null,
-      transferredFromAt: markTransferred ? existing.callStartedAt : null,
-      transferredToAt: markTransferred ? updated.callStartedAt : null,
-      transferredReason: markTransferred ? transferredReason : null,
     };
+
+    /** Лише при новому переносі дати/часу; інакше не чіпаємо поля — інакше затирається історія переносу в підсумках. */
+    const transferFieldsOnMark = markTransferred
+      ? {
+          isTransferred: true,
+          transferredById: user!.id,
+          transferredAt: new Date(),
+          transferredFromAt: existing.callStartedAt,
+          transferredToAt: updated.callStartedAt,
+          transferredReason: transferredReason,
+          transferHistory: appendTransferEntry(existingSummary?.transferHistory, {
+            fromAt: existing.callStartedAt,
+            toAt: updated.callStartedAt,
+            byId: user!.id,
+            reason: transferredReason,
+          }),
+        }
+      : {};
 
     await prisma.callSummary.upsert({
       where: { callEventId: updated.id },
-      update: summaryData,
-      create: { callEventId: updated.id, ...summaryData },
+      update: {
+        ...baseSummaryData,
+        ...transferFieldsOnMark,
+      },
+      create: {
+        callEventId: updated.id,
+        ...baseSummaryData,
+        ...(markTransferred
+          ? {
+              isTransferred: true,
+              transferredById: user!.id,
+              transferredAt: new Date(),
+              transferredFromAt: existing.callStartedAt,
+              transferredToAt: updated.callStartedAt,
+              transferredReason: transferredReason,
+              transferHistory: appendTransferEntry(null, {
+                fromAt: existing.callStartedAt,
+                toAt: updated.callStartedAt,
+                byId: user!.id,
+                reason: transferredReason,
+              }),
+            }
+          : {
+              isTransferred: false,
+              transferredById: null,
+              transferredAt: null,
+              transferredFromAt: null,
+              transferredToAt: null,
+              transferredReason: null,
+            }),
+      },
     });
   }
 
@@ -300,6 +304,11 @@ export async function DELETE(
   ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  await prisma.callSummary.updateMany({
+    where: { callEventId: id },
+    data: { callEventId: null },
+  });
 
   await prisma.callEvent.delete({ where: { id } });
 

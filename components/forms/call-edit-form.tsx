@@ -100,7 +100,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
   }
 
   return (
-    <div className="space-y-4 py-2">
+    <div className="min-w-0 space-y-4 py-2">
       <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold">{call.company}</span>
@@ -297,13 +297,14 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         />
       </div>
 
-      <div>
-        <Label className="mb-1.5">Опис</Label>
+      <div className="min-w-0 space-y-2">
+        <Label>Опис</Label>
         <Textarea
           placeholder="Опис дзвінка..."
           value={form.description}
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           rows={3}
+          className="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
         />
       </div>
 
