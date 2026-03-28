@@ -35,7 +35,7 @@ interface AccountFormProps {
     account: string;
     type: AccountType;
     profileLinks?: string[];
-    description?: string;
+    description?: string | null;
     ownerId?: string;
   }) => void;
 }
@@ -171,7 +171,9 @@ export function AccountForm({
             account,
             type,
             profileLinks: profileLinks.filter((l) => l.trim()),
-            description: description.trim() || undefined,
+            description: initial
+              ? description.trim() || null
+              : description.trim() || undefined,
             ownerId: isAdmin ? ownerId : undefined,
           })
         }

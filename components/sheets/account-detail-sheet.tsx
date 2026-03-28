@@ -12,6 +12,7 @@ import { ManagerBadge } from "@/components/ui/manager-badge";
 import { ExternalLink, UserCircle, Link2, FileText } from "lucide-react";
 import type { Account } from "@/types/crm";
 import { cn } from "@/lib/utils";
+import { TextWithLinks } from "@/components/ui/text-with-links";
 
 interface AccountDetailSheetProps {
   account: Account | null;
@@ -150,9 +151,10 @@ export function AccountDetailSheet({
                   Опис
                 </h3>
               </div>
-              <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">
-                {account.description}
-              </p>
+              <TextWithLinks
+                text={account.description}
+                className="text-base leading-relaxed text-foreground whitespace-pre-wrap"
+              />
             </section>
           )}
         </div>

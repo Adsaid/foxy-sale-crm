@@ -29,7 +29,7 @@ import {
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
-import type { Account, AccountType } from "@/types/crm";
+import type { Account, AccountType, CreateAccountInput } from "@/types/crm";
 
 export function AccountsPage() {
   const { user } = useAuth();
@@ -66,14 +66,29 @@ export function AccountsPage() {
     setDialogOpen(true);
   }
 
-  function handleSubmit(data: { account: string; type: AccountType; profileLinks?: string[]; description?: string; ownerId?: string }) {
+  function handleSubmit(data: {
+    account: string;
+    type: AccountType;
+    profileLinks?: string[];
+    description?: string | null;
+    ownerId?: string;
+  }) {
     if (editing) {
       updateMutation.mutate(
         { id: editing.id, data },
         { onSuccess: () => setDialogOpen(false) }
       );
     } else {
-      createMutation.mutate(data, { onSuccess: () => setDialogOpen(false) });
+      const payload: CreateAccountInput = {
+        account: data.account,
+        type: data.type,
+        profileLinks: data.profileLinks,
+        ownerId: data.ownerId,
+      };
+      if (data.description) {
+        payload.description = data.description;
+      }
+      createMutation.mutate(payload, { onSuccess: () => setDialogOpen(false) });
     }
   }
 

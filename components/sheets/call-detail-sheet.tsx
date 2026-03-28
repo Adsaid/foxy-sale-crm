@@ -20,6 +20,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { TextWithLinks } from "@/components/ui/text-with-links";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -366,19 +367,19 @@ export function CallDetailSheet({
 
             {call.description && (
               <TextBlock title="Опис" icon={FileText}>
-                <p className="whitespace-pre-wrap">{call.description}</p>
+                <TextWithLinks text={call.description} className="whitespace-pre-wrap" />
               </TextBlock>
             )}
 
             {call.notes && (
               <TextBlock title="Нотатки" icon={StickyNote}>
-                <p className="whitespace-pre-wrap">{call.notes}</p>
+                <TextWithLinks text={call.notes} className="whitespace-pre-wrap" />
               </TextBlock>
             )}
 
             {call.devFeedback && (
               <TextBlock title="Фідбек від DEV" icon={MessageSquare}>
-                <p className="whitespace-pre-wrap">{call.devFeedback}</p>
+                <TextWithLinks text={call.devFeedback} className="whitespace-pre-wrap" />
               </TextBlock>
             )}
           </div>
