@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
 import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
 
@@ -214,46 +214,62 @@ export async function PATCH(
       `Стало: ${toStr}`,
     ];
     if (transferredReason) lines.push(`Причина: ${transferredReason}`);
+    const rescheduleMsg = lines.join("\n");
+    const reschedulePayload = {
+      callId: updated.id,
+      company: updated.company,
+      from: existing.callStartedAt.toISOString(),
+      to: updated.callStartedAt.toISOString(),
+      reason: transferredReason,
+      callType: updated.callType,
+      interviewerName: updated.interviewerName,
+    };
     await createNotification({
       userId: updated.callerId,
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
-      message: lines.join("\n"),
-      payload: {
-        callId: updated.id,
-        company: updated.company,
-        from: existing.callStartedAt.toISOString(),
-        to: updated.callStartedAt.toISOString(),
-        reason: transferredReason,
-        callType: updated.callType,
-        interviewerName: updated.interviewerName,
-      },
+      message: rescheduleMsg,
+      payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED", err));
+    await notifyAllAdmins({
+      type: "CALL_RESCHEDULED",
+      title: `Дзвінок перенесено — ${updated.company}`,
+      message: rescheduleMsg,
+      payload: reschedulePayload,
+    }).catch((err) => console.error("[notification] CALL_RESCHEDULED admin", err));
   }
 
   if (shouldNotifyCancelled) {
     const salesName = `${updated.createdBy?.firstName ?? ""} ${updated.createdBy?.lastName ?? ""}`.trim();
     const was = formatNotificationDateTime(existing.callStartedAt);
     const typeLabel = callTypeLabelUk(updated.callType);
+    const cancelledMsg = [
+      `${salesName} скасував дзвінок.`,
+      `Компанія: ${updated.company}`,
+      `Тип: ${typeLabel}`,
+      `Інтерв'юер: ${updated.interviewerName}`,
+      `Заплановано було на: ${was}`,
+    ].join("\n");
+    const cancelledPayload = {
+      callId: updated.id,
+      company: updated.company,
+      callType: updated.callType,
+      interviewerName: updated.interviewerName,
+      cancelledCallStartedAt: existing.callStartedAt.toISOString(),
+    };
     await createNotification({
       userId: updated.callerId,
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
-      message: [
-        `${salesName} скасував дзвінок.`,
-        `Компанія: ${updated.company}`,
-        `Тип: ${typeLabel}`,
-        `Інтерв'юер: ${updated.interviewerName}`,
-        `Заплановано було на: ${was}`,
-      ].join("\n"),
-      payload: {
-        callId: updated.id,
-        company: updated.company,
-        callType: updated.callType,
-        interviewerName: updated.interviewerName,
-        cancelledCallStartedAt: existing.callStartedAt.toISOString(),
-      },
+      message: cancelledMsg,
+      payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
+    await notifyAllAdmins({
+      type: "CALL_CANCELLED",
+      title: `Дзвінок скасовано — ${updated.company}`,
+      message: cancelledMsg,
+      payload: cancelledPayload,
+    }).catch((err) => console.error("[notification] CALL_CANCELLED admin", err));
   }
 
   const linkChanged =

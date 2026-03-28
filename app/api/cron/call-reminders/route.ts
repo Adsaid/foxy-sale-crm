@@ -40,11 +40,18 @@ export async function GET(request: Request) {
   let created = 0;
   let skipped = 0;
 
+  const adminIds = (
+    await prisma.user.findMany({
+      where: { role: "ADMIN" },
+      select: { id: true },
+    })
+  ).map((u) => u.id);
+
   for (const call of calls) {
     const whenFull = formatNotificationDateTime(call.callStartedAt);
     const typeLabel = callTypeLabelUk(call.callType);
 
-    const receivers = [call.callerId, call.createdById];
+    const receivers = [...new Set([call.callerId, call.createdById, ...adminIds])];
     for (const userId of receivers) {
       const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}`;
       const already = await prisma.notification.findFirst({

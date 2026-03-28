@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
 
 export async function GET() {
@@ -96,29 +96,46 @@ export async function POST(request: Request) {
   const accountLabel = call.account?.account ?? "—";
   const when = formatNotificationDateTime(call.callStartedAt);
   const typeLabel = callTypeLabelUk(call.callType);
+  const assignedMessage = [
+    `${salesName} призначив вам дзвінок.`,
+    `Компанія: ${call.company}`,
+    `Тип: ${typeLabel}`,
+    `Час: ${when}`,
+    `Інтерв'юер: ${call.interviewerName}`,
+    `Акаунт: ${accountLabel}`,
+  ].join("\n");
+  const assignedPayload = {
+    callId: call.id,
+    company: call.company,
+    callType: call.callType,
+    callStartedAt: call.callStartedAt.toISOString(),
+    interviewerName: call.interviewerName,
+    accountName: accountLabel,
+  };
+
   await createNotification({
     userId: call.callerId,
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
+    message: assignedMessage,
+    payload: assignedPayload,
+  }).catch((err) => {
+    console.error("[notification] CALL_ASSIGNED", err);
+  });
+
+  await notifyAllAdmins({
+    type: "CALL_ASSIGNED",
+    title: `Новий дзвінок — ${call.company}`,
     message: [
-      `${salesName} призначив вам дзвінок.`,
+      `${salesName} призначив дзвінок DEV.`,
       `Компанія: ${call.company}`,
       `Тип: ${typeLabel}`,
       `Час: ${when}`,
       `Інтерв'юер: ${call.interviewerName}`,
       `Акаунт: ${accountLabel}`,
     ].join("\n"),
-    payload: {
-      callId: call.id,
-      company: call.company,
-      callType: call.callType,
-      callStartedAt: call.callStartedAt.toISOString(),
-      interviewerName: call.interviewerName,
-      accountName: accountLabel,
-    },
-  }).catch((err) => {
-    console.error("[notification] CALL_ASSIGNED", err);
-  });
+    payload: assignedPayload,
+  }).catch((err) => console.error("[notification] CALL_ASSIGNED admin", err));
 
   return NextResponse.json(call, { status: 201 });
 }
