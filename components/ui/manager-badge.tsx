@@ -28,7 +28,7 @@ export function ManagerBadge({
         borderColor: textColor ?? "#3730A3",
       }}
     >
-      {withLabel ? `Менеджер: ${name}` : name}
+      {withLabel ? `Сейл: ${name}` : name}
     </Badge>
   );
 }

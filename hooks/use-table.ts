@@ -15,6 +15,10 @@ export interface UseTableOptions<T> {
   searchableFields: readonly string[];
   defaultSort?: SortState;
   defaultPageSize?: number;
+  /** Додаткова умова після текстового пошуку (AND) */
+  predicate?: (item: T) => boolean;
+  /** true, якщо застосовано фільтри окрім пошуку (для «Нічого не знайдено») */
+  filtersActive?: boolean;
 }
 
 function getNestedValue(obj: unknown, path: string): unknown {
@@ -31,6 +35,8 @@ export function useTable<T>({
   searchableFields,
   defaultSort,
   defaultPageSize = 10,
+  predicate,
+  filtersActive = false,
 }: UseTableOptions<T>) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortState | null>(defaultSort ?? null);
@@ -39,20 +45,28 @@ export function useTable<T>({
 
   const filtered = useMemo(() => {
     if (!data) return [];
-    if (!search.trim()) return data;
+    let result = data;
 
-    const q = search.toLowerCase();
-    return data.filter((item) =>
-      searchableFields.some((field) => {
-        const val = getNestedValue(item as Record<string, unknown>, field);
-        if (val == null) return false;
-        if (typeof val === "string") return val.toLowerCase().includes(q);
-        if (typeof val === "number") return String(val).includes(q);
-        if (typeof val === "object") return JSON.stringify(val).toLowerCase().includes(q);
-        return false;
-      })
-    );
-  }, [data, search, searchableFields]);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((item) =>
+        searchableFields.some((field) => {
+          const val = getNestedValue(item as Record<string, unknown>, field);
+          if (val == null) return false;
+          if (typeof val === "string") return val.toLowerCase().includes(q);
+          if (typeof val === "number") return String(val).includes(q);
+          if (typeof val === "object") return JSON.stringify(val).toLowerCase().includes(q);
+          return false;
+        })
+      );
+    }
+
+    if (predicate) {
+      result = result.filter(predicate);
+    }
+
+    return result;
+  }, [data, search, searchableFields, predicate]);
 
   const sorted = useMemo(() => {
     if (!sort) return filtered;
@@ -118,6 +132,6 @@ export function useTable<T>({
     totalPages,
     totalItems: sorted.length,
     rows: paginated,
-    isFiltered: search.trim().length > 0,
+    isFiltered: search.trim().length > 0 || filtersActive,
   };
 }

@@ -116,7 +116,7 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
       )}
       {user.role === "SALES" && (
         <div className="space-y-2 rounded-lg border p-3">
-          <p className="text-sm font-medium">Стиль бейджа менеджера</p>
+          <p className="text-sm font-medium">Стиль бейджа сейла</p>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Приклад:</span>
             <Badge
@@ -128,7 +128,7 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
                 borderColor: form.badgeTextColor,
               }}
             >
-              Менеджер: {form.firstName} {form.lastName}
+              Сейл: {form.firstName} {form.lastName}
             </Badge>
           </div>
           <div className="grid grid-cols-2 gap-3">

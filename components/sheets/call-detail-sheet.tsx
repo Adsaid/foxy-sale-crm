@@ -287,7 +287,7 @@ export function CallDetailSheet({
               )}
 
               {call.createdBy && (
-                <DetailRow label="Менеджер">
+                <DetailRow label="Сейл">
                   <ManagerBadge
                     name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
                     bgColor={call.createdBy.badgeBgColor}

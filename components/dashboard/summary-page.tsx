@@ -140,7 +140,7 @@ export function SummaryPage() {
               {isAdmin && (
                 <SortableHeader
                   column="createdByName"
-                  label="Менеджер"
+                  label="Сейл"
                   sort={table.sort}
                   onSort={table.toggleSort}
                 />

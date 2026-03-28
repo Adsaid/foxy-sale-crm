@@ -103,7 +103,7 @@ export function AccountDetailSheet({
             </DetailRow>
 
             {account.owner && (
-              <DetailRow label="Менеджер">
+              <DetailRow label="Сейл">
                 <ManagerBadge
                   name={`${account.owner.firstName} ${account.owner.lastName}`}
                   bgColor={account.owner.badgeBgColor}

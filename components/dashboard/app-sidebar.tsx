@@ -56,7 +56,7 @@ const allNavItems: NavItem[] = [
 const roleLabels: Record<string, string> = {
   ADMIN: "Адміністратор",
   DEV: "Розробник",
-  SALES: "Менеджер",
+  SALES: "Сейл",
 };
 
 export function AppSidebar() {

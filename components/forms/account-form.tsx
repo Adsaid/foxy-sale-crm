@@ -268,13 +268,13 @@ export function AccountForm({
             <Button variant="outline" className="w-full justify-between font-normal">
               {selectedOwner
                 ? `${selectedOwner.firstName} ${selectedOwner.lastName}`
-                : "Оберіть менеджера"}
+                : "Оберіть сейла"}
               <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
             <Command>
-              <CommandInput placeholder="Пошук менеджера..." />
+              <CommandInput placeholder="Пошук сейла..." />
               <CommandList>
                 <CommandEmpty>Не знайдено</CommandEmpty>
                 <CommandGroup>

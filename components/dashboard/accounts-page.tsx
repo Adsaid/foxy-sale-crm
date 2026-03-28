@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useAccounts,
   useCreateAccount,
@@ -22,7 +22,16 @@ import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { AccountOperationalStatusBadge } from "@/components/ui/account-operational-status-badge";
 import { useAdminUsers } from "@/hooks/use-admin-users";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { ChevronsUpDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
 import { AccountDetailSheet } from "@/components/sheets/account-detail-sheet";
 import {
@@ -30,7 +39,19 @@ import {
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
-import type { Account, AccountFormPayload, CreateAccountInput } from "@/types/crm";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type {
+  Account,
+  AccountFormPayload,
+  AccountType,
+  CreateAccountInput,
+} from "@/types/crm";
 
 export function AccountsPage() {
   const { user } = useAuth();
@@ -40,6 +61,36 @@ export function AccountsPage() {
   const createMutation = useCreateAccount();
   const updateMutation = useUpdateAccount();
   const deleteMutation = useDeleteAccount();
+
+  const [typeFilter, setTypeFilter] = useState<"all" | AccountType>("all");
+  const [salesFilter, setSalesFilter] = useState<string>("all");
+  const [salesFilterOpen, setSalesFilterOpen] = useState(false);
+
+  const sortedSalesUsers = useMemo(() => {
+    if (!salesUsers?.length) return [];
+    return [...salesUsers].sort((a, b) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(
+        `${b.firstName} ${b.lastName}`,
+        "uk"
+      )
+    );
+  }, [salesUsers]);
+
+  const selectedSalesUser =
+    salesFilter === "all"
+      ? null
+      : sortedSalesUsers.find((u) => u.id === salesFilter);
+
+  const rowPredicate = useMemo(() => {
+    return (acc: Account) => {
+      if (typeFilter !== "all" && acc.type !== typeFilter) return false;
+      if (isAdmin && salesFilter !== "all" && acc.ownerId !== salesFilter) return false;
+      return true;
+    };
+  }, [typeFilter, salesFilter, isAdmin]);
+
+  const filtersActive =
+    typeFilter !== "all" || (isAdmin && salesFilter !== "all");
 
   const table = useTable({
     data: accounts,
@@ -54,7 +105,13 @@ export function AccountsPage() {
       "owner.email",
     ],
     defaultSort: { column: "createdAt", direction: "desc" },
+    predicate: rowPredicate,
+    filtersActive,
   });
+
+  useEffect(() => {
+    table.setPage(1);
+  }, [typeFilter, salesFilter]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
@@ -120,7 +177,79 @@ export function AccountsPage() {
         search={table.search}
         onSearchChange={table.setSearch}
         placeholder="Пошук акаунтів..."
-      />
+      >
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as "all" | AccountType)}
+        >
+          <SelectTrigger className="h-9 w-[148px] shrink-0">
+            <SelectValue placeholder="Тип" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Усі типи</SelectItem>
+            <SelectItem value="UPWORK">Upwork</SelectItem>
+            <SelectItem value="LINKEDIN">LinkedIn</SelectItem>
+          </SelectContent>
+        </Select>
+        {isAdmin && (
+          <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={salesFilterOpen}
+                className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
+              >
+                <span className="truncate">
+                  {salesFilter === "all"
+                    ? "Усі сейли"
+                    : selectedSalesUser
+                      ? `${selectedSalesUser.firstName} ${selectedSalesUser.lastName}`
+                      : "Сейл"}
+                </span>
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Пошук сейла..." />
+                <CommandList>
+                  <CommandEmpty>Не знайдено</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem
+                      value="усі сейли всі"
+                      data-checked={salesFilter === "all"}
+                      onSelect={() => {
+                        setSalesFilter("all");
+                        setSalesFilterOpen(false);
+                      }}
+                    >
+                      Усі сейли
+                    </CommandItem>
+                    {sortedSalesUsers.map((u) => (
+                      <CommandItem
+                        key={u.id}
+                        value={`${u.firstName} ${u.lastName} ${u.email}`}
+                        data-checked={salesFilter === u.id}
+                        onSelect={() => {
+                          setSalesFilter(u.id);
+                          setSalesFilterOpen(false);
+                        }}
+                      >
+                        <ManagerBadge
+                          name={`${u.firstName} ${u.lastName}`}
+                          bgColor={u.badgeBgColor}
+                          textColor={u.badgeTextColor}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )}
+      </TableToolbar>
 
       <div className="rounded-md border">
         <Table>
@@ -138,7 +267,7 @@ export function AccountsPage() {
               {isAdmin && (
                 <SortableHeader
                   column="owner.firstName"
-                  label="Менеджер"
+                  label="Сейл"
                   sort={table.sort}
                   onSort={table.toggleSort}
                 />

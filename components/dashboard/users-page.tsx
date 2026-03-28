@@ -31,7 +31,7 @@ import {
 import type { AdminUser } from "@/types/crm";
 
 const roleLabels: Record<string, string> = {
-  SALES: "Менеджер",
+  SALES: "Сейл",
   DEV: "Розробник",
 };
 
@@ -102,7 +102,7 @@ export function UsersPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Всі ролі</SelectItem>
-            <SelectItem value="SALES">Менеджери</SelectItem>
+            <SelectItem value="SALES">Сейли</SelectItem>
             <SelectItem value="DEV">Розробники</SelectItem>
           </SelectContent>
         </Select>

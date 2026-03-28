@@ -559,7 +559,7 @@ export function CallsPage() {
                 {showCreatedByColumn && (
                   <SortableHeader
                     column="createdBy.firstName"
-                    label="Менеджер"
+                    label="Сейл"
                     sort={table.sort}
                     onSort={table.toggleSort}
                   />

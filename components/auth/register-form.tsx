@@ -244,7 +244,7 @@ export function RegisterForm() {
 
             {watchRole === "SALES" && (
               <div className="rounded-lg border p-3 space-y-3">
-                <p className="text-sm font-medium">Стиль бейджа менеджера</p>
+                <p className="text-sm font-medium">Стиль бейджа сейла</p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">Приклад:</span>
                   <Badge
@@ -256,7 +256,7 @@ export function RegisterForm() {
                       borderColor: watchBadgeText || "#3730A3",
                     }}
                   >
-                    Менеджер: {form.getValues("firstName") || "Ім'я"} {form.getValues("lastName") || "Прізвище"}
+                    Сейл: {form.getValues("firstName") || "Ім'я"} {form.getValues("lastName") || "Прізвище"}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
