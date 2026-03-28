@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
   Check,
@@ -14,6 +15,7 @@ import {
   Link2,
   Send,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +34,7 @@ import type { Notification, NotificationType } from "@/types/notification";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/lib/api/client";
+import { useAuth } from "@/hooks/use-auth";
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_ASSIGNED: Phone,
@@ -118,12 +121,34 @@ function NotificationItem({
 }
 
 export function NotificationsBell() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const { data: countData } = useUnreadCount();
   const { data: notifData } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const markAllRead = useMarkAllNotificationsRead();
   const [tgLoading, setTgLoading] = useState(false);
+
+  const tgStatusQuery = useQuery({
+    queryKey: ["telegram", "connect-status"],
+    queryFn: async () => {
+      const res = await api.get<{ connected: boolean }>("/api/telegram/connect");
+      return res.data.connected;
+    },
+    enabled: !!user && open,
+    staleTime: 0,
+  });
+
+  const telegramConnected = tgStatusQuery.data === true;
+
+  useEffect(() => {
+    if (!open) return;
+    const id = window.setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["telegram", "connect-status"] });
+    }, 4000);
+    return () => window.clearInterval(id);
+  }, [open, queryClient]);
 
   const unreadCount = countData?.count ?? 0;
   const notifications = notifData?.notifications ?? [];
@@ -137,6 +162,7 @@ export function NotificationsBell() {
   };
 
   const handleConnectTelegram = useCallback(async () => {
+    if (telegramConnected) return;
     setTgLoading(true);
     try {
       const res = await api.post<{ deepLink: string | null }>("/api/telegram/connect");
@@ -152,10 +178,31 @@ export function NotificationsBell() {
     } finally {
       setTgLoading(false);
     }
-  }, []);
+  }, [telegramConnected]);
+
+  const handleDisconnectTelegram = useCallback(async () => {
+    setTgLoading(true);
+    try {
+      await api.delete("/api/telegram/connect");
+      await queryClient.invalidateQueries({ queryKey: ["telegram", "connect-status"] });
+      toast.success("Telegram від’єднано.");
+    } catch {
+      toast.error("Не вдалося від’єднати.");
+    } finally {
+      setTgLoading(false);
+    }
+  }, [queryClient]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          queryClient.invalidateQueries({ queryKey: ["telegram", "connect-status"] });
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon-lg" className="relative">
           <Bell className="h-6 w-6" />
@@ -176,20 +223,45 @@ export function NotificationsBell() {
         <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <h3 className="shrink-0 text-sm font-semibold">Сповіщення</h3>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 shrink-0 gap-1.5 text-xs"
-              disabled={tgLoading}
-              onClick={handleConnectTelegram}
-            >
-              {tgLoading ? (
+            {tgStatusQuery.isLoading && open ? (
+              <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" disabled>
                 <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Send className="h-3 w-3" />
-              )}
-              Telegram
-            </Button>
+              </Button>
+            ) : telegramConnected ? (
+              <div className="flex shrink-0 items-center gap-1">
+                <span
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-800 dark:text-emerald-200"
+                  title="Сповіщення також надходять у Telegram"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  У Telegram
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  disabled={tgLoading}
+                  onClick={handleDisconnectTelegram}
+                >
+                  Від’єднати
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 shrink-0 gap-1.5 text-xs"
+                disabled={tgLoading}
+                onClick={handleConnectTelegram}
+              >
+                {tgLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Send className="h-3 w-3" />
+                )}
+                Підключити Telegram
+              </Button>
+            )}
           </div>
           {unreadCount > 0 && (
             <Button
