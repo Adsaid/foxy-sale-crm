@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableBodySkeleton } from "@/components/ui/table-body-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -164,11 +165,7 @@ export function SummaryPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={colSpan} className="text-center">
-                  Завантаження...
-                </TableCell>
-              </TableRow>
+              <TableBodySkeleton colSpan={colSpan} />
             ) : !table.rows.length ? (
               <TableRow>
                 <TableCell colSpan={colSpan} className="text-center text-muted-foreground">

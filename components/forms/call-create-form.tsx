@@ -31,6 +31,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronsUpDown, AlertTriangle } from "lucide-react";
 import type { CallType, CreateCallInput, InterviewerDuplicateMatch } from "@/types/crm";
 
@@ -76,8 +77,8 @@ function formatCallWhen(iso: string) {
 }
 
 export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
-  const { data: accounts } = useAccounts();
-  const { data: devs } = useDevs();
+  const { data: accounts, isLoading: accountsLoading } = useAccounts();
+  const { data: devs, isLoading: devsLoading } = useDevs();
 
   const [form, setForm] = useState<CreateCallInput>({
     accountId: "",
@@ -174,23 +175,33 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
           <Command>
             <CommandInput placeholder="Пошук акаунту..." />
             <CommandList>
-              <CommandEmpty>Не знайдено</CommandEmpty>
-              <CommandGroup>
-                {accounts?.map((a) => (
-                  <CommandItem
-                    key={a.id}
-                    value={`${a.account} ${a.type}`}
-                    data-checked={form.accountId === a.id}
-                    onSelect={() => {
-                      setForm((f) => ({ ...f, accountId: a.id }));
-                      setAccountOpen(false);
-                    }}
-                  >
-                    <span className="font-medium">{a.account}</span>
-                    <AccountTypeBadge type={a.type} className="ml-auto" />
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              {accountsLoading ? (
+                <div className="space-y-2 p-2">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <CommandEmpty>Не знайдено</CommandEmpty>
+                  <CommandGroup>
+                    {accounts?.map((a) => (
+                      <CommandItem
+                        key={a.id}
+                        value={`${a.account} ${a.type}`}
+                        data-checked={form.accountId === a.id}
+                        onSelect={() => {
+                          setForm((f) => ({ ...f, accountId: a.id }));
+                          setAccountOpen(false);
+                        }}
+                      >
+                        <span className="font-medium">{a.account}</span>
+                        <AccountTypeBadge type={a.type} className="ml-auto" />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>
@@ -307,42 +318,52 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
             <Command>
               <CommandInput placeholder="Пошук DEV..." />
               <CommandList>
-                <CommandEmpty>Не знайдено</CommandEmpty>
-                <CommandGroup>
-                  {filteredDevs?.map((d) => (
-                    <CommandItem
-                      key={d.id}
-                      value={`${d.firstName} ${d.lastName} ${d.specialization ?? ""} ${d.technologies.map((t) => t.name).join(" ")}`}
-                      data-checked={form.callerId === d.id}
-                      onSelect={() => {
-                        setForm((f) => ({ ...f, callerId: d.id }));
-                        setDevOpen(false);
-                      }}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-medium">
-                            {d.firstName} {d.lastName}
-                          </span>
-                          {d.specialization && (
-                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {specLabels[d.specialization] ?? d.specialization}
-                            </Badge>
-                          )}
-                        </div>
-                        {d.technologies.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1">
-                            {d.technologies.map((t) => (
-                              <Badge key={t.id} variant="outline" className="text-[10px] px-1.5 py-0">
-                                {t.name}
-                              </Badge>
-                            ))}
+                {devsLoading ? (
+                  <div className="space-y-2 p-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} className="h-14 w-full" />
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <CommandEmpty>Не знайдено</CommandEmpty>
+                    <CommandGroup>
+                      {filteredDevs?.map((d) => (
+                        <CommandItem
+                          key={d.id}
+                          value={`${d.firstName} ${d.lastName} ${d.specialization ?? ""} ${d.technologies.map((t) => t.name).join(" ")}`}
+                          data-checked={form.callerId === d.id}
+                          onSelect={() => {
+                            setForm((f) => ({ ...f, callerId: d.id }));
+                            setDevOpen(false);
+                          }}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium">
+                                {d.firstName} {d.lastName}
+                              </span>
+                              {d.specialization && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {specLabels[d.specialization] ?? d.specialization}
+                                </Badge>
+                              )}
+                            </div>
+                            {d.technologies.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                {d.technologies.map((t) => (
+                                  <Badge key={t.id} variant="outline" className="text-[10px] px-1.5 py-0">
+                                    {t.name}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </>
+                )}
               </CommandList>
             </Command>
           </PopoverContent>

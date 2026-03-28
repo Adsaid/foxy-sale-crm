@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableBodySkeleton } from "@/components/ui/table-body-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, KeyRound } from "lucide-react";
 import { UserEditDialog } from "@/components/dialogs/user-edit-dialog";
@@ -123,11 +124,7 @@ export function UsersPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center">
-                  Завантаження...
-                </TableCell>
-              </TableRow>
+              <TableBodySkeleton colSpan={7} />
             ) : !table.rows.length ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground">

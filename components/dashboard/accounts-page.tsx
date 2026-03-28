@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableBodySkeleton } from "@/components/ui/table-body-skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
@@ -278,11 +279,7 @@ export function AccountsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center">
-                  Завантаження...
-                </TableCell>
-              </TableRow>
+              <TableBodySkeleton colSpan={isAdmin ? 7 : 6} />
             ) : !table.rows.length ? (
               <TableRow>
                 <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground">

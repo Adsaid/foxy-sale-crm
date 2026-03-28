@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
   PopoverContent,
@@ -126,12 +127,29 @@ function NotificationItem({
   );
 }
 
+function NotificationsPopoverSkeleton() {
+  return (
+    <div className="flex flex-col py-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex gap-3 px-3 py-2.5">
+          <Skeleton className="size-8 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-[85%]" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function NotificationsBell() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const { data: countData } = useUnreadCount();
-  const { data: notifData } = useNotifications();
+  const { data: notifData, isLoading: notificationsLoading } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const markAllRead = useMarkAllNotificationsRead();
   const [tgLoading, setTgLoading] = useState(false);
@@ -301,7 +319,9 @@ export function NotificationsBell() {
         </div>
 
         <div className="max-h-80 overflow-y-auto">
-          {notifications.length === 0 ? (
+          {open && notificationsLoading ? (
+            <NotificationsPopoverSkeleton />
+          ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
               <Bell className="mb-2 h-8 w-8 opacity-40" />
               <p className="text-sm">Немає сповіщень</p>

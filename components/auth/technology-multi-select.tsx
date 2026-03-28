@@ -6,6 +6,7 @@ import { useTechnologies } from "@/hooks/use-technologies";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Props {
   value: string[];
@@ -73,7 +74,7 @@ export function TechnologyMultiSelect({ value, onChange }: Props) {
           onBlur={() => setTimeout(() => setOpen(false), 200)}
           disabled={isLoading}
         />
-        {open && filtered.length > 0 && (
+        {open && !isLoading && filtered.length > 0 && (
           <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-popover p-1 shadow-md">
             {filtered.map((t) => (
               <Button
@@ -89,6 +90,13 @@ export function TechnologyMultiSelect({ value, onChange }: Props) {
               >
                 {t.name}
               </Button>
+            ))}
+          </div>
+        )}
+        {isLoading && (
+          <div className="mt-2 space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
             ))}
           </div>
         )}
