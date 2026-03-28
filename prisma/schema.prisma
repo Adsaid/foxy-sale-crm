@@ -53,21 +53,22 @@ enum CallOutcome {
 }
 
 model User {
-  id             String          @id @default(auto()) @map("_id") @db.ObjectId
-  firstName      String
-  lastName       String
-  email          String          @unique
-  password       String
-  role           Role
-  specialization Specialization?
-  badgeBgColor   String?
-  badgeTextColor String?
-  technologyIds  String[]        @db.ObjectId
-  technologies   Technology[]    @relation(fields: [technologyIds], references: [id])
-  createdAt      DateTime        @default(now())
-  accounts       Account[]
-  callsAsdev     CallEvent[]     @relation("CallerDev")
-  createdCalls   CallEvent[]     @relation("CreatedBySales")
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  firstName       String
+  lastName        String
+  email           String          @unique
+  password        String
+  role            Role
+  specialization  Specialization?
+  badgeBgColor    String?
+  badgeTextColor  String?
+  telegramChatId  String?
+  technologyIds   String[]        @db.ObjectId
+  technologies    Technology[]    @relation(fields: [technologyIds], references: [id])
+  createdAt       DateTime        @default(now())
+  accounts        Account[]
+  callsAsdev      CallEvent[]     @relation("CallerDev")
+  createdCalls    CallEvent[]     @relation("CreatedBySales")
 }
 
 model Technology {
@@ -161,4 +162,12 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([dedupeKey])
+}
+
+model TelegramLinkToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }

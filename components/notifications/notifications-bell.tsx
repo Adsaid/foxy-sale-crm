@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Bell,
   Check,
@@ -12,6 +12,8 @@ import {
   Shield,
   Clock,
   Link2,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +30,8 @@ import {
 } from "@/hooks/use-notifications";
 import type { Notification, NotificationType } from "@/types/notification";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import api from "@/lib/api/client";
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_ASSIGNED: Phone,
@@ -119,6 +123,7 @@ export function NotificationsBell() {
   const { data: notifData } = useNotifications();
   const markRead = useMarkNotificationsRead();
   const markAllRead = useMarkAllNotificationsRead();
+  const [tgLoading, setTgLoading] = useState(false);
 
   const unreadCount = countData?.count ?? 0;
   const notifications = notifData?.notifications ?? [];
@@ -130,6 +135,24 @@ export function NotificationsBell() {
   const handleMarkAllRead = () => {
     markAllRead.mutate();
   };
+
+  const handleConnectTelegram = useCallback(async () => {
+    setTgLoading(true);
+    try {
+      const res = await api.post<{ deepLink: string | null }>("/api/telegram/connect");
+      const link = res.data.deepLink;
+      if (link) {
+        window.open(link, "_blank", "noopener,noreferrer");
+        toast.success("Відкрийте Telegram і натисніть Start у боті.");
+      } else {
+        toast.error("Не вдалося згенерувати посилання.");
+      }
+    } catch {
+      toast.error("Помилка при підключенні Telegram.");
+    } finally {
+      setTgLoading(false);
+    }
+  }, []);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -150,13 +173,29 @@ export function NotificationsBell() {
         align="end"
         className="w-96 gap-0 p-0"
       >
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="text-sm font-semibold">Сповіщення</h3>
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <h3 className="shrink-0 text-sm font-semibold">Сповіщення</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 shrink-0 gap-1.5 text-xs"
+              disabled={tgLoading}
+              onClick={handleConnectTelegram}
+            >
+              {tgLoading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Send className="h-3 w-3" />
+              )}
+              Telegram
+            </Button>
+          </div>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs"
+              className="h-7 shrink-0 text-xs"
               onClick={handleMarkAllRead}
               disabled={markAllRead.isPending}
             >

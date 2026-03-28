@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import {
+  sendTelegramNotification,
+  sendTelegramToAllAdmins,
+} from "@/lib/telegram";
 
 interface CreateNotificationInput {
   userId: string;
@@ -11,12 +15,22 @@ interface CreateNotificationInput {
 }
 
 export async function createNotification(input: CreateNotificationInput) {
-  return prisma.notification.create({ data: { ...input, readAt: null } });
+  const result = await prisma.notification.create({ data: { ...input, readAt: null } });
+  sendTelegramNotification(input.userId, input.title, input.message).catch(
+    (err) => console.error("[telegram] notify", err)
+  );
+  return result;
 }
 
 export async function createNotifications(inputs: CreateNotificationInput[]) {
   if (inputs.length === 0) return;
-  return prisma.notification.createMany({ data: inputs.map((i) => ({ ...i, readAt: null })) });
+  const result = await prisma.notification.createMany({ data: inputs.map((i) => ({ ...i, readAt: null })) });
+  for (const input of inputs) {
+    sendTelegramNotification(input.userId, input.title, input.message).catch(
+      (err) => console.error("[telegram] notify", err)
+    );
+  }
+  return result;
 }
 
 /** Усім користувачам з роллю ADMIN (без dedupeKey — для кожного окремий запис). */
@@ -33,5 +47,8 @@ export async function notifyAllAdmins(
       ...input,
       userId: a.id,
     }))
+  );
+  sendTelegramToAllAdmins(input.title, input.message).catch(
+    (err) => console.error("[telegram] notifyAdmins", err)
   );
 }
