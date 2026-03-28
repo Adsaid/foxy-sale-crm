@@ -16,6 +16,7 @@ import {
   Send,
   Loader2,
   MessageCircle,
+  Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_ASSIGNED: Phone,
@@ -219,55 +225,73 @@ export function NotificationsBell() {
       <PopoverContent
         align="end"
         className="w-96 gap-0 p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <h3 className="shrink-0 text-sm font-semibold">Сповіщення</h3>
-            {tgStatusQuery.isLoading && open ? (
-              <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" disabled>
-                <Loader2 className="h-3 w-3 animate-spin" />
-              </Button>
-            ) : telegramConnected ? (
-              <div className="flex shrink-0 items-center gap-1">
-                <span
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-800 dark:text-emerald-200"
-                  title="Сповіщення також надходять у Telegram"
-                >
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  У Telegram
-                </span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b px-4 py-3">
+          <h3 className="shrink-0 text-sm font-semibold">Сповіщення</h3>
+          {tgStatusQuery.isLoading && open ? (
+            <Button variant="outline" size="sm" className="h-7 shrink-0 text-xs" disabled>
+              <Loader2 className="h-3 w-3 animate-spin" />
+            </Button>
+          ) : telegramConnected ? (
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex h-7 cursor-default items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-800 dark:text-emerald-200">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    У Telegram
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[16rem]">
+                  Сповіщення з CRM дублюються в цей чат у Telegram.
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-7 w-7 shrink-0 text-muted-foreground"
+                    disabled={tgLoading}
+                    onClick={handleDisconnectTelegram}
+                    aria-label="Від’єднати Telegram"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Від’єднати Telegram</TooltipContent>
+              </Tooltip>
+            </div>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground"
+                  className="h-7 shrink-0 gap-1.5 text-xs"
                   disabled={tgLoading}
-                  onClick={handleDisconnectTelegram}
+                  onClick={handleConnectTelegram}
                 >
-                  Від’єднати
+                  {tgLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                  Підключити Telegram
                 </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 shrink-0 gap-1.5 text-xs"
-                disabled={tgLoading}
-                onClick={handleConnectTelegram}
-              >
-                {tgLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Send className="h-3 w-3" />
-                )}
-                Підключити Telegram
-              </Button>
-            )}
-          </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[18rem]">
+                Дублювання сповіщень CRM у Telegram. Натисніть — відкриється бот, далі натисніть Start,
+                щоб прив’язати цей акаунт.
+              </TooltipContent>
+            </Tooltip>
+          )}
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 shrink-0 text-xs"
+              className="ml-auto h-7 shrink-0 text-xs"
               onClick={handleMarkAllRead}
               disabled={markAllRead.isPending}
             >
