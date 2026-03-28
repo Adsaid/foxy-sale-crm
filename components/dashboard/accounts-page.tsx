@@ -20,6 +20,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
+import { AccountOperationalStatusBadge } from "@/components/ui/account-operational-status-badge";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
@@ -29,7 +30,7 @@ import {
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
-import type { Account, AccountType, CreateAccountInput } from "@/types/crm";
+import type { Account, AccountFormPayload, CreateAccountInput } from "@/types/crm";
 
 export function AccountsPage() {
   const { user } = useAuth();
@@ -45,6 +46,9 @@ export function AccountsPage() {
     searchableFields: [
       "account",
       "type",
+      "location",
+      "operationalStatus",
+      "warmUpStage",
       "owner.firstName",
       "owner.lastName",
       "owner.email",
@@ -66,13 +70,7 @@ export function AccountsPage() {
     setDialogOpen(true);
   }
 
-  function handleSubmit(data: {
-    account: string;
-    type: AccountType;
-    profileLinks?: string[];
-    description?: string | null;
-    ownerId?: string;
-  }) {
+  function handleSubmit(data: AccountFormPayload) {
     if (editing) {
       updateMutation.mutate(
         { id: editing.id, data },
@@ -84,6 +82,12 @@ export function AccountsPage() {
         type: data.type,
         profileLinks: data.profileLinks,
         ownerId: data.ownerId,
+        operationalStatus: data.operationalStatus,
+        warmUpStage: data.warmUpStage,
+        desktopType: data.desktopType,
+        location: data.location,
+        contactsCount: data.contactsCount,
+        profileViewsCount: data.profileViewsCount,
       };
       if (data.description) {
         payload.description = data.description;
@@ -124,6 +128,13 @@ export function AccountsPage() {
             <TableRow>
               <SortableHeader column="account" label="Акаунт" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="type" label="Тип" sort={table.sort} onSort={table.toggleSort} />
+              <SortableHeader
+                column="operationalStatus"
+                label="Статус"
+                sort={table.sort}
+                onSort={table.toggleSort}
+              />
+              <TableHead className="hidden lg:table-cell text-muted-foreground">Конт. / перегл.</TableHead>
               {isAdmin && (
                 <SortableHeader
                   column="owner.firstName"
@@ -139,13 +150,13 @@ export function AccountsPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center">
                   Завантаження...
                 </TableCell>
               </TableRow>
             ) : !table.rows.length ? (
               <TableRow>
-                <TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground">
+                <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground">
                   {table.isFiltered ? "Нічого не знайдено" : "Немає акаунтів"}
                 </TableCell>
               </TableRow>
@@ -159,6 +170,22 @@ export function AccountsPage() {
                   <TableCell className="font-medium">{acc.account}</TableCell>
                   <TableCell>
                     <AccountTypeBadge type={acc.type} />
+                  </TableCell>
+                  <TableCell>
+                    {acc.operationalStatus ? (
+                      <AccountOperationalStatusBadge status={acc.operationalStatus} />
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground tabular-nums">
+                    {acc.contactsCount != null || acc.profileViewsCount != null ? (
+                      <>
+                        {acc.contactsCount ?? "—"} / {acc.profileViewsCount ?? "—"}
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   {isAdmin && (
                     <TableCell>

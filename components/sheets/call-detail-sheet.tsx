@@ -216,12 +216,74 @@ export function CallDetailSheet({
               </DetailRow>
 
               {call.account && (
-                <DetailRow label="Акаунт">
-                  <span className="inline-flex flex-wrap items-center justify-end gap-2">
-                    <span className="font-medium">{call.account.account}</span>
-                    <AccountTypeBadge type={call.account.type} />
-                  </span>
-                </DetailRow>
+                <div className="border-b border-border/40 last:border-0">
+                  <Accordion
+                    type="single"
+                    collapsible
+                    className="rounded-none border-0 bg-transparent shadow-none"
+                  >
+                    <AccordionItem value="account" className="border-0 data-open:bg-transparent">
+                      <AccordionTrigger className="items-center gap-3 px-0 py-3.5 hover:no-underline sm:py-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <span className="shrink-0 text-sm font-medium text-muted-foreground">
+                            Акаунт
+                          </span>
+                          <span className="inline-flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 text-base font-medium text-foreground">
+                            {call.account.account}
+                            <AccountTypeBadge type={call.account.type} />
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                        <AccordionContent className="px-0 pb-1 pt-0">
+                          <div className="space-y-4 border-t border-border/40 pt-3 text-left">
+                            {call.account.profileLinks.filter((l) => l.trim()).length > 0 ? (
+                              <div>
+                                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  <Link2 className="size-3.5" />
+                                  Посилання
+                                </p>
+                                <ul className="space-y-2">
+                                  {call.account.profileLinks
+                                    .filter((l) => l.trim())
+                                    .map((link, i) => (
+                                      <li key={i}>
+                                        <a
+                                          href={link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-start gap-2 break-all text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                        >
+                                          <ExternalLink className="mt-0.5 size-4 shrink-0" />
+                                          {link}
+                                        </a>
+                                      </li>
+                                    ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                            {call.account.description?.trim() ? (
+                              <div>
+                                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  <FileText className="size-3.5" />
+                                  Опис
+                                </p>
+                                <TextWithLinks
+                                  text={call.account.description}
+                                  className="text-sm leading-relaxed text-foreground whitespace-pre-wrap"
+                                />
+                              </div>
+                            ) : null}
+                            {!call.account.description?.trim() &&
+                            call.account.profileLinks.filter((l) => l.trim()).length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                Немає опису та посилань.
+                              </p>
+                            ) : null}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                </div>
               )}
 
               {call.createdBy && (

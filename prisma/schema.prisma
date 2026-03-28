@@ -24,6 +24,25 @@ enum AccountType {
   LINKEDIN
 }
 
+enum AccountOperationalStatus {
+  ACTIVE
+  PAUSED
+  SETUP
+  WARMING
+}
+
+enum AccountWarmUpStage {
+  PROFILE_FILLING
+  EMAIL_WARMING
+  DOCS_EMAIL_WARMING
+  STABLE
+}
+
+enum AccountDesktopType {
+  ADS_POWER
+  ANY_DESK
+}
+
 enum CallType {
   HR
   TECH
@@ -79,15 +98,21 @@ model Technology {
 }
 
 model Account {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  account      String
-  type         AccountType
-  profileLinks String[]
-  description  String?
-  ownerId      String      @db.ObjectId
-  owner        User        @relation(fields: [ownerId], references: [id])
-  calls        CallEvent[]
-  createdAt    DateTime    @default(now())
+  id                  String                    @id @default(auto()) @map("_id") @db.ObjectId
+  account             String
+  type                AccountType
+  profileLinks        String[]
+  description         String?
+  operationalStatus   AccountOperationalStatus?
+  warmUpStage         AccountWarmUpStage?
+  location            String?
+  desktopType         AccountDesktopType?
+  contactsCount       Int?
+  profileViewsCount   Int?
+  ownerId             String                    @db.ObjectId
+  owner               User                      @relation(fields: [ownerId], references: [id])
+  calls               CallEvent[]
+  createdAt           DateTime                  @default(now())
 }
 
 model CallEvent {

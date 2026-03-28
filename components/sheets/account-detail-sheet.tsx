@@ -13,6 +13,11 @@ import { ExternalLink, UserCircle, Link2, FileText } from "lucide-react";
 import type { Account } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "@/components/ui/text-with-links";
+import { AccountOperationalStatusBadge } from "@/components/ui/account-operational-status-badge";
+import {
+  accountDesktopTypeLabelUk,
+  accountWarmUpStageLabelUk,
+} from "@/lib/account-fields";
 
 interface AccountDetailSheetProps {
   account: Account | null;
@@ -114,6 +119,36 @@ export function AccountDetailSheet({
                 month: "long",
                 year: "numeric",
               })}
+            </DetailRow>
+
+            <DetailRow label="Операційний статус">
+              {account.operationalStatus ? (
+                <AccountOperationalStatusBadge status={account.operationalStatus} className="h-6" />
+              ) : (
+                "—"
+              )}
+            </DetailRow>
+
+            <DetailRow label="Етап прогріву">
+              {account.warmUpStage ? accountWarmUpStageLabelUk[account.warmUpStage] : "—"}
+            </DetailRow>
+
+            <DetailRow label="Місцезнаходження">
+              {account.location?.trim() ? account.location : "—"}
+            </DetailRow>
+
+            <DetailRow label="Робоче оточення">
+              {account.desktopType ? accountDesktopTypeLabelUk[account.desktopType] : "—"}
+            </DetailRow>
+
+            <DetailRow label="Контакти / перегляди">
+              {account.contactsCount != null || account.profileViewsCount != null ? (
+                <span className="tabular-nums">
+                  {account.contactsCount ?? "—"} / {account.profileViewsCount ?? "—"}
+                </span>
+              ) : (
+                "—"
+              )}
             </DetailRow>
           </Section>
 

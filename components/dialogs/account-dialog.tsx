@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AccountForm } from "@/components/forms/account-form";
-import type { Account, AccountType, AdminUser } from "@/types/crm";
+import type { Account, AccountFormPayload, AdminUser } from "@/types/crm";
 
 interface AccountDialogProps {
   open: boolean;
@@ -16,13 +16,7 @@ interface AccountDialogProps {
   isAdmin: boolean;
   salesUsers?: AdminUser[];
   isPending: boolean;
-  onSubmit: (data: {
-    account: string;
-    type: AccountType;
-    profileLinks?: string[];
-    description?: string | null;
-    ownerId?: string;
-  }) => void;
+  onSubmit: (data: AccountFormPayload) => void;
 }
 
 export function AccountDialog({
@@ -36,7 +30,7 @@ export function AccountDialog({
 }: AccountDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[min(90vh,760px)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {account ? "Редагувати акаунт" : "Новий акаунт"}

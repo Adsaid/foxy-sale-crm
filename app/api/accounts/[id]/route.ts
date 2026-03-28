@@ -1,8 +1,17 @@
+import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
 import { accountTypeLabelUk } from "@/lib/notification-copy";
+import {
+  ACCOUNT_DESKTOP_TYPE_VALUES,
+  ACCOUNT_OPERATIONAL_STATUS_VALUES,
+  ACCOUNT_WARM_UP_STAGE_VALUES,
+  parseAccountCountField,
+  parseAccountEnumField,
+  parseAccountLocationField,
+} from "@/lib/account-fields";
 
 export async function PATCH(
   request: Request,
@@ -40,19 +49,64 @@ export async function PATCH(
     (body.account !== undefined && body.account !== existing.account) ||
     (body.type !== undefined && body.type !== existing.type);
 
+  const data: Prisma.AccountUpdateInput = {
+    ...(body.account !== undefined && { account: body.account }),
+    ...(body.type !== undefined && { type: body.type }),
+    ...(body.profileLinks !== undefined && {
+      profileLinks: Array.isArray(body.profileLinks)
+        ? body.profileLinks.filter((l: string) => l.trim())
+        : [],
+    }),
+    ...(body.description !== undefined && { description: body.description || null }),
+    ...(user!.role === "ADMIN" && body.ownerId !== undefined && { ownerId: body.ownerId }),
+  };
+
+  if ("operationalStatus" in body) {
+    const p = parseAccountEnumField(body.operationalStatus, ACCOUNT_OPERATIONAL_STATUS_VALUES);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid operationalStatus" }, { status: 400 });
+    }
+    if (p !== "omit") data.operationalStatus = p.value;
+  }
+  if ("warmUpStage" in body) {
+    const p = parseAccountEnumField(body.warmUpStage, ACCOUNT_WARM_UP_STAGE_VALUES);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid warmUpStage" }, { status: 400 });
+    }
+    if (p !== "omit") data.warmUpStage = p.value;
+  }
+  if ("desktopType" in body) {
+    const p = parseAccountEnumField(body.desktopType, ACCOUNT_DESKTOP_TYPE_VALUES);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid desktopType" }, { status: 400 });
+    }
+    if (p !== "omit") data.desktopType = p.value;
+  }
+  if ("location" in body) {
+    const p = parseAccountLocationField(body.location);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+    }
+    if (p !== "omit") data.location = p.value;
+  }
+  if ("contactsCount" in body) {
+    const p = parseAccountCountField(body.contactsCount);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid contactsCount" }, { status: 400 });
+    }
+    if (p !== "omit") data.contactsCount = p.value;
+  }
+  if ("profileViewsCount" in body) {
+    const p = parseAccountCountField(body.profileViewsCount);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid profileViewsCount" }, { status: 400 });
+    }
+    if (p !== "omit") data.profileViewsCount = p.value;
+  }
+
   const updated = await prisma.account.update({
     where: { id },
-    data: {
-      ...(body.account !== undefined && { account: body.account }),
-      ...(body.type !== undefined && { type: body.type }),
-      ...(body.profileLinks !== undefined && {
-        profileLinks: Array.isArray(body.profileLinks)
-          ? body.profileLinks.filter((l: string) => l.trim())
-          : [],
-      }),
-      ...(body.description !== undefined && { description: body.description || null }),
-      ...(user!.role === "ADMIN" && body.ownerId !== undefined && { ownerId: body.ownerId }),
-    },
+    data,
     include: {
       owner: {
         select: {

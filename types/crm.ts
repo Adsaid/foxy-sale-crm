@@ -1,4 +1,12 @@
 export type AccountType = "UPWORK" | "LINKEDIN";
+
+export type AccountOperationalStatus = "ACTIVE" | "PAUSED" | "SETUP" | "WARMING";
+export type AccountWarmUpStage =
+  | "PROFILE_FILLING"
+  | "EMAIL_WARMING"
+  | "DOCS_EMAIL_WARMING"
+  | "STABLE";
+export type AccountDesktopType = "ADS_POWER" | "ANY_DESK";
 export type CallType = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStage = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
@@ -10,6 +18,12 @@ export interface Account {
   type: AccountType;
   profileLinks: string[];
   description?: string | null;
+  operationalStatus?: AccountOperationalStatus | null;
+  warmUpStage?: AccountWarmUpStage | null;
+  location?: string | null;
+  desktopType?: AccountDesktopType | null;
+  contactsCount?: number | null;
+  profileViewsCount?: number | null;
   ownerId: string;
   owner?: {
     id: string;
@@ -90,6 +104,12 @@ export interface CreateAccountInput {
   profileLinks?: string[];
   description?: string;
   ownerId?: string;
+  operationalStatus?: AccountOperationalStatus | null;
+  warmUpStage?: AccountWarmUpStage | null;
+  location?: string | null;
+  desktopType?: AccountDesktopType | null;
+  contactsCount?: number | null;
+  profileViewsCount?: number | null;
 }
 
 export interface UpdateAccountInput {
@@ -98,6 +118,27 @@ export interface UpdateAccountInput {
   profileLinks?: string[];
   description?: string | null;
   ownerId?: string;
+  operationalStatus?: AccountOperationalStatus | null;
+  warmUpStage?: AccountWarmUpStage | null;
+  location?: string | null;
+  desktopType?: AccountDesktopType | null;
+  contactsCount?: number | null;
+  profileViewsCount?: number | null;
+}
+
+/** Дані з форми акаунта (створення / повне оновлення). */
+export interface AccountFormPayload {
+  account: string;
+  type: AccountType;
+  profileLinks?: string[];
+  description?: string | null | undefined;
+  ownerId?: string;
+  operationalStatus: AccountOperationalStatus | null;
+  warmUpStage: AccountWarmUpStage | null;
+  desktopType: AccountDesktopType | null;
+  location: string | null;
+  contactsCount: number | null;
+  profileViewsCount: number | null;
 }
 
 export interface CreateCallInput {

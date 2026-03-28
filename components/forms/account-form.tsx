@@ -22,22 +22,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Account, AccountType, AdminUser } from "@/types/crm";
+import type {
+  Account,
+  AccountDesktopType,
+  AccountFormPayload,
+  AccountOperationalStatus,
+  AccountType,
+  AccountWarmUpStage,
+  AdminUser,
+} from "@/types/crm";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
+import {
+  ACCOUNT_DESKTOP_TYPE_VALUES,
+  ACCOUNT_OPERATIONAL_STATUS_VALUES,
+  ACCOUNT_WARM_UP_STAGE_VALUES,
+  accountDesktopTypeLabelUk,
+  accountOperationalStatusLabelUk,
+  accountWarmUpStageLabelUk,
+} from "@/lib/account-fields";
+
+const NONE = "__none__";
+
+function toCount(s: string): number | null {
+  const t = s.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
 
 interface AccountFormProps {
   initial?: Account | null;
   isAdmin: boolean;
   salesUsers?: AdminUser[];
   isPending: boolean;
-  onSubmit: (data: {
-    account: string;
-    type: AccountType;
-    profileLinks?: string[];
-    description?: string | null;
-    ownerId?: string;
-  }) => void;
+  onSubmit: (data: AccountFormPayload) => void;
 }
 
 export function AccountForm({
@@ -53,9 +73,29 @@ export function AccountForm({
     initial?.profileLinks?.length ? initial.profileLinks : [""]
   );
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [operationalStatus, setOperationalStatus] = useState<AccountOperationalStatus | null>(
+    initial?.operationalStatus ?? null
+  );
+  const [warmUpStage, setWarmUpStage] = useState<AccountWarmUpStage | null>(
+    initial?.warmUpStage ?? null
+  );
+  const [desktopType, setDesktopType] = useState<AccountDesktopType | null>(
+    initial?.desktopType ?? null
+  );
+  const [location, setLocation] = useState(initial?.location ?? "");
+  const [contactsCount, setContactsCount] = useState(
+    initial?.contactsCount != null ? String(initial.contactsCount) : ""
+  );
+  const [profileViewsCount, setProfileViewsCount] = useState(
+    initial?.profileViewsCount != null ? String(initial.profileViewsCount) : ""
+  );
   const [ownerId, setOwnerId] = useState(initial?.ownerId ?? "");
   const [ownerOpen, setOwnerOpen] = useState(false);
   const selectedOwner = salesUsers?.find((s) => s.id === ownerId);
+
+  const countsInvalid =
+    (contactsCount.trim() !== "" && toCount(contactsCount) === null) ||
+    (profileViewsCount.trim() !== "" && toCount(profileViewsCount) === null);
 
   return (
     <div className="grid gap-4 py-4">
@@ -116,6 +156,102 @@ export function AccountForm({
         </Button>
       </div>
 
+      <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+        <p className="text-sm font-medium text-foreground">Статус і метрики для звітів</p>
+
+        <div className="space-y-2">
+          <Label>Операційний статус</Label>
+          <Select
+            value={operationalStatus ?? NONE}
+            onValueChange={(v) =>
+              setOperationalStatus(v === NONE ? null : (v as AccountOperationalStatus))
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Не обрано" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Не обрано</SelectItem>
+              {ACCOUNT_OPERATIONAL_STATUS_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {accountOperationalStatusLabelUk[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Етап прогріву</Label>
+          <Select
+            value={warmUpStage ?? NONE}
+            onValueChange={(v) => setWarmUpStage(v === NONE ? null : (v as AccountWarmUpStage))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Не обрано" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Не обрано</SelectItem>
+              {ACCOUNT_WARM_UP_STAGE_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {accountWarmUpStageLabelUk[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Місцезнаходження</Label>
+          <Input
+            placeholder="Напр. Україна, UK, регіон / IP…"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Робоче оточення</Label>
+          <Select
+            value={desktopType ?? NONE}
+            onValueChange={(v) => setDesktopType(v === NONE ? null : (v as AccountDesktopType))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Не обрано" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Не обрано</SelectItem>
+              {ACCOUNT_DESKTOP_TYPE_VALUES.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {accountDesktopTypeLabelUk[v]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Контакти</Label>
+            <Input
+              inputMode="numeric"
+              placeholder="Кількість"
+              value={contactsCount}
+              onChange={(e) => setContactsCount(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Перегляди</Label>
+            <Input
+              inputMode="numeric"
+              placeholder="Кількість"
+              value={profileViewsCount}
+              onChange={(e) => setProfileViewsCount(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label>Опис</Label>
         <Textarea
@@ -171,13 +307,17 @@ export function AccountForm({
             account,
             type,
             profileLinks: profileLinks.filter((l) => l.trim()),
-            description: initial
-              ? description.trim() || null
-              : description.trim() || undefined,
+            description: initial ? description.trim() || null : description.trim() || undefined,
             ownerId: isAdmin ? ownerId : undefined,
+            operationalStatus,
+            warmUpStage,
+            desktopType,
+            location: location.trim() || null,
+            contactsCount: toCount(contactsCount),
+            profileViewsCount: toCount(profileViewsCount),
           })
         }
-        disabled={!account || isPending || (isAdmin && !ownerId)}
+        disabled={!account || isPending || (isAdmin && !ownerId) || countsInvalid}
       >
         {initial ? "Зберегти" : "Створити"}
       </Button>
