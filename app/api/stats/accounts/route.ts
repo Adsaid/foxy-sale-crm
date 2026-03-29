@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { resolveAccountStatsFilters } from "@/lib/stats-accounts-request";
 
-export async function GET() {
-  const { error } = await getApiUser(["ADMIN"]);
+export async function GET(request: Request) {
+  const { error, user } = await getApiUser(["ADMIN"]);
   if (error) return error;
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const resolved = await resolveAccountStatsFilters(searchParams, user);
+  if (!resolved.ok) return resolved.response;
+
+  const { accountWhere } = resolved;
 
   const [
     totalAccounts,
@@ -16,14 +26,14 @@ export async function GET() {
     warming,
     noOperationalStatus,
   ] = await Promise.all([
-    prisma.account.count(),
-    prisma.account.count({ where: { type: "UPWORK" } }),
-    prisma.account.count({ where: { type: "LINKEDIN" } }),
-    prisma.account.count({ where: { operationalStatus: "ACTIVE" } }),
-    prisma.account.count({ where: { operationalStatus: "PAUSED" } }),
-    prisma.account.count({ where: { operationalStatus: "SETUP" } }),
-    prisma.account.count({ where: { operationalStatus: "WARMING" } }),
-    prisma.account.count({ where: { operationalStatus: null } }),
+    prisma.account.count({ where: accountWhere }),
+    prisma.account.count({ where: { ...accountWhere, type: "UPWORK" } }),
+    prisma.account.count({ where: { ...accountWhere, type: "LINKEDIN" } }),
+    prisma.account.count({ where: { ...accountWhere, operationalStatus: "ACTIVE" } }),
+    prisma.account.count({ where: { ...accountWhere, operationalStatus: "PAUSED" } }),
+    prisma.account.count({ where: { ...accountWhere, operationalStatus: "SETUP" } }),
+    prisma.account.count({ where: { ...accountWhere, operationalStatus: "WARMING" } }),
+    prisma.account.count({ where: { ...accountWhere, operationalStatus: null } }),
   ]);
 
   return NextResponse.json({

@@ -2,82 +2,9 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useAdminAccountStats } from "@/hooks/use-stats";
 import { CallStatsCallsPanel } from "@/components/dashboard/call-stats-calls-panel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { AccountStatsPanel } from "@/components/dashboard/account-stats-panel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { accountOperationalStatusLabelUk } from "@/lib/account-fields";
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LoadingSkeleton({ count }: { count: number }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2">
-            <Skeleton className="h-4 w-24" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function AdminAccountStatsView({ enabled }: { enabled: boolean }) {
-  const { data: stats, isLoading } = useAdminAccountStats(enabled);
-
-  if (!enabled) return null;
-  if (isLoading) return <LoadingSkeleton count={8} />;
-  if (!stats) return null;
-
-  const statusItems = [
-    { label: accountOperationalStatusLabelUk.ACTIVE, value: stats.active },
-    { label: accountOperationalStatusLabelUk.PAUSED, value: stats.paused },
-    { label: accountOperationalStatusLabelUk.SETUP, value: stats.setup },
-    { label: accountOperationalStatusLabelUk.WARMING, value: stats.warming },
-    ...(stats.noOperationalStatus > 0
-      ? [{ label: "Без операційного статусу", value: stats.noOperationalStatus }]
-      : []),
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Всього акаунтів" value={stats.totalAccounts} />
-        <StatCard label="Upwork" value={stats.upwork} />
-        <StatCard label="LinkedIn" value={stats.linkedin} />
-      </div>
-      <div>
-        <h3 className="mb-3 text-sm font-medium text-muted-foreground">
-          За операційним статусом
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {statusItems.map((item) => (
-            <StatCard key={item.label} label={item.label} value={item.value} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function StatsPage() {
   const { user, isLoading } = useAuth();
@@ -122,7 +49,7 @@ export function StatsPage() {
             value="accounts"
             className="mt-0 space-y-4 outline-none focus-visible:outline-none"
           >
-            <AdminAccountStatsView enabled={adminTab === "accounts"} />
+            <AccountStatsPanel fetchEnabled={adminTab === "accounts"} />
           </TabsContent>
         </Tabs>
       ) : (

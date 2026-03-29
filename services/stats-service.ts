@@ -3,7 +3,9 @@ import type {
   CallStatsData,
   CallStatsQueryParams,
   CallStatsTimeseriesResponse,
-  AdminAccountStatsData,
+  AccountStatsData,
+  AccountStatsQueryParams,
+  AccountStatsTimeseriesResponse,
 } from "@/types/crm";
 
 export const statsService = {
@@ -19,8 +21,17 @@ export const statsService = {
     return res.data;
   },
 
-  async getAdminAccountStats(): Promise<AdminAccountStatsData> {
-    const res = await api.get<AdminAccountStatsData>("/api/stats/accounts");
+  async getAccountStats(params: AccountStatsQueryParams): Promise<AccountStatsData> {
+    const res = await api.get<AccountStatsData>("/api/stats/accounts", { params });
+    return res.data;
+  },
+
+  async getAccountStatsTimeseries(
+    params: AccountStatsQueryParams
+  ): Promise<AccountStatsTimeseriesResponse> {
+    const res = await api.get<AccountStatsTimeseriesResponse>("/api/stats/accounts/timeseries", {
+      params,
+    });
     return res.data;
   },
 };

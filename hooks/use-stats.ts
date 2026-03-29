@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { statsService } from "@/services/stats-service";
-import type { CallStatsQueryParams } from "@/types/crm";
+import type { AccountStatsQueryParams, CallStatsQueryParams } from "@/types/crm";
 
 export function useCallStats(filters: CallStatsQueryParams | null, enabled = true) {
   return useQuery({
@@ -20,10 +20,18 @@ export function useCallStatsTimeseries(filters: CallStatsQueryParams | null, ena
   });
 }
 
-export function useAdminAccountStats(enabled: boolean) {
+export function useAccountStats(filters: AccountStatsQueryParams | null, enabled = true) {
   return useQuery({
-    queryKey: ["stats", "accounts"],
-    queryFn: statsService.getAdminAccountStats,
-    enabled,
+    queryKey: ["stats", "accounts", filters],
+    queryFn: () => statsService.getAccountStats(filters ?? {}),
+    enabled: enabled && filters !== null,
+  });
+}
+
+export function useAccountStatsTimeseries(filters: AccountStatsQueryParams | null, enabled = true) {
+  return useQuery({
+    queryKey: ["stats", "accounts", "timeseries", filters],
+    queryFn: () => statsService.getAccountStatsTimeseries(filters ?? {}),
+    enabled: enabled && filters !== null,
   });
 }

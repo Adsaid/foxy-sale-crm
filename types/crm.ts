@@ -313,8 +313,8 @@ export interface CallStatsTimeseriesResponse {
   points: CallStatsTimeseriesPoint[];
 }
 
-/** Агрегована статистика акаунтів (лише адмін, вкладка «Акаунти» на дашборді). */
-export interface AdminAccountStatsData {
+/** Агрегована статистика акаунтів (GET /api/stats/accounts; лише адмін). */
+export interface AccountStatsData {
   totalAccounts: number;
   upwork: number;
   linkedin: number;
@@ -323,6 +323,36 @@ export interface AdminAccountStatsData {
   setup: number;
   warming: number;
   noOperationalStatus: number;
+}
+
+/** @deprecated використовуйте AccountStatsData */
+export type AdminAccountStatsData = AccountStatsData;
+
+/** Параметри GET /api/stats/accounts (ISO-дати; salesId — ownerId сейла). */
+export interface AccountStatsQueryParams {
+  from?: string;
+  to?: string;
+  salesId?: string;
+  timeZone?: string;
+  granularity?: "hour" | "day";
+}
+
+/** Точка ряду для графіка акаунтів (GET /api/stats/accounts/timeseries). */
+export interface AccountStatsTimeseriesPoint {
+  key: string;
+  label: string;
+  total: number;
+  upwork: number;
+  linkedin: number;
+  active: number;
+  paused: number;
+  setup: number;
+  warming: number;
+  noOperationalStatus: number;
+}
+
+export interface AccountStatsTimeseriesResponse {
+  points: AccountStatsTimeseriesPoint[];
 }
 
 export interface AdminUser {
