@@ -64,8 +64,10 @@ export async function GET(request: Request) {
     const typeLabel = callTypeLabelUk(call.callType);
 
     const receivers = [...new Set([call.callerId, call.createdById, ...adminIds])];
+    const startIso = call.callStartedAt.toISOString();
     for (const userId of receivers) {
-      const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}`;
+      // Час у ключі: після переносу дзвінка — нове нагадування; без дублікатів у межах одного слоту.
+      const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}:${startIso}`;
       const already = await prisma.notification.findFirst({
         where: { dedupeKey },
         select: { id: true },
