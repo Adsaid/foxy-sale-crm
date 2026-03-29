@@ -292,6 +292,8 @@ export interface CallStatsQueryParams {
   from?: string;
   to?: string;
   salesId?: string;
+  /** Фільтр за DEV на дзвінку (callerId); лише для адміна. */
+  callerId?: string;
   /** IANA, наприклад Europe/Kyiv — для бакетів графіка в календарі користувача. */
   timeZone?: string;
   /** `hour` — погодинна вісь (пресет «Сьогодні» або один календарний день). */

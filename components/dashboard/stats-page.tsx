@@ -84,7 +84,7 @@ export function StatsPage() {
   const isAdmin = user?.role === "ADMIN";
   const [adminTab, setAdminTab] = useState<"calls" | "accounts">("calls");
 
-  if (isLoading) return <LoadingSkeleton count={4} />;
+  if (isLoading) return null;
 
   const heading =
     isAdmin && adminTab === "accounts"

@@ -7,6 +7,7 @@ import {
   startOfDay,
   startOfISOWeek,
   startOfMonth,
+  subDays,
   subMonths,
   subWeeks,
 } from "date-fns";
@@ -71,5 +72,52 @@ export function callStatsRangeFromPreset(
         to: endOfDay(hi).toISOString(),
       };
     }
+  }
+}
+
+/** Попередній період того ж типу для порівняння на картках (не для `all` і `custom`). */
+export function callStatsComparisonRangeFromPreset(
+  preset: CallStatsPreset,
+  now: Date
+): CallStatsRangeIso | null {
+  switch (preset) {
+    case "all":
+    case "custom":
+      return null;
+    case "today": {
+      const y = subDays(now, 1);
+      return {
+        from: startOfDay(y).toISOString(),
+        to: endOfDay(y).toISOString(),
+      };
+    }
+    case "this_week": {
+      const ref = subWeeks(now, 1);
+      const start = startOfDay(startOfISOWeek(ref));
+      const end = endOfDay(endOfISOWeek(ref));
+      return { from: start.toISOString(), to: end.toISOString() };
+    }
+    case "last_week": {
+      const ref = subWeeks(now, 2);
+      const start = startOfDay(startOfISOWeek(ref));
+      const end = endOfDay(endOfISOWeek(ref));
+      return { from: start.toISOString(), to: end.toISOString() };
+    }
+    case "this_month": {
+      const ref = subMonths(now, 1);
+      return {
+        from: startOfDay(startOfMonth(ref)).toISOString(),
+        to: endOfDay(endOfMonth(ref)).toISOString(),
+      };
+    }
+    case "last_month": {
+      const ref = subMonths(now, 2);
+      return {
+        from: startOfDay(startOfMonth(ref)).toISOString(),
+        to: endOfDay(endOfMonth(ref)).toISOString(),
+      };
+    }
+    default:
+      return null;
   }
 }

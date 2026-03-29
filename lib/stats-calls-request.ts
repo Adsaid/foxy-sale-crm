@@ -32,6 +32,7 @@ export async function resolveCallStatsFilters(
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
   const salesIdParam = searchParams.get("salesId");
+  const callerIdParam = searchParams.get("callerId");
 
   let callWhere: Prisma.CallEventWhereInput = callWhereForRole(user.role, user.id);
   let explicitDateFilter = false;
@@ -97,6 +98,32 @@ export async function resolveCallStatsFilters(
       };
     }
     callWhere = { ...callWhere, createdById: salesIdParam };
+  }
+
+  if (callerIdParam) {
+    if (user.role !== "ADMIN") {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+      };
+    }
+    if (!OBJECT_ID_RE.test(callerIdParam)) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "Некоректний ідентифікатор" }, { status: 400 }),
+      };
+    }
+    const devExists = await prisma.user.findFirst({
+      where: { id: callerIdParam, role: "DEV" },
+      select: { id: true },
+    });
+    if (!devExists) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: "DEV не знайдено" }, { status: 404 }),
+      };
+    }
+    callWhere = { ...callWhere, callerId: callerIdParam };
   }
 
   if (explicitDateFilter && rangeFrom && rangeTo) {

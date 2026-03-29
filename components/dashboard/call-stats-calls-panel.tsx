@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, isSameDay } from "date-fns";
+import { format, isSameDay, isValid, parseISO } from "date-fns";
 import { uk } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import {
@@ -12,14 +12,29 @@ import {
   Label,
   Pie,
   PieChart,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { CalendarRange, ChartPie, ChevronsUpDown } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarRange,
+  ChartPie,
+  ChevronsUpDown,
+  ClipboardCheck,
+  Clock,
+  Phone,
+  RotateCcw,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useCallStats, useCallStatsTimeseries } from "@/hooks/use-stats";
 import { useAdminUsers } from "@/hooks/use-admin-users";
+import { useDevs } from "@/hooks/use-devs";
 import {
+  callStatsComparisonRangeFromPreset,
   callStatsRangeFromPreset,
   type CallStatsPreset,
 } from "@/lib/call-stats-range";
@@ -49,6 +64,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import type {
   CallStatsData,
@@ -57,6 +78,13 @@ import type {
 } from "@/types/crm";
 
 const SALES_ALL = "all";
+const DEV_ALL = "all";
+
+const DEV_SPEC_LABELS: Record<string, string> = {
+  FRONTEND: "Frontend",
+  BACKEND: "Backend",
+  FULLSTACK: "Fullstack",
+};
 
 const PRESET_OPTIONS: { value: CallStatsPreset; label: string }[] = [
   { value: "all", label: "Увесь час" },
@@ -68,13 +96,232 @@ const PRESET_OPTIONS: { value: CallStatsPreset; label: string }[] = [
   { value: "custom", label: "Свій період" },
 ];
 
-function StatCardCompact({ label, value }: { label: string; value: string | number }) {
+type CallStatCardVariant = "total" | "completed" | "success" | "unsuccessful" | "pending";
+
+type CallStatDelta = {
+  text: string;
+  sentiment: "positive" | "negative";
+  direction: "up" | "down";
+};
+
+function buildCallStatDelta(
+  variant: CallStatCardVariant,
+  current: number,
+  previous: number
+): CallStatDelta | null {
+  if (previous === 0) return null;
+  const raw = current - previous;
+  if (raw === 0) return null;
+  const pct = Math.round((raw / previous) * 1000) / 10;
+  if (pct === 0) return null;
+  const sign = pct > 0 ? "+" : "";
+  const text = `${sign}${pct}%`;
+  const direction: CallStatDelta["direction"] = raw > 0 ? "up" : "down";
+  const sentiment: CallStatDelta["sentiment"] =
+    raw > 0
+      ? variant === "unsuccessful"
+        ? "negative"
+        : "positive"
+      : variant === "unsuccessful"
+        ? "positive"
+        : "negative";
+  return { text, sentiment, direction };
+}
+
+function callStatDeltaToneClass(sentiment: CallStatDelta["sentiment"]) {
+  return sentiment === "positive"
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-red-600 dark:text-red-400";
+}
+
+/** Текст тултіпа: з яким періодом порівнюються картки (дати попереднього діапазону). */
+function formatComparePeriodTooltip(isoFrom: string, isoTo: string): string {
+  const from = parseISO(isoFrom);
+  const to = parseISO(isoTo);
+  if (!isValid(from) || !isValid(to)) {
+    return "Порівняння з попереднім періодом такого ж типу";
+  }
+  if (isSameDay(from, to)) {
+    return `Порівняння з ${format(from, "d MMMM yyyy", { locale: uk })}`;
+  }
+  return `Порівняння з періодом ${format(from, "d MMM yyyy", { locale: uk })} — ${format(to, "d MMM yyyy", { locale: uk })}`;
+}
+
+const CALL_STATS_CARD_VARIANT_STYLES: Record<
+  CallStatCardVariant,
+  { icon: LucideIcon; iconWrap: string; iconHover: string }
+> = {
+  total: {
+    icon: Phone,
+    iconWrap:
+      "bg-amber-500/12 text-amber-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-amber-500/10 dark:text-amber-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-amber-500/22 dark:group-hover:bg-amber-500/18",
+  },
+  completed: {
+    icon: ClipboardCheck,
+    iconWrap:
+      "bg-indigo-500/12 text-indigo-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-indigo-500/10 dark:text-indigo-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-indigo-500/22 dark:group-hover:bg-indigo-500/18",
+  },
+  success: {
+    icon: TrendingUp,
+    iconWrap:
+      "bg-emerald-500/12 text-emerald-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-emerald-500/10 dark:text-emerald-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-emerald-500/22 dark:group-hover:bg-emerald-500/18",
+  },
+  unsuccessful: {
+    icon: TrendingDown,
+    iconWrap:
+      "bg-red-500/12 text-red-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-red-500/10 dark:text-red-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-red-500/22 dark:group-hover:bg-red-500/18",
+  },
+  pending: {
+    icon: Clock,
+    iconWrap:
+      "bg-amber-400/15 text-amber-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-amber-400/12 dark:text-amber-200 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-amber-400/28 dark:group-hover:bg-amber-400/18",
+  },
+};
+
+const CALL_STATS_CARD_CONFIG = [
+  { label: "Всього дзвінків", variant: "total" as const },
+  { label: "Завершені", variant: "completed" as const },
+  { label: "Успішні", variant: "success" as const },
+  { label: "Неуспішні", variant: "unsuccessful" as const },
+  { label: "Очікують", variant: "pending" as const },
+] as const;
+
+function StatCardCompact({
+  label,
+  value,
+  variant,
+  delta,
+  deltaTooltip,
+}: {
+  label: string;
+  value: string | number;
+  variant: CallStatCardVariant;
+  delta?: CallStatDelta | null;
+  /** Показується в тултіпі при наведенні на дельту (період порівняння). */
+  deltaTooltip?: string | null;
+}) {
+  const s = CALL_STATS_CARD_VARIANT_STYLES[variant];
+  const Icon = s.icon;
+  const deltaBlock =
+    delta ? (
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-0.5",
+          callStatDeltaToneClass(delta.sentiment)
+        )}
+      >
+        {delta.direction === "up" ? (
+          <ArrowUp className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+        ) : (
+          <ArrowDown className="size-3.5 shrink-0" strokeWidth={2.5} aria-hidden />
+        )}
+        <span className="text-sm font-bold tabular-nums leading-none tracking-tight">{delta.text}</span>
+      </div>
+    ) : null;
   return (
-    <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight">{value}</p>
+    <div
+      className={cn(
+        "group relative flex flex-col overflow-hidden rounded-xl border border-border/45",
+        "bg-gradient-to-b from-card via-card to-muted/35 dark:to-muted/10",
+        "shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.04)]",
+        "dark:border-border/35 dark:shadow-[0_2px_14px_-2px_rgba(0,0,0,0.5)]",
+        "transition-[box-shadow,border-color,background-color] duration-200 ease-out",
+        "hover:border-border/75 hover:bg-muted/20",
+        "hover:shadow-[0_12px_32px_-12px_rgba(15,23,42,0.12),0_4px_14px_-4px_rgba(15,23,42,0.07)]",
+        "dark:hover:border-border/55 dark:hover:bg-muted/10",
+        "dark:hover:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.52)]"
+      )}
+    >
+      <div className="relative flex flex-1 flex-col bg-gradient-to-b from-muted/30 to-transparent px-3 pb-3 pt-2.5 dark:from-muted/15">
+        <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(120%_90%_at_50%_-10%,rgba(255,255,255,0.5),transparent_58%)] opacity-40 dark:opacity-0" />
+        <div className="relative z-10 flex items-start gap-2.5">
+          <div
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-xl transition-[background-color,box-shadow] duration-200 ease-out",
+              s.iconWrap,
+              s.iconHover
+            )}
+            aria-hidden
+          >
+            <Icon className="size-4 shrink-0" strokeWidth={1.75} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-semibold uppercase leading-snug tracking-[0.14em] text-muted-foreground">
+              {label}
+            </p>
+            <div className="mt-1.5 flex min-w-0 items-baseline justify-between gap-1.5">
+              <p className="min-w-0 font-sans text-[1.375rem] font-semibold leading-none tabular-nums tracking-tight text-foreground sm:text-[1.5rem]">
+                {value}
+              </p>
+              {delta ? (
+                deltaTooltip ? (
+                  <UiTooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        tabIndex={0}
+                        className={cn(
+                          "shrink-0 cursor-help rounded-md border-0 bg-transparent p-0 outline-none ring-offset-background",
+                          "focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2"
+                        )}
+                        aria-label={deltaTooltip}
+                      >
+                        {deltaBlock}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      sideOffset={6}
+                      className="max-w-[min(100vw-2rem,18rem)] text-left"
+                    >
+                      {deltaTooltip}
+                    </TooltipContent>
+                  </UiTooltip>
+                ) : (
+                  deltaBlock
+                )
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CallStatsCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+      {CALL_STATS_CARD_CONFIG.map(({ label, variant }) => {
+        const s = CALL_STATS_CARD_VARIANT_STYLES[variant];
+        return (
+          <div
+            key={label}
+            className={cn(
+              "flex flex-col overflow-hidden rounded-xl border border-border/45",
+              "bg-gradient-to-b from-card via-card to-muted/35 dark:to-muted/10",
+              "shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] dark:border-border/35 dark:shadow-[0_2px_14px_-2px_rgba(0,0,0,0.5)]"
+            )}
+          >
+            <div className="relative bg-gradient-to-b from-muted/30 to-transparent px-3 pb-3 pt-2.5 dark:from-muted/15">
+              <div className="flex items-start gap-2.5">
+                <Skeleton className="size-9 shrink-0 rounded-xl" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-semibold uppercase leading-snug tracking-[0.14em] text-muted-foreground">
+                    {label}
+                  </p>
+                  <Skeleton className="mt-1.5 h-8 w-12 max-w-full rounded-md" aria-hidden />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -205,7 +452,7 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
               )}
             >
               <PieChart>
-                <Tooltip cursor={false} content={<ChartTooltipContent />} />
+                <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Pie
                   data={pieData}
                   dataKey="value"
@@ -282,24 +529,63 @@ function CallStatsAreaGradients() {
   );
 }
 
-function LoadingSkeletonCompact({ count }: { count: number }) {
+/** Картка «Динаміка дзвінків» + підзаголовок — у стані завантаження. */
+function CallStatsDynamicsCardSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-lg border px-3 py-2">
-          <Skeleton className="mb-2 h-2.5 w-20" />
-          <Skeleton className="h-7 w-9" />
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="shrink-0 border-b border-border/40 bg-muted/25 px-4 py-3">
+        <Skeleton className="h-4 w-40" aria-hidden />
+        <Skeleton className="mt-1.5 h-3 w-[min(100%,18rem)] max-w-sm" aria-hidden />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:p-3">
+          <Skeleton
+            className="aspect-auto h-full min-h-[260px] w-full rounded-lg sm:min-h-[300px]"
+            aria-hidden
+          />
         </div>
-      ))}
+        <div className="mt-4 flex shrink-0 flex-wrap items-center justify-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-2 py-2.5">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-8 w-[5.5rem] rounded-full" aria-hidden />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-function ChartAreaSkeleton() {
-  return <Skeleton className="h-[320px] w-full rounded-xl border" />;
+/** Картка «Розподіл дзвінків» + підзаголовок — у стані завантаження. */
+function CallStatsPieCardSkeleton() {
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
+      <div className="shrink-0 border-b border-border/40 bg-muted/25 px-4 py-3">
+        <Skeleton className="h-4 w-36" aria-hidden />
+        <Skeleton className="mt-1.5 h-3 w-52 max-w-[min(100%,13rem)]" aria-hidden />
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:p-3">
+          <Skeleton
+            className="aspect-square h-[min(100vw-2rem,280px)] w-[min(100vw-2rem,280px)] max-w-full shrink-0 rounded-full"
+            aria-hidden
+          />
+        </div>
+        <div className="mt-4 flex w-full shrink-0 flex-wrap items-center justify-center gap-2 rounded-xl border border-border/40 bg-muted/20 px-2 py-2.5">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-8 w-[4.75rem] rounded-full" aria-hidden />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function CallStatsAreaChart({ points }: { points: CallStatsTimeseriesPoint[] }) {
+function CallStatsAreaChart({
+  points,
+  subtitle,
+}: {
+  points: CallStatsTimeseriesPoint[];
+  subtitle: string;
+}) {
   const [visible, setVisible] = useState<Record<SeriesKey, boolean>>({
     total: true,
     success: true,
@@ -325,9 +611,7 @@ function CallStatsAreaChart({ points }: { points: CallStatsTimeseriesPoint[] }) 
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
       <div className="shrink-0 border-b border-border/40 bg-muted/25 px-4 py-3">
         <h3 className="text-sm font-semibold leading-none tracking-tight">Динаміка дзвінків</h3>
-        <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-          Порівняння кількості дзвінків за обраний період
-        </p>
+        <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{subtitle}</p>
       </div>
       <div className="flex min-h-0 flex-1 flex-col p-4">
         <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:p-3">
@@ -452,19 +736,53 @@ function customRangeButtonLabel(range: DateRange | undefined): string {
   return `${format(range.from, "d MMM yyyy", { locale: uk })} — ${format(end, "d MMM yyyy", { locale: uk })}`;
 }
 
-function CallStatsCardsCompact({ stats }: { stats: CallStatsData }) {
-  const items = [
-    { label: "Всього дзвінків", value: stats.totalCalls },
-    { label: "Завершені", value: stats.completedCalls },
-    { label: "Успішні", value: stats.successCalls },
-    { label: "Неуспішні", value: stats.unsuccessfulCalls },
-    { label: "Очікують", value: stats.pendingCalls },
-  ];
+function CallStatsCardsCompact({
+  stats,
+  compareStats,
+  showCompareDelta,
+  compareDeltaTooltip,
+}: {
+  stats: CallStatsData;
+  compareStats: CallStatsData | null | undefined;
+  showCompareDelta: boolean;
+  /** Період, з яким порівнюється поточний (для тултіпа на дельті). */
+  compareDeltaTooltip?: string | null;
+}) {
+  const values: Record<CallStatCardVariant, number> = {
+    total: stats.totalCalls,
+    completed: stats.completedCalls,
+    success: stats.successCalls,
+    unsuccessful: stats.unsuccessfulCalls,
+    pending: stats.pendingCalls,
+  };
+  const prevValues: Record<CallStatCardVariant, number> | null =
+    showCompareDelta && compareStats
+      ? {
+          total: compareStats.totalCalls,
+          completed: compareStats.completedCalls,
+          success: compareStats.successCalls,
+          unsuccessful: compareStats.unsuccessfulCalls,
+          pending: compareStats.pendingCalls,
+        }
+      : null;
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      {items.map((item) => (
-        <StatCardCompact key={item.label} label={item.label} value={item.value} />
-      ))}
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+      {CALL_STATS_CARD_CONFIG.map(({ label, variant }) => {
+        const delta =
+          prevValues !== null
+            ? buildCallStatDelta(variant, values[variant], prevValues[variant])
+            : null;
+        return (
+          <StatCardCompact
+            key={label}
+            label={label}
+            value={values[variant]}
+            variant={variant}
+            delta={delta}
+            deltaTooltip={delta ? compareDeltaTooltip : null}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -480,11 +798,14 @@ export function CallStatsCallsPanel({
   fetchEnabled = true,
 }: CallStatsCallsPanelProps) {
   const { data: salesUsers } = useAdminUsers("SALES", isAdmin);
+  const { data: devs, isLoading: devsLoading } = useDevs(isAdmin);
   const [preset, setPreset] = useState<CallStatsPreset>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
   const [salesFilter, setSalesFilter] = useState<string>(SALES_ALL);
   const [salesFilterOpen, setSalesFilterOpen] = useState(false);
+  const [devFilter, setDevFilter] = useState<string>(DEV_ALL);
+  const [devFilterOpen, setDevFilterOpen] = useState(false);
 
   const sortedSalesUsers = useMemo(() => {
     if (!salesUsers?.length) return [];
@@ -495,6 +816,16 @@ export function CallStatsCallsPanel({
 
   const selectedSalesUser =
     salesFilter === SALES_ALL ? null : sortedSalesUsers.find((u) => u.id === salesFilter);
+
+  const sortedDevs = useMemo(() => {
+    if (!devs?.length) return [];
+    return [...devs].sort((a, b) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "uk")
+    );
+  }, [devs]);
+
+  const selectedDev =
+    devFilter === DEV_ALL ? null : sortedDevs.find((d) => d.id === devFilter);
 
   const apiFilters = useMemo((): CallStatsQueryParams | null => {
     if (preset === "custom" && (!customRange?.from || !customRange?.to)) {
@@ -515,6 +846,9 @@ export function CallStatsCallsPanel({
     if (isAdmin && salesFilter !== SALES_ALL) {
       out.salesId = salesFilter;
     }
+    if (isAdmin && devFilter !== DEV_ALL) {
+      out.callerId = devFilter;
+    }
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     out.timeZone = timeZone;
     if (preset === "today") {
@@ -528,10 +862,58 @@ export function CallStatsCallsPanel({
       out.granularity = "hour";
     }
     return out;
-  }, [preset, customRange, isAdmin, salesFilter]);
+  }, [preset, customRange, isAdmin, salesFilter, devFilter]);
+
+  const compareApiFilters = useMemo((): CallStatsQueryParams | null => {
+    if (preset === "all" || preset === "custom") return null;
+    const cmp = callStatsComparisonRangeFromPreset(preset, new Date());
+    if (!cmp?.from || !cmp?.to) return null;
+    const out: CallStatsQueryParams = {
+      from: cmp.from,
+      to: cmp.to,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    if (isAdmin && salesFilter !== SALES_ALL) {
+      out.salesId = salesFilter;
+    }
+    if (isAdmin && devFilter !== DEV_ALL) {
+      out.callerId = devFilter;
+    }
+    if (preset === "today") {
+      out.granularity = "hour";
+    }
+    return out;
+  }, [preset, isAdmin, salesFilter, devFilter]);
+
+  const compareDeltaTooltip = useMemo(() => {
+    if (!compareApiFilters?.from || !compareApiFilters?.to) return null;
+    return formatComparePeriodTooltip(compareApiFilters.from, compareApiFilters.to);
+  }, [compareApiFilters]);
 
   const statsQuery = useCallStats(apiFilters, fetchEnabled);
+  const compareStatsQuery = useCallStats(
+    compareApiFilters,
+    fetchEnabled && compareApiFilters !== null
+  );
   const seriesQuery = useCallStatsTimeseries(apiFilters, fetchEnabled);
+
+  const hasNonDefaultFilters = useMemo(
+    () =>
+      preset !== "all" ||
+      salesFilter !== SALES_ALL ||
+      devFilter !== DEV_ALL,
+    [preset, salesFilter, devFilter]
+  );
+
+  function resetFilters() {
+    setPreset("all");
+    setCustomRange(undefined);
+    setCustomOpen(false);
+    setSalesFilter(SALES_ALL);
+    setDevFilter(DEV_ALL);
+    setSalesFilterOpen(false);
+    setDevFilterOpen(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -588,64 +970,167 @@ export function CallStatsCallsPanel({
         )}
 
         {isAdmin && (
-          <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                role="combobox"
-                aria-expanded={salesFilterOpen}
-                className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
-              >
-                <span className="truncate">
-                  {salesFilter === SALES_ALL
-                    ? "Усі сейли"
-                    : selectedSalesUser
-                      ? `${selectedSalesUser.firstName} ${selectedSalesUser.lastName}`
-                      : "Сейл"}
-                </span>
-                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Пошук сейла..." />
-                <CommandList>
-                  <CommandEmpty>Не знайдено</CommandEmpty>
-                  <CommandGroup>
-                    <CommandItem
-                      value="усі сейли всі"
-                      data-checked={salesFilter === SALES_ALL}
-                      onSelect={() => {
-                        setSalesFilter(SALES_ALL);
-                        setSalesFilterOpen(false);
-                      }}
-                    >
-                      Усі сейли
-                    </CommandItem>
-                    {sortedSalesUsers.map((u) => (
+          <>
+            <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={salesFilterOpen}
+                  className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
+                >
+                  <span className="truncate">
+                    {salesFilter === SALES_ALL
+                      ? "Усі сейли"
+                      : selectedSalesUser
+                        ? `${selectedSalesUser.firstName} ${selectedSalesUser.lastName}`
+                        : "Сейл"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Пошук сейла..." />
+                  <CommandList>
+                    <CommandEmpty>Не знайдено</CommandEmpty>
+                    <CommandGroup>
                       <CommandItem
-                        key={u.id}
-                        value={`${u.firstName} ${u.lastName} ${u.email}`}
-                        data-checked={salesFilter === u.id}
+                        value="усі сейли всі"
+                        data-checked={salesFilter === SALES_ALL}
                         onSelect={() => {
-                          setSalesFilter(u.id);
+                          setSalesFilter(SALES_ALL);
                           setSalesFilterOpen(false);
                         }}
                       >
-                        <ManagerBadge
-                          name={`${u.firstName} ${u.lastName}`}
-                          bgColor={u.badgeBgColor}
-                          textColor={u.badgeTextColor}
-                        />
+                        Усі сейли
                       </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                      {sortedSalesUsers.map((u) => (
+                        <CommandItem
+                          key={u.id}
+                          value={`${u.firstName} ${u.lastName} ${u.email}`}
+                          data-checked={salesFilter === u.id}
+                          onSelect={() => {
+                            setSalesFilter(u.id);
+                            setSalesFilterOpen(false);
+                          }}
+                        >
+                          <ManagerBadge
+                            name={`${u.firstName} ${u.lastName}`}
+                            bgColor={u.badgeBgColor}
+                            textColor={u.badgeTextColor}
+                          />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            <Popover modal={false} open={devFilterOpen} onOpenChange={setDevFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={devFilterOpen}
+                  className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
+                >
+                  <span className="truncate">
+                    {devFilter === DEV_ALL
+                      ? "Усі деви"
+                      : selectedDev
+                        ? `${selectedDev.firstName} ${selectedDev.lastName}`
+                        : "Оберіть DEV"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command>
+                  <CommandInput placeholder="Пошук DEV..." />
+                  <CommandList>
+                    {devsLoading ? (
+                      <div className="space-y-2 p-2">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <Skeleton key={i} className="h-14 w-full" />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        <CommandEmpty>Не знайдено</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="усі деви всі"
+                            data-checked={devFilter === DEV_ALL}
+                            onSelect={() => {
+                              setDevFilter(DEV_ALL);
+                              setDevFilterOpen(false);
+                            }}
+                          >
+                            Усі деви
+                          </CommandItem>
+                          {sortedDevs.map((d) => (
+                            <CommandItem
+                              key={d.id}
+                              value={`${d.firstName} ${d.lastName} ${d.specialization ?? ""} ${d.technologies.map((t) => t.name).join(" ")}`}
+                              data-checked={devFilter === d.id}
+                              onSelect={() => {
+                                setDevFilter(d.id);
+                                setDevFilterOpen(false);
+                              }}
+                            >
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-medium">
+                                    {d.firstName} {d.lastName}
+                                  </span>
+                                  {d.specialization && (
+                                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                                      {DEV_SPEC_LABELS[d.specialization] ?? d.specialization}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {d.technologies.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {d.technologies.map((t) => (
+                                      <Badge
+                                        key={t.id}
+                                        variant="outline"
+                                        className="px-1.5 py-0 text-[10px]"
+                                      >
+                                        {t.name}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+          </>
         )}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 px-3 sm:ml-auto"
+          disabled={!hasNonDefaultFilters}
+          onClick={resetFilters}
+          aria-label="Скинути фільтри"
+        >
+          <RotateCcw className="size-3.5 opacity-70" aria-hidden />
+          Скинути фільтри
+        </Button>
       </div>
 
       {apiFilters === null ? (
@@ -654,8 +1139,15 @@ export function CallStatsCallsPanel({
         </p>
       ) : statsQuery.isLoading ? (
         <div className="space-y-4">
-          <LoadingSkeletonCompact count={5} />
-          <ChartAreaSkeleton />
+          <CallStatsCardsSkeleton />
+          <div className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-stretch">
+            <div className="min-h-0 min-w-0">
+              <CallStatsDynamicsCardSkeleton />
+            </div>
+            <div className="min-h-0 min-w-0">
+              <CallStatsPieCardSkeleton />
+            </div>
+          </div>
         </div>
       ) : statsQuery.isError ? (
         <p className="text-sm text-destructive">
@@ -664,18 +1156,36 @@ export function CallStatsCallsPanel({
         </p>
       ) : statsQuery.data ? (
         <div className="space-y-4">
-          <CallStatsCardsCompact stats={statsQuery.data} />
-          {seriesQuery.isLoading ? (
-            <ChartAreaSkeleton />
-          ) : seriesQuery.isError ? (
+          <CallStatsCardsCompact
+            stats={statsQuery.data}
+            compareStats={compareStatsQuery.data}
+            showCompareDelta={
+              compareApiFilters !== null &&
+              compareStatsQuery.isSuccess &&
+              compareStatsQuery.data !== undefined
+            }
+            compareDeltaTooltip={compareDeltaTooltip}
+          />
+          {seriesQuery.isError ? (
             <p className="text-sm text-destructive">
               {(seriesQuery.error as { response?: { data?: { error?: string } } })?.response?.data
                 ?.error ?? "Не вдалося завантажити графік"}
             </p>
-          ) : seriesQuery.data ? (
+          ) : (
             <div className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)] lg:items-stretch">
               <div className="min-h-0 h-full min-w-0">
-                <CallStatsAreaChart points={seriesQuery.data.points} />
+                {seriesQuery.isLoading ? (
+                  <CallStatsDynamicsCardSkeleton />
+                ) : seriesQuery.data ? (
+                  <CallStatsAreaChart
+                    points={seriesQuery.data.points}
+                    subtitle={
+                      preset === "all" || preset === "custom"
+                        ? "Як змінювалась кількість дзвінків у часі за обраними датами: усі, успішні та неуспішні (по днях або по годинах, якщо обрано один день). Під графіком можна вимкнути зайві серії."
+                        : "Динаміка дзвінків у межах обраного пресету: три лінії — усі дзвінки, успішні та неуспішні. Легенда під графіком керує видимістю серій."
+                    }
+                  />
+                ) : null}
               </div>
               <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border/60 bg-card shadow-sm">
                 <div className="shrink-0 border-b border-border/40 bg-muted/25 px-4 py-3">
@@ -689,7 +1199,7 @@ export function CallStatsCallsPanel({
                 </div>
               </div>
             </div>
-          ) : null}
+          )}
         </div>
       ) : null}
     </div>
