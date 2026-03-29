@@ -278,81 +278,20 @@ export interface DevUser {
   technologies: { id: string; name: string }[];
 }
 
-/** Агрегати по дзвінках для дашборду; scope залежить від ролі (див. GET /api/stats/calls). */
-export interface CallStatsData {
+export interface SalesStatsData {
   totalCalls: number;
   completedCalls: number;
   successCalls: number;
   unsuccessfulCalls: number;
   pendingCalls: number;
-}
-
-/** Параметри GET /api/stats/calls (ISO-дати; salesId — лише для адміна). */
-export interface CallStatsQueryParams {
-  from?: string;
-  to?: string;
-  salesId?: string;
-  /** Фільтр за DEV на дзвінку (callerId); лише для адміна. */
-  callerId?: string;
-  /** IANA, наприклад Europe/Kyiv — для бакетів графіка в календарі користувача. */
-  timeZone?: string;
-  /** `hour` — погодинна вісь (пресет «Сьогодні» або один календарний день). */
-  granularity?: "hour" | "day";
-}
-
-/** Точка часового ряду для графіка дзвінків (GET /api/stats/calls/timeseries). */
-export interface CallStatsTimeseriesPoint {
-  key: string;
-  label: string;
-  total: number;
-  success: number;
-  unsuccessful: number;
-}
-
-export interface CallStatsTimeseriesResponse {
-  points: CallStatsTimeseriesPoint[];
-}
-
-/** Агрегована статистика акаунтів (GET /api/stats/accounts; лише адмін). */
-export interface AccountStatsData {
   totalAccounts: number;
-  upwork: number;
-  linkedin: number;
-  active: number;
-  paused: number;
-  setup: number;
-  warming: number;
-  noOperationalStatus: number;
 }
 
-/** @deprecated використовуйте AccountStatsData */
-export type AdminAccountStatsData = AccountStatsData;
-
-/** Параметри GET /api/stats/accounts (ISO-дати; salesId — ownerId сейла). */
-export interface AccountStatsQueryParams {
-  from?: string;
-  to?: string;
-  salesId?: string;
-  timeZone?: string;
-  granularity?: "hour" | "day";
-}
-
-/** Точка ряду для графіка акаунтів (GET /api/stats/accounts/timeseries). */
-export interface AccountStatsTimeseriesPoint {
-  key: string;
-  label: string;
-  total: number;
-  upwork: number;
-  linkedin: number;
-  active: number;
-  paused: number;
-  setup: number;
-  warming: number;
-  noOperationalStatus: number;
-}
-
-export interface AccountStatsTimeseriesResponse {
-  points: AccountStatsTimeseriesPoint[];
+export interface DevStatsData {
+  totalAssigned: number;
+  completed: number;
+  successRate: number;
+  pending: number;
 }
 
 export interface AdminUser {

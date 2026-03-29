@@ -802,7 +802,7 @@ export function CallStatsCallsPanel({
   fetchEnabled = true,
 }: CallStatsCallsPanelProps) {
   const { data: salesUsers } = useAdminUsers("SALES", isAdmin);
-  const { data: devs, isLoading: devsLoading } = useDevs(isAdmin);
+  const { data: devs, isLoading: devsLoading } = useDevs({ enabled: isAdmin });
   const [preset, setPreset] = useState<CallStatsPreset>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
