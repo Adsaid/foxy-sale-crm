@@ -1,9 +1,10 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo } from "react";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
+import { getRegisterSchema, type RegisterInput } from "@/lib/validations/auth";
 import { useRegister } from "@/hooks/use-register";
 import {
   Form,
@@ -45,11 +46,22 @@ const SALES_BADGE_PRESETS = [
   { bg: "#F5F3FF", text: "#5B21B6" },
 ];
 
-export function RegisterForm() {
+type RegisterFormProps = {
+  allowAdminRegistration?: boolean;
+};
+
+export function RegisterForm({
+  allowAdminRegistration = false,
+}: RegisterFormProps) {
   const { mutate: register, isPending } = useRegister();
 
+  const registerSchema = useMemo(
+    () => getRegisterSchema(allowAdminRegistration),
+    [allowAdminRegistration],
+  );
+
   const form = useForm<RegisterInput>({
-    resolver: zodResolver(registerSchema),
+    resolver: zodResolver(registerSchema) as Resolver<RegisterInput>,
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -63,6 +75,12 @@ export function RegisterForm() {
       badgeTextColor: "#3730A3",
     },
   });
+
+  useEffect(() => {
+    if (!allowAdminRegistration && form.getValues("role") === "ADMIN") {
+      form.setValue("role", "SALES");
+    }
+  }, [allowAdminRegistration, form]);
 
   const watchRole = form.watch("role");
   const watchBadgeBg = form.watch("badgeBgColor");
@@ -185,7 +203,9 @@ export function RegisterForm() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      {allowAdminRegistration && (
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                      )}
                       <SelectItem value="DEV">Developer</SelectItem>
                       <SelectItem value="SALES">Sales</SelectItem>
                     </SelectContent>

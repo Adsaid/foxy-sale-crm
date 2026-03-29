@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signToken, setAuthCookie } from "@/lib/auth";
-import { registerSchema } from "@/lib/validations/auth";
+import { isDevelopEnv } from "@/lib/app-env";
+import { getRegisterSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const parsed = registerSchema.safeParse(body);
+    const allowAdminRegistration = isDevelopEnv();
+    const parsed = getRegisterSchema(allowAdminRegistration).safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
