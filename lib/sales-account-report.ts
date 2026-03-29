@@ -1,6 +1,10 @@
 import type { Prisma } from "@prisma/client";
 import type { Account } from "@/types/crm";
-import { escapeHtml } from "@/lib/telegram";
+import {
+  escapeHtml,
+  TELEGRAM_CRM_FRAME_RESERVED,
+  TELEGRAM_MESSAGE_HARD_MAX,
+} from "@/lib/telegram";
 import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
@@ -158,7 +162,8 @@ export function buildSalesAccountReportTelegramText(snapshots: Account[]): strin
   return lines.join("\n");
 }
 
-const TELEGRAM_MAX = 3900;
+/** Макс. довжина тіла до обгортки в sendTelegramMessage (рамка з’їдає ~TELEGRAM_CRM_FRAME_RESERVED). */
+const TELEGRAM_MAX = TELEGRAM_MESSAGE_HARD_MAX - TELEGRAM_CRM_FRAME_RESERVED;
 
 /** HTML для Telegram (<b>…</b>); тіло екранується. Розбивка без розриву тегів. */
 export function chunkAccountReportTelegramHtmlParts(

@@ -4,6 +4,10 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 const CRM_FRAME_SEPARATOR = "-----------------";
 
+/** Ліміт Telegram; мінус запас під рамку (розділювач + посилання + <br>). */
+export const TELEGRAM_MESSAGE_HARD_MAX = 4096;
+export const TELEGRAM_CRM_FRAME_RESERVED = 340;
+
 function tgApi(method: string) {
   return `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 }
@@ -16,7 +20,8 @@ function getCrmBaseUrlTrimmed(): string {
 function wrapTelegramCrmFrameHtml(innerHtml: string): string {
   const base = getCrmBaseUrlTrimmed();
   const sep = escapeHtml(CRM_FRAME_SEPARATOR);
-  let out = `${sep}<br><br>${innerHtml}`;
+  const normalized = innerHtml.replace(/\n/g, "<br>");
+  let out = `${sep}<br><br>${normalized}`;
   if (base) {
     const href = escapeHtml(base);
     const label = escapeHtml("Foxy Sale CRM");
@@ -80,6 +85,10 @@ export async function sendTelegramMessage(
         ...(parseMode ? { parse_mode: parseMode } : {}),
       }),
     });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      console.error("[telegram] sendMessage failed", res.status, errBody.slice(0, 500));
+    }
     return res.ok;
   } catch (err) {
     console.error("[telegram] sendMessage error", err);

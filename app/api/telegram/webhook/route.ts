@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     if (!token) {
       await sendTelegramMessage(
         chatId,
-        "Вітаю! Щоб підключити сповіщення, натисніть кнопку «TelegramBot» у CRM — вона містить унікальне посилання для прив'язки."
+        "Вітаю! Щоб підключити сповіщення, натисніть кнопку «TelegramBot» у CRM — вона містить унікальне посилання для прив'язки.",
+        { parseMode: null }
       );
       return NextResponse.json({ ok: true });
     }
@@ -48,7 +49,8 @@ export async function POST(request: Request) {
     if (!pending || pending.expiresAt < new Date()) {
       await sendTelegramMessage(
         chatId,
-        "Посилання недійсне або прострочене. Спробуйте згенерувати нове у CRM."
+        "Посилання недійсне або прострочене. Спробуйте згенерувати нове у CRM.",
+        { parseMode: null }
       );
       return NextResponse.json({ ok: true });
     }
@@ -62,7 +64,8 @@ export async function POST(request: Request) {
 
     await sendTelegramMessage(
       chatId,
-      "Telegram успішно підключено до CRM! Тепер ви будете отримувати сповіщення тут."
+      "Telegram успішно підключено до CRM! Тепер ви будете отримувати сповіщення тут.",
+      { parseMode: null }
     );
 
     return NextResponse.json({ ok: true });
