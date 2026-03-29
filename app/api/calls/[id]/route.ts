@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
-import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+import {
+  callTypeLabelUk,
+  formatNotificationDateTime,
+  notifVerbPast,
+} from "@/lib/notification-copy";
 import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
 import {
   CALL_SLOT_MS,
@@ -226,7 +230,7 @@ export async function PATCH(
     const toStr = formatNotificationDateTime(updated.callStartedAt);
     const typeLabel = callTypeLabelUk(updated.callType);
     const lines = [
-      `${salesName} переніс дзвінок.`,
+      `${salesName} ${notifVerbPast.movedCall} дзвінок.`,
       `Компанія: ${updated.company}`,
       `Тип: ${typeLabel}`,
       `Було: ${fromStr}`,
@@ -269,7 +273,7 @@ export async function PATCH(
     const was = formatNotificationDateTime(existing.callStartedAt);
     const typeLabel = callTypeLabelUk(updated.callType);
     const cancelledMsg = [
-      `${salesName} скасував дзвінок.`,
+      `${salesName} ${notifVerbPast.cancelledCall} дзвінок.`,
       `Компанія: ${updated.company}`,
       `Тип: ${typeLabel}`,
       `Інтерв'юер: ${updated.interviewerName}`,
@@ -320,7 +324,7 @@ export async function PATCH(
       telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
       telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       message: [
-        `${salesName} оновив посилання на дзвінок.`,
+        `${salesName} ${notifVerbPast.updatedCallLink} посилання на дзвінок.`,
         `Компанія: ${updated.company}`,
         `Тип: ${typeLabel}`,
         `Час: ${when}`,

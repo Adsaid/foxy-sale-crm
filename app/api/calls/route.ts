@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
-import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+import {
+  callTypeLabelUk,
+  formatNotificationDateTime,
+  notifVerbPast,
+} from "@/lib/notification-copy";
 import {
   CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
@@ -109,11 +113,12 @@ export async function POST(request: Request) {
   });
 
   const salesName = `${call.createdBy?.firstName ?? ""} ${call.createdBy?.lastName ?? ""}`.trim();
+  const devName = `${call.caller?.firstName ?? ""} ${call.caller?.lastName ?? ""}`.trim();
   const accountLabel = call.account?.account ?? "—";
   const when = formatNotificationDateTime(call.callStartedAt);
   const typeLabel = callTypeLabelUk(call.callType);
   const assignedMessage = [
-    `${salesName} призначив вам дзвінок.`,
+    `${salesName} ${notifVerbPast.assignedCall} вам дзвінок.`,
     `Компанія: ${call.company}`,
     `Тип: ${typeLabel}`,
     `Час: ${when}`,
@@ -149,7 +154,7 @@ export async function POST(request: Request) {
     telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
     telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
     message: [
-      `${salesName} призначив дзвінок DEV.`,
+      `${salesName} ${notifVerbPast.assignedCall} дзвінок ${devName || "розробнику"}.`,
       `Компанія: ${call.company}`,
       `Тип: ${typeLabel}`,
       `Час: ${when}`,

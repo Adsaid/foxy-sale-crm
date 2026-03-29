@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
-import { accountTypeLabelUk } from "@/lib/notification-copy";
+import { accountTypeLabelUk, notifVerbPast } from "@/lib/notification-copy";
 import {
   ACCOUNT_DESKTOP_TYPE_VALUES,
   ACCOUNT_OPERATIONAL_STATUS_VALUES,
@@ -143,7 +143,7 @@ export async function PATCH(
       telegramActorBadgeBgColor: user!.badgeBgColor,
       telegramActorBadgeTextColor: user!.badgeTextColor,
       message: [
-        `${adminName} передав вам акаунт.`,
+        `${adminName} ${notifVerbPast.transferredAccount} вам акаунт.`,
         `Назва: ${updated.account}`,
         `Тип платформи: ${accountTypeLabelUk(updated.type)}`,
         `ID акаунта в CRM: ${updated.id}`,
@@ -160,7 +160,9 @@ export async function PATCH(
   // Якщо адмін редагує акаунт (назва/тип) і власник не змінюється — повідомити власника,
   // щоб не було “тихо змінили”.
   if (adminIsEditing && fieldsChanged && !ownerWillChange) {
-    const nameLines: string[] = [`${adminName} оновив ваш акаунт.`];
+    const nameLines: string[] = [
+      `${adminName} ${notifVerbPast.updatedYourAccount} ваш акаунт.`,
+    ];
     if (body.account !== undefined && body.account !== existing.account) {
       nameLines.push(`Назва: ${existing.account} → ${updated.account}`);
     } else {

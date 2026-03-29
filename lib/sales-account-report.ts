@@ -168,7 +168,7 @@ export function chunkAccountReportTelegramHtmlParts(
 ): string[] {
   const htmlIntro =
     `<b>${escapeHtml(`📋 ${title}`)}</b>\n\n` +
-    `👤 <b>Сейл:</b>\n` +
+    `👤 <b>Автор звіту:</b>\n` +
     `<b>${escapeHtml(salesName)}</b>\n`;
 
   const escapedBody = escapeHtml(bodyPlain);

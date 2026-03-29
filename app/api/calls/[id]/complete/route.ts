@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
-import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+import {
+  callTypeLabelUk,
+  formatNotificationDateTime,
+  notifVerbPast,
+} from "@/lib/notification-copy";
 
 export async function PATCH(
   request: Request,
@@ -101,7 +105,7 @@ export async function PATCH(
     telegramActorBadgeBgColor: updated.caller?.badgeBgColor,
     telegramActorBadgeTextColor: updated.caller?.badgeTextColor,
     message: [
-      `${devName} завершив дзвінок.`,
+      `${devName} ${notifVerbPast.completedCall} дзвінок.`,
       `Компанія: ${updated.company}`,
       `Тип: ${typeLabel}`,
       `Інтерв'юер: ${updated.interviewerName}`,

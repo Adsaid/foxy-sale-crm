@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { notifVerbPast } from "@/lib/notification-copy";
 import {
   sendTelegramMessage,
   sendTelegramNotification,
@@ -141,7 +142,7 @@ export async function notifyAdminsSalesAccountReport(opts: {
 
   const name = `${opts.salesFirstName} ${opts.salesLastName}`.trim();
   const title = "Звіт по акаунтах";
-  const message = `${name} надіслав(ла) звіт по акаунтах.`;
+  const message = `${name} ${notifVerbPast.sentAccountsReport} звіт по акаунтах.`;
 
   await createNotifications(
     admins.map((a) => ({

@@ -1,3 +1,18 @@
+/**
+ * Дієслова минулого часу з маркером в(ла) — без поля статі в профілі
+ * (сейл / дев / адмін).
+ */
+export const notifVerbPast = {
+  assignedCall: "призначив(ла)",
+  movedCall: "переніс(ла)",
+  cancelledCall: "скасував(ла)",
+  updatedCallLink: "оновив(ла)",
+  completedCall: "завершив(ла)",
+  transferredAccount: "передав(ла)",
+  updatedYourAccount: "оновив(ла)",
+  sentAccountsReport: "надіслав(ла)",
+} as const;
+
 /** Дати/час для текстів сповіщень (укр. локаль). */
 export function formatNotificationDateTime(d: Date | string): string {
   const date = typeof d === "string" ? new Date(d) : d;
