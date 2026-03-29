@@ -6,6 +6,27 @@ function tgApi(method: string) {
   return `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
 }
 
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Тіло сповіщення в HTML: якщо перший рядок починається з ПІБ сейла/дева — виділяємо його <b>.
+ */
+export function formatTelegramNotificationBodyHtml(
+  message: string,
+  actorName?: string | null
+): string {
+  const actor = actorName?.trim();
+  if (actor && message.startsWith(actor)) {
+    return `<b>${escapeHtml(actor)}</b>${escapeHtml(message.slice(actor.length))}`;
+  }
+  return escapeHtml(message);
+}
+
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
@@ -45,7 +66,8 @@ export async function sendTelegramPlainMessage(
 export async function sendTelegramNotification(
   userId: string,
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN) return;
   const user = await prisma.user.findUnique({
@@ -53,7 +75,7 @@ export async function sendTelegramNotification(
     select: { telegramChatId: true },
   });
   if (!user?.telegramChatId) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
   await sendTelegramMessage(user.telegramChatId, text);
 }
 
@@ -63,14 +85,15 @@ export async function sendTelegramNotification(
 export async function sendTelegramNotifications(
   userIds: string[],
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN || userIds.length === 0) return;
   const users = await prisma.user.findMany({
     where: { id: { in: userIds }, telegramChatId: { not: null } },
     select: { telegramChatId: true },
   });
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
   await Promise.allSettled(
     users
       .filter((u) => u.telegramChatId)
@@ -83,7 +106,8 @@ export async function sendTelegramNotifications(
  */
 export async function sendTelegramToAllAdmins(
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN) return;
   const admins = await prisma.user.findMany({
@@ -91,17 +115,10 @@ export async function sendTelegramToAllAdmins(
     select: { telegramChatId: true },
   });
   if (admins.length === 0) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
   await Promise.allSettled(
     admins.map((a) => sendTelegramMessage(a.telegramChatId!, text))
   );
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 export async function setTelegramWebhook(url: string): Promise<{ ok: boolean; description?: string }> {

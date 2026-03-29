@@ -118,6 +118,7 @@ export async function POST(request: Request) {
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
     message: assignedMessage,
+    telegramActorName: salesName || undefined,
     payload: assignedPayload,
   }).catch((err) => {
     console.error("[notification] CALL_ASSIGNED", err);
@@ -126,6 +127,7 @@ export async function POST(request: Request) {
   await notifyAllAdmins({
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
+    telegramActorName: salesName || undefined,
     message: [
       `${salesName} призначив дзвінок DEV.`,
       `Компанія: ${call.company}`,

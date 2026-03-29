@@ -88,6 +88,7 @@ export async function PATCH(
     userId: updated.createdById,
     type: "CALL_COMPLETED",
     title: `Дзвінок завершено — ${updated.company}`,
+    telegramActorName: devName || undefined,
     message: [
       `${devName} завершив дзвінок.`,
       `Компанія: ${updated.company}`,

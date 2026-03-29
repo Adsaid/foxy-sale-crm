@@ -57,7 +57,7 @@ export async function POST() {
   const now = new Date();
   const { weekYear, weekNumber, weekStart } = getReportWeekFields(now);
   const salesName = `${user.firstName} ${user.lastName}`.trim();
-  const telegramText = buildSalesAccountReportTelegramText(snapshots, salesName);
+  const telegramText = buildSalesAccountReportTelegramText(snapshots);
 
   const report = await prisma.salesAccountReport.create({
     data: {

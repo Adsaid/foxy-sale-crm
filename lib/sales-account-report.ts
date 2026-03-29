@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { Account } from "@/types/crm";
+import { escapeHtml } from "@/lib/telegram";
 import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
@@ -141,17 +142,12 @@ function linkedInLine(acc: Account): string {
   return `${dot}${name}`;
 }
 
-/** Plain text для Telegram (і збереження в telegramText). */
-export function buildSalesAccountReportTelegramText(
-  snapshots: Account[],
-  salesDisplayName: string
-): string {
+/** Plain text для Telegram (і збереження в telegramText). Заголовок і сейл додає notifyAdminsSalesAccountReport. */
+export function buildSalesAccountReportTelegramText(snapshots: Account[]): string {
   const up = snapshots.filter((a) => a.type === "UPWORK").sort(sortByAccountName);
   const li = snapshots.filter((a) => a.type === "LINKEDIN").sort(sortByAccountName);
 
   const lines: string[] = [
-    `Звіт по акаунтах — ${salesDisplayName}`,
-    "",
     "Upwork",
     ...up.map(upworkLine),
     "",
@@ -164,22 +160,40 @@ export function buildSalesAccountReportTelegramText(
 
 const TELEGRAM_MAX = 3900;
 
-export function chunkTelegramPlainParts(intro: string, body: string): string[] {
-  const first = `${intro}\n\n${body}`;
-  if (first.length <= TELEGRAM_MAX) return [first];
+/** HTML для Telegram (<b>…</b>); тіло екранується. Розбивка без розриву тегів. */
+export function chunkAccountReportTelegramHtmlParts(
+  title: string,
+  salesName: string,
+  bodyPlain: string
+): string[] {
+  const htmlIntro =
+    `<b>${escapeHtml(`📋 ${title}`)}</b>\n\n` +
+    `👤 <b>Сейл:</b>\n` +
+    `<b>${escapeHtml(salesName)}</b>\n`;
 
-  const parts: string[] = [];
-  if (intro.length <= TELEGRAM_MAX) {
-    parts.push(intro);
-  } else {
-    for (let i = 0; i < intro.length; i += TELEGRAM_MAX) {
-      parts.push(intro.slice(i, i + TELEGRAM_MAX));
+  const escapedBody = escapeHtml(bodyPlain);
+  const sep = "\n\n";
+  const full = `${htmlIntro}${sep}${escapedBody}`;
+
+  if (full.length <= TELEGRAM_MAX) {
+    return [full];
+  }
+
+  const headerLen = htmlIntro.length + sep.length;
+  const roomFirst = TELEGRAM_MAX - headerLen;
+  if (roomFirst < 1) {
+    const out: string[] = [htmlIntro];
+    for (let i = 0; i < escapedBody.length; i += TELEGRAM_MAX) {
+      out.push(escapedBody.slice(i, i + TELEGRAM_MAX));
     }
+    return out;
   }
 
-  for (let i = 0; i < body.length; i += TELEGRAM_MAX) {
-    parts.push(body.slice(i, i + TELEGRAM_MAX));
+  const parts: string[] = [
+    `${htmlIntro}${sep}${escapedBody.slice(0, roomFirst)}`,
+  ];
+  for (let i = roomFirst; i < escapedBody.length; i += TELEGRAM_MAX) {
+    parts.push(escapedBody.slice(i, i + TELEGRAM_MAX));
   }
-
   return parts;
 }

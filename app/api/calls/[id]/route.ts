@@ -229,12 +229,14 @@ export async function PATCH(
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
+      telegramActorName: salesName || undefined,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED", err));
     await notifyAllAdmins({
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
+      telegramActorName: salesName || undefined,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED admin", err));
   }
@@ -262,12 +264,14 @@ export async function PATCH(
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
+      telegramActorName: salesName || undefined,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
     await notifyAllAdmins({
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
+      telegramActorName: salesName || undefined,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED admin", err));
   }
@@ -285,6 +289,7 @@ export async function PATCH(
       userId: updated.callerId,
       type: "CALL_LINK_UPDATED",
       title: `Посилання оновлено — ${updated.company}`,
+      telegramActorName: salesName || undefined,
       message: [
         `${salesName} оновив посилання на дзвінок.`,
         `Компанія: ${updated.company}`,
