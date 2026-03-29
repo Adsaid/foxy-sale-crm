@@ -3,16 +3,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { statsService } from "@/services/stats-service";
 
-export function useSalesStats() {
+export function useCallStats() {
   return useQuery({
-    queryKey: ["stats", "sales"],
-    queryFn: statsService.getSalesStats,
+    queryKey: ["stats", "calls"],
+    queryFn: statsService.getCallStats,
   });
 }
 
-export function useDevStats() {
+export function useAdminAccountStats(enabled: boolean) {
   return useQuery({
-    queryKey: ["stats", "dev"],
-    queryFn: statsService.getDevStats,
+    queryKey: ["stats", "accounts"],
+    queryFn: statsService.getAdminAccountStats,
+    enabled,
   });
 }

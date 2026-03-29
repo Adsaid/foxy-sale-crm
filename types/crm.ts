@@ -278,20 +278,25 @@ export interface DevUser {
   technologies: { id: string; name: string }[];
 }
 
-export interface SalesStatsData {
+/** Агрегати по дзвінках для дашборду; scope залежить від ролі (див. GET /api/stats/calls). */
+export interface CallStatsData {
   totalCalls: number;
   completedCalls: number;
   successCalls: number;
   unsuccessfulCalls: number;
   pendingCalls: number;
-  totalAccounts: number;
 }
 
-export interface DevStatsData {
-  totalAssigned: number;
-  completed: number;
-  successRate: number;
-  pending: number;
+/** Агрегована статистика акаунтів (лише адмін, вкладка «Акаунти» на дашборді). */
+export interface AdminAccountStatsData {
+  totalAccounts: number;
+  upwork: number;
+  linkedin: number;
+  active: number;
+  paused: number;
+  setup: number;
+  warming: number;
+  noOperationalStatus: number;
 }
 
 export interface AdminUser {

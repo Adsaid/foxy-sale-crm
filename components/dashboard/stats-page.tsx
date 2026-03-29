@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useSalesStats, useDevStats } from "@/hooks/use-stats";
+import { useCallStats, useAdminAccountStats } from "@/hooks/use-stats";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { accountOperationalStatusLabelUk } from "@/lib/account-fields";
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
@@ -37,10 +40,10 @@ function LoadingSkeleton({ count }: { count: number }) {
   );
 }
 
-function SalesStatsView() {
-  const { data: stats, isLoading } = useSalesStats();
+function CallStatsView() {
+  const { data: stats, isLoading } = useCallStats();
 
-  if (isLoading) return <LoadingSkeleton count={6} />;
+  if (isLoading) return <LoadingSkeleton count={5} />;
   if (!stats) return null;
 
   const items = [
@@ -49,7 +52,6 @@ function SalesStatsView() {
     { label: "Успішні", value: stats.successCalls },
     { label: "Неуспішні", value: stats.unsuccessfulCalls },
     { label: "Очікують", value: stats.pendingCalls },
-    { label: "Акаунтів", value: stats.totalAccounts },
   ];
 
   return (
@@ -61,38 +63,88 @@ function SalesStatsView() {
   );
 }
 
-function DevStatsView() {
-  const { data: stats, isLoading } = useDevStats();
+function AdminAccountStatsView({ enabled }: { enabled: boolean }) {
+  const { data: stats, isLoading } = useAdminAccountStats(enabled);
 
-  if (isLoading) return <LoadingSkeleton count={4} />;
+  if (!enabled) return null;
+  if (isLoading) return <LoadingSkeleton count={8} />;
   if (!stats) return null;
 
-  const items = [
-    { label: "Призначено дзвінків", value: stats.totalAssigned },
-    { label: "Завершено", value: stats.completed },
-    { label: "Успішність", value: `${stats.successRate}%` },
-    { label: "Очікують", value: stats.pending },
+  const statusItems = [
+    { label: accountOperationalStatusLabelUk.ACTIVE, value: stats.active },
+    { label: accountOperationalStatusLabelUk.PAUSED, value: stats.paused },
+    { label: accountOperationalStatusLabelUk.SETUP, value: stats.setup },
+    { label: accountOperationalStatusLabelUk.WARMING, value: stats.warming },
+    ...(stats.noOperationalStatus > 0
+      ? [{ label: "Без операційного статусу", value: stats.noOperationalStatus }]
+      : []),
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((item) => (
-        <StatCard key={item.label} label={item.label} value={item.value} />
-      ))}
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Всього акаунтів" value={stats.totalAccounts} />
+        <StatCard label="Upwork" value={stats.upwork} />
+        <StatCard label="LinkedIn" value={stats.linkedin} />
+      </div>
+      <div>
+        <h3 className="mb-3 text-sm font-medium text-muted-foreground">
+          За операційним статусом
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {statusItems.map((item) => (
+            <StatCard key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 export function StatsPage() {
   const { user, isLoading } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const [adminTab, setAdminTab] = useState<"calls" | "accounts">("calls");
 
   if (isLoading) return <LoadingSkeleton count={4} />;
 
+  const heading =
+    isAdmin && adminTab === "accounts"
+      ? "Статистика аккаунтів"
+      : "Статистика дзвінків";
+
+  const callsSection = user ? <CallStatsView /> : null;
+
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Статистика</h2>
-      {(user?.role === "SALES" || user?.role === "ADMIN") && <SalesStatsView />}
-      {user?.role === "DEV" && <DevStatsView />}
+      <h2 className="text-2xl font-bold">{heading}</h2>
+
+      {isAdmin ? (
+        <Tabs
+          value={adminTab}
+          onValueChange={(v) => setAdminTab(v as "calls" | "accounts")}
+          className="w-full min-w-0"
+        >
+          <TabsList variant="line" className="mb-4">
+            <TabsTrigger value="calls">Дзвінки</TabsTrigger>
+            <TabsTrigger value="accounts">Акаунти</TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="calls"
+            className="mt-0 space-y-4 outline-none focus-visible:outline-none"
+          >
+            {callsSection}
+          </TabsContent>
+          <TabsContent
+            value="accounts"
+            className="mt-0 space-y-4 outline-none focus-visible:outline-none"
+          >
+            <AdminAccountStatsView enabled={adminTab === "accounts"} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-4">{callsSection}</div>
+      )}
     </div>
   );
 }
