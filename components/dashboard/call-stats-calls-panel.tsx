@@ -226,7 +226,7 @@ function StatCardCompact({
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border border-border/45",
+        "group relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/45",
         "bg-gradient-to-b from-card via-card to-muted/35 dark:to-muted/10",
         "shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.04)]",
         "dark:border-border/35 dark:shadow-[0_2px_14px_-2px_rgba(0,0,0,0.5)]",
@@ -296,14 +296,14 @@ function StatCardCompact({
 
 function CallStatsCardsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="flex flex-wrap gap-2.5">
       {CALL_STATS_CARD_CONFIG.map(({ label, variant }) => {
         const s = CALL_STATS_CARD_VARIANT_STYLES[variant];
         return (
           <div
             key={label}
             className={cn(
-              "flex flex-col overflow-hidden rounded-xl border border-border/45",
+              "flex max-w-full min-w-[min(100%,200px)] flex-[1_1_200px] flex-col overflow-hidden rounded-xl border border-border/45",
               "bg-gradient-to-b from-card via-card to-muted/35 dark:to-muted/10",
               "shadow-[0_2px_8px_-2px_rgba(15,23,42,0.06)] dark:border-border/35 dark:shadow-[0_2px_14px_-2px_rgba(0,0,0,0.5)]"
             )}
@@ -766,21 +766,25 @@ function CallStatsCardsCompact({
         }
       : null;
   return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="flex flex-wrap gap-2.5">
       {CALL_STATS_CARD_CONFIG.map(({ label, variant }) => {
         const delta =
           prevValues !== null
             ? buildCallStatDelta(variant, values[variant], prevValues[variant])
             : null;
         return (
-          <StatCardCompact
+          <div
             key={label}
-            label={label}
-            value={values[variant]}
-            variant={variant}
-            delta={delta}
-            deltaTooltip={delta ? compareDeltaTooltip : null}
-          />
+            className="max-w-full min-w-[min(100%,200px)] flex-[1_1_200px]"
+          >
+            <StatCardCompact
+              label={label}
+              value={values[variant]}
+              variant={variant}
+              delta={delta}
+              deltaTooltip={delta ? compareDeltaTooltip : null}
+            />
+          </div>
         );
       })}
     </div>
