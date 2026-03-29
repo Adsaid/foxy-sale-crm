@@ -38,6 +38,8 @@ export interface Account {
     badgeBgColor?: string | null;
     badgeTextColor?: string | null;
   };
+  /** Дата створення акаунта на платформі (не дата запису в CRM). */
+  accountCreatedAt?: string | null;
   createdAt: string;
 }
 
@@ -141,6 +143,8 @@ export interface CreateAccountInput {
   desktopType?: AccountDesktopType | null;
   contactsCount?: number | null;
   profileViewsCount?: number | null;
+  /** yyyy-MM-dd або null */
+  accountCreatedAt?: string | null;
 }
 
 export interface UpdateAccountInput {
@@ -155,6 +159,7 @@ export interface UpdateAccountInput {
   desktopType?: AccountDesktopType | null;
   contactsCount?: number | null;
   profileViewsCount?: number | null;
+  accountCreatedAt?: string | null;
 }
 
 /** Дані з форми акаунта (створення / повне оновлення). */
@@ -170,6 +175,8 @@ export interface AccountFormPayload {
   location: string | null;
   contactsCount: number | null;
   profileViewsCount: number | null;
+  /** yyyy-MM-dd з input type="date", порожньо = null */
+  accountCreatedAt: string | null;
 }
 
 export interface CreateCallInput {

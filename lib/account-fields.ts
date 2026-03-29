@@ -88,3 +88,24 @@ export function parseAccountLocationField(val: unknown): ParsedLocationField {
   if (typeof val === "string") return { value: val.trim() || null };
   return "invalid";
 }
+
+/** Дата (календарний день) у форматі yyyy-MM-dd, зберігається як UTC midnight. */
+export type ParsedAccountOptionalDate = "omit" | "invalid" | { value: Date | null };
+
+export function parseAccountOptionalDate(val: unknown): ParsedAccountOptionalDate {
+  if (val === undefined) return "omit";
+  if (val === null || val === "") return { value: null };
+  if (typeof val !== "string") return "invalid";
+  const t = val.trim();
+  if (t === "") return { value: null };
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  if (!m) return "invalid";
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(Date.UTC(y, mo - 1, day));
+  if (d.getUTCFullYear() !== y || d.getUTCMonth() !== mo - 1 || d.getUTCDate() !== day) {
+    return "invalid";
+  }
+  return { value: d };
+}

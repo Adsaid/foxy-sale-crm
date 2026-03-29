@@ -10,8 +10,8 @@ export const accountReportService = {
     salesUserId?: string;
     weekYear?: number;
     weekNumber?: number;
-    weekStartMin?: string;
-    weekStartMax?: string;
+    /** Список ISO-тижнів "рік-номер", через кому (з lib/report-week). */
+    weeks?: string;
   }) => {
     const filtered = Object.fromEntries(
       Object.entries(params).filter(([, v]) => v !== undefined)

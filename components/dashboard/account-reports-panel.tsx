@@ -6,7 +6,8 @@ import { uk } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { useAccountReports } from "@/hooks/use-account-reports";
 import { useAdminUsers } from "@/hooks/use-admin-users";
-import { formatWeekRangeLabelFromStart } from "@/lib/report-week";
+import { formatWeekRangeLabelFromStart, isoWeeksCsvFromDateRange } from "@/lib/report-week";
+import { accountDesktopTypeLabelUk, accountWarmUpStageLabelUk } from "@/lib/account-fields";
 import {
   Accordion,
   AccordionContent,
@@ -28,7 +29,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
@@ -37,10 +37,16 @@ import { AccountOperationalStatusBadge } from "@/components/ui/account-operation
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountDetailSheet } from "@/components/sheets/account-detail-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { Account, SalesAccountReportListItem } from "@/types/crm";
-import { CalendarRange, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react";
+import { SortableHeader, TablePagination } from "@/components/ui/data-table-controls";
+import type { SortState } from "@/hooks/use-table";
+import type {
+  Account,
+  AccountDesktopType,
+  AdminUser,
+  SalesAccountReportListItem,
+} from "@/types/crm";
+import { CalendarRange, ChevronsUpDown } from "lucide-react";
 
 const SALES_ALL = "all";
 
@@ -49,20 +55,29 @@ function defaultIsoWeekRange(): DateRange {
   return { from, to: addDays(from, 6) };
 }
 
-function weekStartBoundsIso(range: DateRange | undefined): {
-  weekStartMin: string;
-  weekStartMax: string;
-} | null {
-  if (!range?.from) return null;
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** Обрано саме пресет «поточний ISO-тиждень» (не довільний діапазон на календарі). */
+function isCurrentIsoWeekPreset(range: DateRange | undefined): boolean {
+  if (!range?.from) return false;
   const end = range.to ?? range.from;
-  const earlier = minDate([range.from, end]);
-  const later = maxDate([range.from, end]);
-  const minMonday = startOfISOWeek(earlier);
-  const maxMonday = startOfISOWeek(later);
-  return {
-    weekStartMin: minMonday.toISOString(),
-    weekStartMax: maxMonday.toISOString(),
-  };
+  const preset = defaultIsoWeekRange();
+  if (!preset.from || !preset.to) return false;
+  return isSameCalendarDay(range.from, preset.from) && isSameCalendarDay(end, preset.to);
+}
+
+function pluralWeeksUk(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} тиждень`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `${n} тижні`;
+  return `${n} тижнів`;
 }
 
 function weekSpanTriggerLabel(range: DateRange | undefined): string {
@@ -73,8 +88,57 @@ function weekSpanTriggerLabel(range: DateRange | undefined): string {
   if (minMonday.getTime() === maxMonday.getTime()) {
     return formatWeekRangeLabelFromStart(minMonday);
   }
+  const csv = isoWeeksCsvFromDateRange(range);
+  const count = csv ? csv.split(",").length : 0;
   const lastDay = addDays(maxMonday, 6);
-  return `${formatWeekRangeLabelFromStart(minMonday)} — ${format(lastDay, "d MMM yyyy", { locale: uk })}`;
+  if (count > 1) {
+    return `${pluralWeeksUk(count)}: ${formatWeekRangeLabelFromStart(minMonday)} → ${format(lastDay, "d MMM yyyy", { locale: uk })}`;
+  }
+  return `${formatWeekRangeLabelFromStart(minMonday)} → ${format(lastDay, "d MMM yyyy", { locale: uk })}`;
+}
+
+const SNAPSHOT_SORT_DEFAULT: SortState = { column: "type", direction: "asc" };
+
+function snapshotSortValue(acc: Account, column: string): string | number {
+  switch (column) {
+    case "location":
+      return (acc.location?.trim() || "").toLowerCase();
+    case "operationalStatus":
+      return acc.operationalStatus ?? "";
+    case "warmUpStage":
+      return acc.warmUpStage ?? "";
+    case "account":
+      return acc.account.toLowerCase();
+    case "type":
+      return acc.type;
+    case "desktopType":
+      return acc.desktopType ?? "";
+    case "metrics": {
+      if (acc.type === "UPWORK") return acc.profileViewsCount ?? -1;
+      const c = acc.contactsCount ?? 0;
+      const v = acc.profileViewsCount ?? 0;
+      return c * 1_000_000 + v;
+    }
+    case "accountCreatedAt":
+      return acc.accountCreatedAt ? new Date(acc.accountCreatedAt).getTime() : 0;
+    default:
+      return "";
+  }
+}
+
+function sortSnapshotRows(rows: Account[], sort: SortState | null): Account[] {
+  if (!sort) return rows;
+  return [...rows].sort((a, b) => {
+    const aVal = snapshotSortValue(a, sort.column);
+    const bVal = snapshotSortValue(b, sort.column);
+    if (aVal === bVal) return 0;
+    if (typeof aVal === "number" && typeof bVal === "number") {
+      const cmp = aVal - bVal;
+      return sort.direction === "desc" ? -cmp : cmp;
+    }
+    const cmp = String(aVal).localeCompare(String(bVal), "uk", { sensitivity: "base" });
+    return sort.direction === "desc" ? -cmp : cmp;
+  });
 }
 
 export function AccountReportsPanel() {
@@ -84,15 +148,16 @@ export function AccountReportsPanel() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => defaultIsoWeekRange());
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [sheetAccount, setSheetAccount] = useState<Account | null>(null);
 
-  const weekIso = useMemo(() => weekStartBoundsIso(dateRange), [dateRange]);
+  const weeksCsv = useMemo(() => isoWeeksCsvFromDateRange(dateRange), [dateRange]);
 
   const { data, isLoading } = useAccountReports({
     page,
-    limit: 20,
+    limit: pageSize,
     salesUserId: salesFilter === SALES_ALL ? undefined : salesFilter,
-    ...(weekIso ?? {}),
+    weeks: weeksCsv,
   });
 
   const sortedSales = useMemo(() => {
@@ -106,6 +171,9 @@ export function AccountReportsPanel() {
     salesFilter === SALES_ALL ? null : sortedSales.find((u) => u.id === salesFilter);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+
+  const filterAllWeeks = dateRange === undefined;
+  const filterCurrentWeek = isCurrentIsoWeekPreset(dateRange);
 
   return (
     <div className="space-y-4">
@@ -173,13 +241,17 @@ export function AccountReportsPanel() {
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="h-9 w-[min(100%,min(100vw-2rem,320px))] max-w-[320px] shrink-0 justify-start gap-2 px-3 font-normal"
+              className="h-9 w-[min(100%,280px)] max-w-[280px] shrink-0 justify-start gap-2 px-3 font-normal"
             >
-              <CalendarRange className="size-4 shrink-0 opacity-60" />
-              <span className="truncate">{weekSpanTriggerLabel(dateRange)}</span>
+              <CalendarRange className="size-4 shrink-0 opacity-50" />
+              <span className="truncate text-left">{weekSpanTriggerLabel(dateRange)}</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent
+            className="w-auto max-w-[calc(100vw-1.25rem)] overflow-hidden p-0"
+            align="start"
+            sideOffset={6}
+          >
             <Calendar
               mode="range"
               locale={uk}
@@ -196,7 +268,7 @@ export function AccountReportsPanel() {
             <div className="flex flex-wrap gap-2 p-3">
               <Button
                 type="button"
-                variant="secondary"
+                variant={filterCurrentWeek ? "default" : "outline"}
                 size="sm"
                 className="flex-1 sm:flex-none"
                 onClick={() => {
@@ -209,7 +281,7 @@ export function AccountReportsPanel() {
               </Button>
               <Button
                 type="button"
-                variant="ghost"
+                variant={filterAllWeeks ? "default" : "outline"}
                 size="sm"
                 className="flex-1 sm:flex-none"
                 onClick={() => {
@@ -225,70 +297,46 @@ export function AccountReportsPanel() {
         </Popover>
       </div>
 
-      <Separator />
-
       {isLoading ? (
-        <Card size="sm">
-          <CardContent className="space-y-2 pt-6">
+        <div className="rounded-md border px-4 py-6">
+          <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+              <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : !data?.items.length ? (
-        <Card size="sm">
-          <CardContent className="flex flex-col items-center justify-center py-10">
-            <CardDescription className="text-center text-base">
-              Немає звітів за обраними фільтрами.
-            </CardDescription>
-          </CardContent>
-        </Card>
+        <div className="rounded-md border py-12">
+          <p className="text-center text-sm text-muted-foreground">
+            Немає звітів за обраними фільтрами.
+          </p>
+        </div>
       ) : (
-        <Card size="sm" className="gap-0 py-0">
-          <CardContent className="space-y-0 px-0 pt-4 pb-0">
-            <Accordion
-              type="multiple"
-              className="rounded-none border-0 bg-transparent shadow-none"
-            >
-              {data.items.map((report) => (
-                <ReportAccordionItem
-                  key={report.id}
-                  report={report}
-                  onRowClick={setSheetAccount}
-                />
-              ))}
-            </Accordion>
-          </CardContent>
+        <div className="rounded-md border">
+          <Accordion type="multiple" className="rounded-none border-0 shadow-none">
+            {data.items.map((report) => (
+              <ReportAccordionItem
+                key={report.id}
+                report={report}
+                submitterUser={sortedSales.find((u) => u.id === report.submittedBy.id)}
+                onRowClick={setSheetAccount}
+              />
+            ))}
+          </Accordion>
           {data.total > 0 && (
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t py-3 text-sm text-muted-foreground">
-              <span>
-                {(page - 1) * data.limit + 1}–{Math.min(page * data.limit, data.total)} з{" "}
-                {data.total}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-                <span className="px-2 tabular-nums">
-                  {page} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </CardFooter>
+            <TablePagination
+              page={page}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={data.total}
+              onPageChange={setPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setPage(1);
+              }}
+            />
           )}
-        </Card>
+        </div>
       )}
 
       <AccountDetailSheet
@@ -302,11 +350,30 @@ export function AccountReportsPanel() {
 
 function ReportAccordionItem({
   report,
+  submitterUser,
   onRowClick,
 }: {
   report: SalesAccountReportListItem;
+  submitterUser?: AdminUser;
   onRowClick: (a: Account) => void;
 }) {
+  const [sort, setSort] = useState<SortState | null>(SNAPSHOT_SORT_DEFAULT);
+
+  function toggleSort(column: string) {
+    setSort((prev) => {
+      if (prev?.column === column) {
+        if (prev.direction === "asc") return { column, direction: "desc" };
+        return null;
+      }
+      return { column, direction: "asc" };
+    });
+  }
+
+  const sortedSnapshot = useMemo(
+    () => sortSnapshotRows(report.accountsSnapshot, sort),
+    [report.accountsSnapshot, sort]
+  );
+
   const weekStart = new Date(report.weekStart);
   const weekLabel = formatWeekRangeLabelFromStart(weekStart);
   const submitted = new Date(report.createdAt).toLocaleString("uk-UA", {
@@ -317,89 +384,162 @@ function ReportAccordionItem({
     minute: "2-digit",
   });
   const { firstName, lastName } = report.submittedBy;
+  const salesName = `${firstName} ${lastName}`.trim();
 
   return (
-    <AccordionItem value={report.id} className="border-0 border-b border-border last:border-b-0">
-      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-        <div className="flex w-full flex-col items-start gap-1 pr-2 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <div>
-            <span className="font-medium text-foreground">
-              {firstName} {lastName}
-            </span>
-            <span className="text-muted-foreground"> · {weekLabel}</span>
+    <AccordionItem value={report.id} className="data-open:bg-transparent">
+      <AccordionTrigger className="hover:no-underline">
+        <div className="flex w-full flex-col items-start gap-2 text-left sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pr-2">
+            <ManagerBadge
+              name={salesName}
+              bgColor={submitterUser?.badgeBgColor}
+              textColor={submitterUser?.badgeTextColor}
+            />
+            <span className="text-sm text-muted-foreground">· {weekLabel}</span>
           </div>
-          <span className="text-xs text-muted-foreground tabular-nums sm:shrink-0">
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
             Надіслано: {submitted}
           </span>
         </div>
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4 pt-0">
-        <Card className="gap-0 overflow-hidden py-0 shadow-none ring-1 ring-border">
-          <CardContent className="px-0 py-0">
-            <Table>
+        <div className="rounded-md border bg-background">
+          <Table className="table-fixed">
+            <colgroup>
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "9%" }} />
+              <col style={{ width: "24%" }} />
+              <col style={{ width: "8%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "16%" }} />
+            </colgroup>
             <TableHeader>
               <TableRow>
-                <TableHead>Акаунт</TableHead>
-                <TableHead>Тип</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead className="hidden md:table-cell">Конт. / перегл.</TableHead>
-                <TableHead className="hidden lg:table-cell">Сейл</TableHead>
-                <TableHead>Створено</TableHead>
+                <SortableHeader
+                  column="location"
+                  label="Місцезнаходження"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="whitespace-normal text-left"
+                />
+                <SortableHeader
+                  column="operationalStatus"
+                  label="Статус"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="whitespace-nowrap text-left"
+                />
+                <SortableHeader
+                  column="account"
+                  label="Акаунт"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="text-left"
+                />
+                <SortableHeader
+                  column="type"
+                  label="Тип"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="whitespace-nowrap text-left"
+                />
+                <SortableHeader
+                  column="desktopType"
+                  label="Робоче оточення"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="hidden text-left sm:table-cell whitespace-normal text-sm"
+                />
+                <SortableHeader
+                  column="warmUpStage"
+                  label="Етап"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="hidden text-left sm:table-cell whitespace-normal text-sm"
+                />
+                <SortableHeader
+                  column="metrics"
+                  label="Конт. / перегл."
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="hidden text-left md:table-cell"
+                />
+                <SortableHeader
+                  column="accountCreatedAt"
+                  label="Дата створення"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className="whitespace-nowrap text-left"
+                />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {report.accountsSnapshot.map((acc) => (
-                <TableRow
-                  key={acc.id}
-                  className="cursor-pointer"
-                  onClick={() => onRowClick(acc)}
-                >
-                  <TableCell className="font-medium">{acc.account}</TableCell>
-                  <TableCell>
-                    <AccountTypeBadge type={acc.type} />
-                  </TableCell>
-                  <TableCell>
-                    {acc.operationalStatus ? (
-                      <AccountOperationalStatusBadge status={acc.operationalStatus} />
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell text-sm text-muted-foreground tabular-nums">
-                    {acc.type === "UPWORK" ? (
-                      acc.profileViewsCount != null ? (
-                        acc.profileViewsCount
+              {sortedSnapshot.map((acc) => {
+                const deskLabel =
+                  acc.desktopType != null
+                    ? accountDesktopTypeLabelUk[acc.desktopType as AccountDesktopType]
+                    : "—";
+                return (
+                  <TableRow
+                    key={acc.id}
+                    className="cursor-pointer"
+                    onClick={() => onRowClick(acc)}
+                  >
+                    <TableCell className="min-w-0 whitespace-normal break-words text-left align-middle">
+                      {acc.location?.trim() || "—"}
+                    </TableCell>
+                    <TableCell className="text-left align-middle">
+                      {acc.operationalStatus ? (
+                        <AccountOperationalStatusBadge status={acc.operationalStatus} />
                       ) : (
                         "—"
-                      )
-                    ) : acc.contactsCount != null || acc.profileViewsCount != null ? (
-                      <>
-                        {acc.contactsCount ?? "—"} / {acc.profileViewsCount ?? "—"}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">
-                    {acc.owner ? (
-                      <ManagerBadge
-                        name={`${acc.owner.firstName} ${acc.owner.lastName}`}
-                        bgColor={acc.owner.badgeBgColor}
-                        textColor={acc.owner.badgeTextColor}
-                      />
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {new Date(acc.createdAt).toLocaleDateString("uk-UA")}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      )}
+                    </TableCell>
+                    <TableCell className="min-w-0 text-left align-middle font-medium">
+                      <span className="line-clamp-2 break-words">{acc.account}</span>
+                    </TableCell>
+                    <TableCell className="text-left align-middle">
+                      <AccountTypeBadge type={acc.type} />
+                    </TableCell>
+                    <TableCell className="hidden text-left align-middle sm:table-cell text-sm">
+                      {acc.type === "UPWORK" ? deskLabel : "—"}
+                    </TableCell>
+                    <TableCell className="hidden min-w-0 whitespace-normal text-left align-middle text-sm sm:table-cell">
+                      {acc.operationalStatus === "WARMING" && acc.warmUpStage ? (
+                        accountWarmUpStageLabelUk[acc.warmUpStage]
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="hidden text-left align-middle text-sm tabular-nums md:table-cell">
+                      {acc.type === "UPWORK" ? (
+                        acc.profileViewsCount != null ? (
+                          acc.profileViewsCount
+                        ) : (
+                          "—"
+                        )
+                      ) : acc.contactsCount != null || acc.profileViewsCount != null ? (
+                        <>
+                          {acc.contactsCount ?? "—"} / {acc.profileViewsCount ?? "—"}
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-left align-middle tabular-nums">
+                      {acc.accountCreatedAt
+                        ? new Date(acc.accountCreatedAt).toLocaleDateString("uk-UA")
+                        : "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-          </CardContent>
-        </Card>
+        </div>
       </AccordionContent>
     </AccordionItem>
   );

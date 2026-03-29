@@ -11,6 +11,7 @@ import {
   parseAccountCountField,
   parseAccountEnumField,
   parseAccountLocationField,
+  parseAccountOptionalDate,
 } from "@/lib/account-fields";
 
 export async function PATCH(
@@ -102,6 +103,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid profileViewsCount" }, { status: 400 });
     }
     if (p !== "omit") data.profileViewsCount = p.value;
+  }
+  if ("accountCreatedAt" in body) {
+    const p = parseAccountOptionalDate(body.accountCreatedAt);
+    if (p === "invalid") {
+      return NextResponse.json({ error: "Invalid accountCreatedAt" }, { status: 400 });
+    }
+    if (p !== "omit") data.accountCreatedAt = p.value;
   }
 
   const updated = await prisma.account.update({

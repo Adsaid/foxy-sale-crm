@@ -5,7 +5,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { getReportWeekFields } from "@/lib/report-week";
 import {
   accountToSnapshot,
-  accountReportPrismaInclude,
+  accountReportSnapshotSelect,
   buildSalesAccountReportTelegramText,
 } from "@/lib/sales-account-report";
 import { notifyAdminsSalesAccountReport } from "@/lib/notifications";
@@ -42,7 +42,7 @@ export async function POST() {
 
   const accounts = await prisma.account.findMany({
     where: { ownerId: user.id },
-    include: accountReportPrismaInclude,
+    select: accountReportSnapshotSelect,
     orderBy: { createdAt: "desc" },
   });
 
@@ -91,24 +91,35 @@ export async function GET(request: Request) {
   const salesUserId = searchParams.get("salesUserId")?.trim() || undefined;
   const weekYearRaw = searchParams.get("weekYear");
   const weekNumberRaw = searchParams.get("weekNumber");
-  const weekStartMinRaw = searchParams.get("weekStartMin")?.trim();
-  const weekStartMaxRaw = searchParams.get("weekStartMax")?.trim();
+  const weeksRaw = searchParams.get("weeks")?.trim();
   const page = Math.max(1, Number(searchParams.get("page") || "1") || 1);
   const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "30") || 30));
 
   const where: Prisma.SalesAccountReportWhereInput = {};
   if (salesUserId) where.submittedById = salesUserId;
 
-  let weekRangeApplied = false;
-  if (weekStartMinRaw && weekStartMaxRaw) {
-    const minD = new Date(weekStartMinRaw);
-    const maxD = new Date(weekStartMaxRaw);
-    if (!Number.isNaN(minD.getTime()) && !Number.isNaN(maxD.getTime())) {
-      where.weekStart = { gte: minD, lte: maxD };
-      weekRangeApplied = true;
+  let weekFilterApplied = false;
+  if (weeksRaw) {
+    const orWeeks: Prisma.SalesAccountReportWhereInput[] = [];
+    for (const part of weeksRaw.split(",")) {
+      const s = part.trim();
+      const dash = s.lastIndexOf("-");
+      if (dash <= 0) continue;
+      const wy = Number(s.slice(0, dash));
+      const wn = Number(s.slice(dash + 1));
+      if (Number.isFinite(wy) && Number.isFinite(wn)) {
+        orWeeks.push({ weekYear: wy, weekNumber: wn });
+      }
+    }
+    if (orWeeks.length === 1) {
+      Object.assign(where, orWeeks[0]);
+      weekFilterApplied = true;
+    } else if (orWeeks.length > 1) {
+      where.OR = orWeeks;
+      weekFilterApplied = true;
     }
   }
-  if (!weekRangeApplied && weekYearRaw != null && weekNumberRaw != null) {
+  if (!weekFilterApplied && weekYearRaw != null && weekNumberRaw != null) {
     const wy = Number(weekYearRaw);
     const wn = Number(weekNumberRaw);
     if (Number.isFinite(wy) && Number.isFinite(wn)) {

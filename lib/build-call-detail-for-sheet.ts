@@ -50,6 +50,7 @@ function mapAccount(a: Account): CallEvent["account"] {
     contactsCount: a.contactsCount ?? null,
     profileViewsCount: a.profileViewsCount ?? null,
     ownerId: a.ownerId,
+    accountCreatedAt: a.accountCreatedAt?.toISOString() ?? null,
     createdAt: a.createdAt.toISOString(),
   };
 }
@@ -103,6 +104,7 @@ export async function buildCallEventDetailFromSummary(
         contactsCount: null,
         profileViewsCount: null,
         ownerId: summary.createdById,
+        accountCreatedAt: null,
         createdAt: summary.createdAt.toISOString(),
       };
 

@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
 import {
   Command,
   CommandEmpty,
@@ -14,7 +18,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ChevronsUpDown, Plus, X } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Plus, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -44,6 +48,13 @@ import {
 
 const NONE = "__none__";
 
+function parseIsoToCalendarDate(iso: string | null | undefined): Date | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+}
+
 function toCount(s: string): number | null {
   const t = s.trim();
   if (t === "") return null;
@@ -69,6 +80,10 @@ export function AccountForm({
 }: AccountFormProps) {
   const [account, setAccount] = useState(initial?.account ?? "");
   const [type, setType] = useState<AccountType>(initial?.type ?? "UPWORK");
+  const [accountCreatedDate, setAccountCreatedDate] = useState<Date | undefined>(() =>
+    parseIsoToCalendarDate(initial?.accountCreatedAt ?? undefined)
+  );
+  const [accountCreatedOpen, setAccountCreatedOpen] = useState(false);
   const [profileLinks, setProfileLinks] = useState<string[]>(
     initial?.profileLinks?.length ? initial.profileLinks : [""]
   );
@@ -126,6 +141,57 @@ export function AccountForm({
           </SelectItem>
         </SelectContent>
       </Select>
+
+      <div className="space-y-2">
+        <Label>Дата створення</Label>
+        <Popover open={accountCreatedOpen} onOpenChange={setAccountCreatedOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 w-full justify-start gap-2 px-3 font-normal"
+            >
+              <CalendarIcon className="size-4 shrink-0 opacity-50" />
+              <span className="truncate">
+                {accountCreatedDate
+                  ? format(accountCreatedDate, "d MMMM yyyy", { locale: uk })
+                  : "Оберіть дату"}
+              </span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto max-w-[calc(100vw-1.25rem)] p-0" align="start">
+            <Calendar
+              mode="single"
+              locale={uk}
+              defaultMonth={accountCreatedDate}
+              selected={accountCreatedDate}
+              onSelect={(d) => {
+                setAccountCreatedDate(d);
+                setAccountCreatedOpen(false);
+              }}
+              showOutsideDays={false}
+            />
+            <Separator />
+            <div className="p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full font-normal"
+                onClick={() => {
+                  setAccountCreatedDate(undefined);
+                  setAccountCreatedOpen(false);
+                }}
+              >
+                Без дати
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <p className="text-xs text-muted-foreground">
+          Дата появи акаунта на платформі (не дата додавання в CRM).
+        </p>
+      </div>
 
       <div className="space-y-2">
         <Label>Посилання на акаунт</Label>
@@ -334,6 +400,9 @@ export function AccountForm({
             location: location.trim() || null,
             contactsCount: type === "UPWORK" ? null : toCount(contactsCount),
             profileViewsCount: toCount(profileViewsCount),
+            accountCreatedAt: accountCreatedDate
+              ? format(accountCreatedDate, "yyyy-MM-dd")
+              : null,
           })
         }
         disabled={!account || isPending || (isAdmin && !ownerId) || countsInvalid}

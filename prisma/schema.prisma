@@ -131,6 +131,8 @@ model Account {
   ownerId             String                    @db.ObjectId
   owner               User                      @relation(fields: [ownerId], references: [id])
   calls               CallEvent[]
+  /** Дата створення акаунта на платформі (окремо від createdAt запису в CRM). */
+  accountCreatedAt    DateTime?
   createdAt           DateTime                  @default(now())
 }
 

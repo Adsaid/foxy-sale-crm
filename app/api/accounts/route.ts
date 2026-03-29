@@ -8,6 +8,7 @@ import {
   parseAccountCountField,
   parseAccountEnumField,
   parseAccountLocationField,
+  parseAccountOptionalDate,
 } from "@/lib/account-fields";
 
 export async function GET() {
@@ -69,6 +70,10 @@ export async function POST(request: Request) {
   if (views === "invalid") {
     return NextResponse.json({ error: "Invalid profileViewsCount" }, { status: 400 });
   }
+  const ac = parseAccountOptionalDate(body.accountCreatedAt);
+  if (ac === "invalid") {
+    return NextResponse.json({ error: "Invalid accountCreatedAt" }, { status: 400 });
+  }
 
   let resolvedOwnerId = user!.id;
   if (user!.role === "ADMIN") {
@@ -98,6 +103,7 @@ export async function POST(request: Request) {
       ...(loc !== "omit" && { location: loc.value }),
       ...(contacts !== "omit" && { contactsCount: contacts.value }),
       ...(views !== "omit" && { profileViewsCount: views.value }),
+      ...(ac !== "omit" && { accountCreatedAt: ac.value }),
     },
     include: {
       owner: {

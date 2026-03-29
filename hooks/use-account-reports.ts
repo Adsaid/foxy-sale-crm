@@ -9,8 +9,7 @@ export function useAccountReports(params: {
   salesUserId?: string;
   weekYear?: number;
   weekNumber?: number;
-  weekStartMin?: string;
-  weekStartMax?: string;
+  weeks?: string;
   enabled?: boolean;
 }) {
   const { enabled = true, ...rest } = params;

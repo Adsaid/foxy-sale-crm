@@ -119,8 +119,9 @@ export function AccountsPage() {
       "owner.firstName",
       "owner.lastName",
       "owner.email",
+      "accountCreatedAt",
     ],
-    defaultSort: { column: "createdAt", direction: "desc" },
+    defaultSort: { column: "accountCreatedAt", direction: "desc" },
     predicate: rowPredicate,
     filtersActive,
   });
@@ -162,6 +163,7 @@ export function AccountsPage() {
         location: data.location,
         contactsCount: data.contactsCount,
         profileViewsCount: data.profileViewsCount,
+        accountCreatedAt: data.accountCreatedAt,
       };
       if (data.description) {
         payload.description = data.description;
@@ -281,7 +283,12 @@ export function AccountsPage() {
                   onSort={table.toggleSort}
                 />
               )}
-              <SortableHeader column="createdAt" label="Створено" sort={table.sort} onSort={table.toggleSort} />
+              <SortableHeader
+                column="accountCreatedAt"
+                label="Дата створення"
+                sort={table.sort}
+                onSort={table.toggleSort}
+              />
               <TableHead className="w-24" />
             </TableRow>
           </TableHeader>
@@ -336,8 +343,10 @@ export function AccountsPage() {
                       )}
                     </TableCell>
                   )}
-                  <TableCell>
-                    {new Date(acc.createdAt).toLocaleDateString("uk-UA")}
+                  <TableCell className="tabular-nums">
+                    {acc.accountCreatedAt
+                      ? new Date(acc.accountCreatedAt).toLocaleDateString("uk-UA")
+                      : "—"}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>

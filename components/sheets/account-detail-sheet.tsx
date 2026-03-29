@@ -113,12 +113,14 @@ export function AccountDetailSheet({
               </DetailRow>
             )}
 
-            <DetailRow label="Створено">
-              {new Date(account.createdAt).toLocaleDateString("uk-UA", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
+            <DetailRow label="Дата створення">
+              {account.accountCreatedAt
+                ? new Date(account.accountCreatedAt).toLocaleDateString("uk-UA", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : "—"}
             </DetailRow>
 
             <DetailRow label="Операційний статус">

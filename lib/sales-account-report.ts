@@ -14,13 +14,38 @@ export const ACCOUNT_REPORT_OWNER_SELECT = {
   badgeTextColor: true,
 } as const;
 
-export const accountReportPrismaInclude = {
+/** Явний select для знімка звіту — усі поля таблиці/картки, включно з датою створення на платформі. */
+export const accountReportSnapshotSelect = {
+  id: true,
+  account: true,
+  type: true,
+  profileLinks: true,
+  description: true,
+  operationalStatus: true,
+  warmUpStage: true,
+  location: true,
+  desktopType: true,
+  contactsCount: true,
+  profileViewsCount: true,
+  ownerId: true,
+  accountCreatedAt: true,
+  createdAt: true,
   owner: { select: ACCOUNT_REPORT_OWNER_SELECT },
-} satisfies Prisma.AccountInclude;
+} satisfies Prisma.AccountSelect;
 
 export type AccountForReport = Prisma.AccountGetPayload<{
-  include: typeof accountReportPrismaInclude;
+  select: typeof accountReportSnapshotSelect;
 }>;
+
+function dateFieldToIso(value: Date | string | null | undefined): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isNaN(t) ? null : value.toISOString();
+  }
+  if (typeof value === "string" && value.trim().length > 0) return value.trim();
+  return null;
+}
 
 export function accountToSnapshot(account: AccountForReport): Account {
   return {
@@ -37,6 +62,7 @@ export function accountToSnapshot(account: AccountForReport): Account {
     profileViewsCount: account.profileViewsCount,
     ownerId: account.ownerId,
     owner: account.owner,
+    accountCreatedAt: dateFieldToIso(account.accountCreatedAt),
     createdAt: account.createdAt.toISOString(),
   };
 }

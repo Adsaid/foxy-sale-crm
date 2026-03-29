@@ -37,6 +37,7 @@ export function AccountDialog({
           </DialogTitle>
         </DialogHeader>
         <AccountForm
+          key={account?.id ?? "new-account"}
           initial={account}
           isAdmin={isAdmin}
           salesUsers={salesUsers}
