@@ -41,6 +41,9 @@ enum AccountWarmUpStage {
 enum AccountDesktopType {
   ADS_POWER
   ANY_DESK
+  RIVNE_IP
+  LUTSK_IP
+  MODEM
 }
 
 enum CallType {
@@ -87,7 +90,23 @@ model User {
   createdAt       DateTime        @default(now())
   accounts        Account[]
   callsAsdev      CallEvent[]     @relation("CallerDev")
-  createdCalls    CallEvent[]     @relation("CreatedBySales")
+  createdCalls           CallEvent[]           @relation("CreatedBySales")
+  salesAccountReports    SalesAccountReport[]  @relation("SalesSubmittedReports")
+}
+
+model SalesAccountReport {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt          DateTime @default(now())
+  submittedById      String   @db.ObjectId
+  submittedBy        User     @relation("SalesSubmittedReports", fields: [submittedById], references: [id])
+  weekYear           Int
+  weekNumber         Int
+  weekStart          DateTime
+  accountsSnapshot   Json
+  telegramText       String?
+
+  @@index([submittedById, createdAt])
+  @@index([weekYear, weekNumber])
 }
 
 model Technology {

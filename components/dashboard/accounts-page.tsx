@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import {
   useAccounts,
   useCreateAccount,
@@ -32,9 +32,22 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { ChevronsUpDown, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronsUpDown, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { AccountDialog } from "@/components/dialogs/account-dialog";
 import { AccountDetailSheet } from "@/components/sheets/account-detail-sheet";
+import { AccountReportsPanel } from "@/components/dashboard/account-reports-panel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSubmitAccountReport } from "@/hooks/use-submit-account-report";
 import {
   TableToolbar,
   TablePagination,
@@ -53,10 +66,12 @@ import type {
   AccountType,
   CreateAccountInput,
 } from "@/types/crm";
+import { cn } from "@/lib/utils";
 
 export function AccountsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  const isSales = user?.role === "SALES";
   const { data: accounts, isLoading } = useAccounts();
   const { data: salesUsers } = useAdminUsers("SALES", !!isAdmin);
   const createMutation = useCreateAccount();
@@ -117,6 +132,7 @@ export function AccountsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [sheetAccount, setSheetAccount] = useState<Account | null>(null);
+  const [adminTab, setAdminTab] = useState<"accounts" | "reports">("accounts");
 
   function handleOpenCreate() {
     setEditing(null);
@@ -154,16 +170,8 @@ export function AccountsPage() {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Акаунти</h2>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="mr-2 size-4" />
-          Додати
-        </Button>
-      </div>
-
+  const accountsTabContent: ReactNode = (
+    <>
       <AccountDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -305,7 +313,9 @@ export function AccountsPage() {
                     )}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-sm text-muted-foreground tabular-nums">
-                    {acc.contactsCount != null || acc.profileViewsCount != null ? (
+                    {acc.type === "UPWORK" ? (
+                      acc.profileViewsCount != null ? acc.profileViewsCount : "—"
+                    ) : acc.contactsCount != null || acc.profileViewsCount != null ? (
                       <>
                         {acc.contactsCount ?? "—"} / {acc.profileViewsCount ?? "—"}
                       </>
@@ -369,6 +379,91 @@ export function AccountsPage() {
         open={!!sheetAccount}
         onOpenChange={(o) => !o && setSheetAccount(null)}
       />
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-2xl font-bold">
+          {isAdmin && adminTab === "reports" ? "Звіти по акаунтах" : "Акаунти"}
+        </h2>
+        <div className="flex min-h-10 flex-wrap items-center gap-2">
+          {isSales && <SubmitReportDialog />}
+          <Button
+            type="button"
+            onClick={handleOpenCreate}
+            className={cn(
+              isAdmin && adminTab === "reports" && "invisible pointer-events-none"
+            )}
+            tabIndex={isAdmin && adminTab === "reports" ? -1 : undefined}
+            aria-hidden={isAdmin && adminTab === "reports" ? true : undefined}
+          >
+            <Plus className="mr-2 size-4" />
+            Додати
+          </Button>
+        </div>
+      </div>
+
+      {isAdmin ? (
+        <Tabs
+          value={adminTab}
+          onValueChange={(v) => setAdminTab(v as "accounts" | "reports")}
+          className="w-full min-w-0"
+        >
+          <TabsList variant="line" className="mb-4">
+            <TabsTrigger value="accounts">Акаунти</TabsTrigger>
+            <TabsTrigger value="reports">Звіти</TabsTrigger>
+          </TabsList>
+          <TabsContent value="accounts" className="mt-0 space-y-4 outline-none focus-visible:outline-none">
+            {accountsTabContent}
+          </TabsContent>
+          <TabsContent value="reports" className="mt-0 outline-none focus-visible:outline-none">
+            <AccountReportsPanel />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-4">{accountsTabContent}</div>
+      )}
     </div>
+  );
+}
+
+function SubmitReportDialog() {
+  const [open, setOpen] = useState(false);
+  const mutation = useSubmitAccountReport();
+
+  return (
+    <>
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <Send className="mr-2 size-4" />
+        Надіслати звіт
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Надіслати звіт по акаунтах?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Адміни отримають сповіщення в CRM і текст звіту в Telegram (якщо підключено). У звіт
+              потраплять усі ваші акаунти в поточному стані.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                mutation.mutate(undefined, {
+                  onSuccess: () => setOpen(false),
+                });
+              }}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Надсилання…" : "Надіслати"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

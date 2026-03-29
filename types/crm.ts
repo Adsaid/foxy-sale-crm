@@ -6,7 +6,12 @@ export type AccountWarmUpStage =
   | "EMAIL_WARMING"
   | "DOCS_EMAIL_WARMING"
   | "STABLE";
-export type AccountDesktopType = "ADS_POWER" | "ANY_DESK";
+export type AccountDesktopType =
+  | "ADS_POWER"
+  | "ANY_DESK"
+  | "RIVNE_IP"
+  | "LUTSK_IP"
+  | "MODEM";
 export type CallType = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStage = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
@@ -34,6 +39,32 @@ export interface Account {
     badgeTextColor?: string | null;
   };
   createdAt: string;
+}
+
+export interface SalesAccountReportSubmittedBy {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+/** Збережений звіт сейла по акаунтах (для адмінської вкладки «Звіти»). */
+export interface SalesAccountReportListItem {
+  id: string;
+  createdAt: string;
+  weekYear: number;
+  weekNumber: number;
+  weekStart: string;
+  accountsSnapshot: Account[];
+  telegramText?: string | null;
+  submittedBy: SalesAccountReportSubmittedBy;
+}
+
+export interface SalesAccountReportsListResponse {
+  items: SalesAccountReportListItem[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 /** Один запис з історії переносів (для бічної панелі). */

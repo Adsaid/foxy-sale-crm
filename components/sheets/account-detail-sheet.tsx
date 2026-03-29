@@ -129,9 +129,11 @@ export function AccountDetailSheet({
               )}
             </DetailRow>
 
-            <DetailRow label="Етап прогріву">
-              {account.warmUpStage ? accountWarmUpStageLabelUk[account.warmUpStage] : "—"}
-            </DetailRow>
+            {account.operationalStatus === "WARMING" && (
+              <DetailRow label="Етап прогріву">
+                {account.warmUpStage ? accountWarmUpStageLabelUk[account.warmUpStage] : "—"}
+              </DetailRow>
+            )}
 
             <DetailRow label="Місцезнаходження">
               {account.location?.trim() ? account.location : "—"}
@@ -141,8 +143,18 @@ export function AccountDetailSheet({
               {account.desktopType ? accountDesktopTypeLabelUk[account.desktopType] : "—"}
             </DetailRow>
 
-            <DetailRow label="Контакти / перегляди">
-              {account.contactsCount != null || account.profileViewsCount != null ? (
+            <DetailRow
+              label={
+                account.type === "LINKEDIN" ? "Контакти / перегляди" : "Перегляди"
+              }
+            >
+              {account.type === "UPWORK" ? (
+                account.profileViewsCount != null ? (
+                  <span className="tabular-nums">{account.profileViewsCount}</span>
+                ) : (
+                  "—"
+                )
+              ) : account.contactsCount != null || account.profileViewsCount != null ? (
                 <span className="tabular-nums">
                   {account.contactsCount ?? "—"} / {account.profileViewsCount ?? "—"}
                 </span>

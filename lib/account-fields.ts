@@ -12,7 +12,13 @@ export const ACCOUNT_WARM_UP_STAGE_VALUES = [
   "STABLE",
 ] as const;
 
-export const ACCOUNT_DESKTOP_TYPE_VALUES = ["ADS_POWER", "ANY_DESK"] as const;
+export const ACCOUNT_DESKTOP_TYPE_VALUES = [
+  "ADS_POWER",
+  "ANY_DESK",
+  "RIVNE_IP",
+  "LUTSK_IP",
+  "MODEM",
+] as const;
 
 export type AccountOperationalStatus = (typeof ACCOUNT_OPERATIONAL_STATUS_VALUES)[number];
 export type AccountWarmUpStage = (typeof ACCOUNT_WARM_UP_STAGE_VALUES)[number];
@@ -35,6 +41,9 @@ export const accountWarmUpStageLabelUk: Record<AccountWarmUpStage, string> = {
 export const accountDesktopTypeLabelUk: Record<AccountDesktopType, string> = {
   ADS_POWER: "ADS Power",
   ANY_DESK: "Any Desk",
+  RIVNE_IP: "Рівне IP",
+  LUTSK_IP: "Луцьк IP",
+  MODEM: "Модем",
 };
 
 export type ParsedEnumField<T extends string> =

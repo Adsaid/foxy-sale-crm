@@ -8,20 +8,34 @@ function tgApi(method: string) {
 
 export async function sendTelegramMessage(
   chatId: string,
-  text: string
+  text: string,
+  options?: { parseMode: "HTML" | null }
 ): Promise<boolean> {
   if (!BOT_TOKEN) return false;
+  const parseMode = options?.parseMode === null ? undefined : "HTML";
   try {
     const res = await fetch(tgApi("sendMessage"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        ...(parseMode ? { parse_mode: parseMode } : {}),
+      }),
     });
     return res.ok;
   } catch (err) {
     console.error("[telegram] sendMessage error", err);
     return false;
   }
+}
+
+/** Plain text (без parse_mode), для довгих звітів. */
+export async function sendTelegramPlainMessage(
+  chatId: string,
+  text: string
+): Promise<boolean> {
+  return sendTelegramMessage(chatId, text, { parseMode: null });
 }
 
 /**

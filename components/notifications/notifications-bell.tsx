@@ -13,6 +13,7 @@ import {
   Shield,
   Clock,
   Link2,
+  FileText,
   Send,
   Loader2,
   MessageCircle,
@@ -52,6 +53,7 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   ACCOUNT_UPDATED_BY_ADMIN: Shield,
   CALL_STARTING_SOON: Clock,
   CALL_LINK_UPDATED: Link2,
+  ACCOUNTS_REPORT_SUBMITTED: FileText,
 };
 
 function formatRelativeTime(dateStr: string) {

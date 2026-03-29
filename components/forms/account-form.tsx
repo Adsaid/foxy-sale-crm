@@ -76,8 +76,8 @@ export function AccountForm({
   const [operationalStatus, setOperationalStatus] = useState<AccountOperationalStatus | null>(
     initial?.operationalStatus ?? null
   );
-  const [warmUpStage, setWarmUpStage] = useState<AccountWarmUpStage | null>(
-    initial?.warmUpStage ?? null
+  const [warmUpStage, setWarmUpStage] = useState<AccountWarmUpStage | null>(() =>
+    initial?.operationalStatus === "WARMING" ? (initial.warmUpStage ?? null) : null
   );
   const [desktopType, setDesktopType] = useState<AccountDesktopType | null>(
     initial?.desktopType ?? null
@@ -94,7 +94,9 @@ export function AccountForm({
   const selectedOwner = salesUsers?.find((s) => s.id === ownerId);
 
   const countsInvalid =
-    (contactsCount.trim() !== "" && toCount(contactsCount) === null) ||
+    (type === "LINKEDIN" &&
+      contactsCount.trim() !== "" &&
+      toCount(contactsCount) === null) ||
     (profileViewsCount.trim() !== "" && toCount(profileViewsCount) === null);
 
   return (
@@ -104,7 +106,14 @@ export function AccountForm({
         value={account}
         onChange={(e) => setAccount(e.target.value)}
       />
-      <Select value={type} onValueChange={(v) => setType(v as AccountType)}>
+      <Select
+        value={type}
+        onValueChange={(v) => {
+          const next = v as AccountType;
+          setType(next);
+          if (next === "UPWORK") setContactsCount("");
+        }}
+      >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Тип платформи" />
         </SelectTrigger>
@@ -163,9 +172,11 @@ export function AccountForm({
           <Label>Операційний статус</Label>
           <Select
             value={operationalStatus ?? NONE}
-            onValueChange={(v) =>
-              setOperationalStatus(v === NONE ? null : (v as AccountOperationalStatus))
-            }
+            onValueChange={(v) => {
+              const next = v === NONE ? null : (v as AccountOperationalStatus);
+              setOperationalStatus(next);
+              if (next !== "WARMING") setWarmUpStage(null);
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Не обрано" />
@@ -181,25 +192,27 @@ export function AccountForm({
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Етап прогріву</Label>
-          <Select
-            value={warmUpStage ?? NONE}
-            onValueChange={(v) => setWarmUpStage(v === NONE ? null : (v as AccountWarmUpStage))}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Не обрано" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>Не обрано</SelectItem>
-              {ACCOUNT_WARM_UP_STAGE_VALUES.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {accountWarmUpStageLabelUk[v]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {operationalStatus === "WARMING" && (
+          <div className="space-y-2">
+            <Label>Етап прогріву</Label>
+            <Select
+              value={warmUpStage ?? NONE}
+              onValueChange={(v) => setWarmUpStage(v === NONE ? null : (v as AccountWarmUpStage))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Не обрано" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Не обрано</SelectItem>
+                {ACCOUNT_WARM_UP_STAGE_VALUES.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    {accountWarmUpStageLabelUk[v]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Місцезнаходження</Label>
@@ -230,16 +243,22 @@ export function AccountForm({
           </Select>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Контакти</Label>
-            <Input
-              inputMode="numeric"
-              placeholder="Кількість"
-              value={contactsCount}
-              onChange={(e) => setContactsCount(e.target.value)}
-            />
-          </div>
+        <div
+          className={
+            type === "LINKEDIN" ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"
+          }
+        >
+          {type === "LINKEDIN" && (
+            <div className="space-y-2">
+              <Label>Контакти</Label>
+              <Input
+                inputMode="numeric"
+                placeholder="Кількість"
+                value={contactsCount}
+                onChange={(e) => setContactsCount(e.target.value)}
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Перегляди</Label>
             <Input
@@ -310,10 +329,10 @@ export function AccountForm({
             description: initial ? description.trim() || null : description.trim() || undefined,
             ownerId: isAdmin ? ownerId : undefined,
             operationalStatus,
-            warmUpStage,
+            warmUpStage: operationalStatus === "WARMING" ? warmUpStage : null,
             desktopType,
             location: location.trim() || null,
-            contactsCount: toCount(contactsCount),
+            contactsCount: type === "UPWORK" ? null : toCount(contactsCount),
             profileViewsCount: toCount(profileViewsCount),
           })
         }

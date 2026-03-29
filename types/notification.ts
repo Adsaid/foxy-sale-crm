@@ -6,7 +6,8 @@ export type NotificationType =
   | "CALL_CANCELLED"
   | "ACCOUNT_UPDATED_BY_ADMIN"
   | "CALL_STARTING_SOON"
-  | "CALL_LINK_UPDATED";
+  | "CALL_LINK_UPDATED"
+  | "ACCOUNTS_REPORT_SUBMITTED";
 
 export interface Notification {
   id: string;
