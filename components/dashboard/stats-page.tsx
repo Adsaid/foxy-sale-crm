@@ -9,19 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export function StatsPage() {
   const { user, isLoading } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const [adminTab, setAdminTab] = useState<"calls" | "accounts">("calls");
+  const showCallsAccountsTabs = user?.role === "ADMIN" || user?.role === "SALES";
+  const [statsTab, setStatsTab] = useState<"calls" | "accounts">("calls");
 
   if (isLoading) return null;
 
   const heading =
-    isAdmin && adminTab === "accounts"
+    showCallsAccountsTabs && statsTab === "accounts"
       ? "Статистика аккаунтів"
       : "Статистика дзвінків";
 
   const callsSection = user ? (
     <CallStatsCallsPanel
       isAdmin={isAdmin}
-      fetchEnabled={!isAdmin || adminTab === "calls"}
+      fetchEnabled={!showCallsAccountsTabs || statsTab === "calls"}
     />
   ) : null;
 
@@ -29,10 +30,10 @@ export function StatsPage() {
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">{heading}</h2>
 
-      {isAdmin ? (
+      {showCallsAccountsTabs ? (
         <Tabs
-          value={adminTab}
-          onValueChange={(v) => setAdminTab(v as "calls" | "accounts")}
+          value={statsTab}
+          onValueChange={(v) => setStatsTab(v as "calls" | "accounts")}
           className="w-full min-w-0"
         >
           <TabsList variant="line" className="mb-4">
@@ -49,7 +50,10 @@ export function StatsPage() {
             value="accounts"
             className="mt-0 space-y-4 outline-none focus-visible:outline-none"
           >
-            <AccountStatsPanel fetchEnabled={adminTab === "accounts"} />
+            <AccountStatsPanel
+              fetchEnabled={statsTab === "accounts"}
+              showSalesFilter={isAdmin}
+            />
           </TabsContent>
         </Tabs>
       ) : (

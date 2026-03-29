@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallStats, useCallStatsTimeseries } from "@/hooks/use-stats";
+import { useAuth } from "@/hooks/use-auth";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { useDevs } from "@/hooks/use-devs";
 import {
@@ -801,8 +802,13 @@ export function CallStatsCallsPanel({
   isAdmin,
   fetchEnabled = true,
 }: CallStatsCallsPanelProps) {
+  const { user } = useAuth();
+  const isSales = user?.role === "SALES";
+  /** Фільтр по DEV — для адміна та сейла (не для DEV-ролі на сторінці статистики). */
+  const showDevFilter = isAdmin || isSales;
+
   const { data: salesUsers } = useAdminUsers("SALES", isAdmin);
-  const { data: devs, isLoading: devsLoading } = useDevs({ enabled: isAdmin });
+  const { data: devs, isLoading: devsLoading } = useDevs({ enabled: showDevFilter });
   const [preset, setPreset] = useState<CallStatsPreset>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
@@ -850,7 +856,7 @@ export function CallStatsCallsPanel({
     if (isAdmin && salesFilter !== SALES_ALL) {
       out.salesId = salesFilter;
     }
-    if (isAdmin && devFilter !== DEV_ALL) {
+    if (showDevFilter && devFilter !== DEV_ALL) {
       out.callerId = devFilter;
     }
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -866,7 +872,7 @@ export function CallStatsCallsPanel({
       out.granularity = "hour";
     }
     return out;
-  }, [preset, customRange, isAdmin, salesFilter, devFilter]);
+  }, [preset, customRange, isAdmin, showDevFilter, salesFilter, devFilter]);
 
   const compareApiFilters = useMemo((): CallStatsQueryParams | null => {
     if (preset === "all" || preset === "custom") return null;
@@ -880,14 +886,14 @@ export function CallStatsCallsPanel({
     if (isAdmin && salesFilter !== SALES_ALL) {
       out.salesId = salesFilter;
     }
-    if (isAdmin && devFilter !== DEV_ALL) {
+    if (showDevFilter && devFilter !== DEV_ALL) {
       out.callerId = devFilter;
     }
     if (preset === "today") {
       out.granularity = "hour";
     }
     return out;
-  }, [preset, isAdmin, salesFilter, devFilter]);
+  }, [preset, isAdmin, showDevFilter, salesFilter, devFilter]);
 
   const compareDeltaTooltip = useMemo(() => {
     if (!compareApiFilters?.from || !compareApiFilters?.to) return null;
@@ -974,8 +980,7 @@ export function CallStatsCallsPanel({
         )}
 
         {isAdmin && (
-          <>
-            <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
+          <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
               <PopoverTrigger asChild>
                 <Button
                   type="button"
@@ -1032,7 +1037,9 @@ export function CallStatsCallsPanel({
                 </Command>
               </PopoverContent>
             </Popover>
+        )}
 
+        {showDevFilter && (
             <Popover modal={false} open={devFilterOpen} onOpenChange={setDevFilterOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -1120,7 +1127,6 @@ export function CallStatsCallsPanel({
                 </Command>
               </PopoverContent>
             </Popover>
-          </>
         )}
 
         <Button

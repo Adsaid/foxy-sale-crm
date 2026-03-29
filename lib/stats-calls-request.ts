@@ -101,7 +101,7 @@ export async function resolveCallStatsFilters(
   }
 
   if (callerIdParam) {
-    if (user.role !== "ADMIN") {
+    if (user.role !== "ADMIN" && user.role !== "SALES") {
       return {
         ok: false,
         response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

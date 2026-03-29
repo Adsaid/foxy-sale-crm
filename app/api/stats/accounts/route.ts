@@ -4,7 +4,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { resolveAccountStatsFilters } from "@/lib/stats-accounts-request";
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["ADMIN"]);
+  const { error, user } = await getApiUser(["ADMIN", "SALES"]);
   if (error) return error;
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

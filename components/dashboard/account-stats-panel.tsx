@@ -1193,10 +1193,15 @@ function AccountMetricCardsSection({
 
 interface AccountStatsPanelProps {
   fetchEnabled?: boolean;
+  /** Лише для адміна: фільтр по сейлах. Сейл бачить лише свої акаунти без цього фільтра. */
+  showSalesFilter?: boolean;
 }
 
-export function AccountStatsPanel({ fetchEnabled = true }: AccountStatsPanelProps) {
-  const { data: salesUsers } = useAdminUsers("SALES", true);
+export function AccountStatsPanel({
+  fetchEnabled = true,
+  showSalesFilter = true,
+}: AccountStatsPanelProps) {
+  const { data: salesUsers } = useAdminUsers("SALES", showSalesFilter);
   const [preset, setPreset] = useState<CallStatsPreset>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>();
   const [customOpen, setCustomOpen] = useState(false);
@@ -1277,8 +1282,8 @@ export function AccountStatsPanel({ fetchEnabled = true }: AccountStatsPanelProp
   const seriesQuery = useAccountStatsTimeseries(apiFilters, fetchEnabled);
 
   const hasNonDefaultFilters = useMemo(
-    () => preset !== "all" || salesFilter !== SALES_ALL,
-    [preset, salesFilter]
+    () => preset !== "all" || (showSalesFilter && salesFilter !== SALES_ALL),
+    [preset, salesFilter, showSalesFilter]
   );
 
   function resetFilters() {
@@ -1343,63 +1348,65 @@ export function AccountStatsPanel({ fetchEnabled = true }: AccountStatsPanelProp
           </Popover>
         )}
 
-        <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              role="combobox"
-              aria-expanded={salesFilterOpen}
-              className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
-            >
-              <span className="truncate">
-                {salesFilter === SALES_ALL
-                  ? "Усі сейли"
-                  : selectedSalesUser
-                    ? `${selectedSalesUser.firstName} ${selectedSalesUser.lastName}`
-                    : "Сейл"}
-              </span>
-              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
-            <Command>
-              <CommandInput placeholder="Пошук сейла..." />
-              <CommandList>
-                <CommandEmpty>Не знайдено</CommandEmpty>
-                <CommandGroup>
-                  <CommandItem
-                    value="усі сейли всі"
-                    data-checked={salesFilter === SALES_ALL}
-                    onSelect={() => {
-                      setSalesFilter(SALES_ALL);
-                      setSalesFilterOpen(false);
-                    }}
-                  >
-                    Усі сейли
-                  </CommandItem>
-                  {sortedSalesUsers.map((u) => (
+        {showSalesFilter && (
+          <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={salesFilterOpen}
+                className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
+              >
+                <span className="truncate">
+                  {salesFilter === SALES_ALL
+                    ? "Усі сейли"
+                    : selectedSalesUser
+                      ? `${selectedSalesUser.firstName} ${selectedSalesUser.lastName}`
+                      : "Сейл"}
+                </span>
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Пошук сейла..." />
+                <CommandList>
+                  <CommandEmpty>Не знайдено</CommandEmpty>
+                  <CommandGroup>
                     <CommandItem
-                      key={u.id}
-                      value={`${u.firstName} ${u.lastName} ${u.email}`}
-                      data-checked={salesFilter === u.id}
+                      value="усі сейли всі"
+                      data-checked={salesFilter === SALES_ALL}
                       onSelect={() => {
-                        setSalesFilter(u.id);
+                        setSalesFilter(SALES_ALL);
                         setSalesFilterOpen(false);
                       }}
                     >
-                      <ManagerBadge
-                        name={`${u.firstName} ${u.lastName}`}
-                        bgColor={u.badgeBgColor}
-                        textColor={u.badgeTextColor}
-                      />
+                      Усі сейли
                     </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                    {sortedSalesUsers.map((u) => (
+                      <CommandItem
+                        key={u.id}
+                        value={`${u.firstName} ${u.lastName} ${u.email}`}
+                        data-checked={salesFilter === u.id}
+                        onSelect={() => {
+                          setSalesFilter(u.id);
+                          setSalesFilterOpen(false);
+                        }}
+                      >
+                        <ManagerBadge
+                          name={`${u.firstName} ${u.lastName}`}
+                          bgColor={u.badgeBgColor}
+                          textColor={u.badgeTextColor}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        )}
 
         <Button
           type="button"

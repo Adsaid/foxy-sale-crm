@@ -287,6 +287,77 @@ export interface SalesStatsData {
   totalAccounts: number;
 }
 
+/** GET /api/stats/calls — агрегати по дзвінках (scope залежить від ролі та query). */
+export interface CallStatsData {
+  totalCalls: number;
+  completedCalls: number;
+  successCalls: number;
+  unsuccessfulCalls: number;
+  pendingCalls: number;
+}
+
+/** Параметри GET /api/stats/calls та /api/stats/calls/timeseries (ISO-дати; salesId / callerId — лише для адміна). */
+export interface CallStatsQueryParams {
+  from?: string;
+  to?: string;
+  salesId?: string;
+  callerId?: string;
+  timeZone?: string;
+  granularity?: "hour" | "day";
+}
+
+/** Точка часового ряду для графіка дзвінків (GET /api/stats/calls/timeseries). */
+export interface CallStatsTimeseriesPoint {
+  key: string;
+  label: string;
+  total: number;
+  success: number;
+  unsuccessful: number;
+}
+
+export interface CallStatsTimeseriesResponse {
+  points: CallStatsTimeseriesPoint[];
+}
+
+/** GET /api/stats/accounts — агрегати по акаунтах (лише адмін). */
+export interface AccountStatsData {
+  totalAccounts: number;
+  upwork: number;
+  linkedin: number;
+  active: number;
+  paused: number;
+  setup: number;
+  warming: number;
+  noOperationalStatus: number;
+}
+
+/** Параметри GET /api/stats/accounts та timeseries (ISO-дати; salesId — ownerId сейла). */
+export interface AccountStatsQueryParams {
+  from?: string;
+  to?: string;
+  salesId?: string;
+  timeZone?: string;
+  granularity?: "hour" | "day";
+}
+
+/** Точка ряду для графіка акаунтів (GET /api/stats/accounts/timeseries). */
+export interface AccountStatsTimeseriesPoint {
+  key: string;
+  label: string;
+  total: number;
+  upwork: number;
+  linkedin: number;
+  active: number;
+  paused: number;
+  setup: number;
+  warming: number;
+  noOperationalStatus: number;
+}
+
+export interface AccountStatsTimeseriesResponse {
+  points: AccountStatsTimeseriesPoint[];
+}
+
 export interface DevStatsData {
   totalAssigned: number;
   completed: number;

@@ -15,24 +15,26 @@ export type ResolvedAccountStatsFilters =
     };
 
 /**
- * Фільтри для статистики акаунтів (лише ADMIN): діапазон createdAt, опційно ownerId (сейл).
+ * Фільтри для статистики акаунтів: ADMIN — усі / за сейлом; SALES — лише `ownerId = поточний користувач`.
  */
 export async function resolveAccountStatsFilters(
   searchParams: URLSearchParams,
   user: Pick<User, "id" | "role">
 ): Promise<ResolvedAccountStatsFilters> {
-  if (user.role !== "ADMIN") {
+  if (user.role !== "ADMIN" && user.role !== "SALES") {
     return {
       ok: false,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     };
   }
 
+  const isSales = user.role === "SALES";
+
   const fromParam = searchParams.get("from");
   const toParam = searchParams.get("to");
   const salesIdParam = searchParams.get("salesId");
 
-  let accountWhere: Prisma.AccountWhereInput = {};
+  let accountWhere: Prisma.AccountWhereInput = isSales ? { ownerId: user.id } : {};
   let explicitDateFilter = false;
   let rangeFrom: Date | null = null;
   let rangeTo: Date | null = null;
@@ -73,23 +75,32 @@ export async function resolveAccountStatsFilters(
   }
 
   if (salesIdParam) {
-    if (!OBJECT_ID_RE.test(salesIdParam)) {
-      return {
-        ok: false,
-        response: NextResponse.json({ error: "Некоректний ідентифікатор" }, { status: 400 }),
-      };
+    if (isSales) {
+      if (salesIdParam !== user.id) {
+        return {
+          ok: false,
+          response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+        };
+      }
+    } else {
+      if (!OBJECT_ID_RE.test(salesIdParam)) {
+        return {
+          ok: false,
+          response: NextResponse.json({ error: "Некоректний ідентифікатор" }, { status: 400 }),
+        };
+      }
+      const salesExists = await prisma.user.findFirst({
+        where: { id: salesIdParam, role: "SALES" },
+        select: { id: true },
+      });
+      if (!salesExists) {
+        return {
+          ok: false,
+          response: NextResponse.json({ error: "Сейл не знайдено" }, { status: 404 }),
+        };
+      }
+      accountWhere = { ...accountWhere, ownerId: salesIdParam };
     }
-    const salesExists = await prisma.user.findFirst({
-      where: { id: salesIdParam, role: "SALES" },
-      select: { id: true },
-    });
-    if (!salesExists) {
-      return {
-        ok: false,
-        response: NextResponse.json({ error: "Сейл не знайдено" }, { status: 404 }),
-      };
-    }
-    accountWhere = { ...accountWhere, ownerId: salesIdParam };
   }
 
   if (explicitDateFilter && rangeFrom && rangeTo) {
