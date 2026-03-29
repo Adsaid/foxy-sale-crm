@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import type { CallStage, CallType } from "@prisma/client";
+import {
+  CALL_SLOT_MS,
+  findCallerConflictWithOtherSales,
+  formatCallerConflictMessageUk,
+} from "@/lib/call-caller-conflict";
 
 export async function POST(
   request: Request,
@@ -22,10 +27,7 @@ export async function POST(
   }
 
   const existing = await prisma.callEvent.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (user!.role !== "ADMIN" && existing.createdById !== user!.id)
-  ) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -33,6 +35,22 @@ export async function POST(
     return NextResponse.json(
       { error: "Only completed calls with success outcome can advance" },
       { status: 400 }
+    );
+  }
+
+  const rangeStart = new Date(callStartedAt);
+  const rangeEnd = new Date(rangeStart.getTime() + CALL_SLOT_MS);
+  const callerConflict = await findCallerConflictWithOtherSales(prisma, {
+    callerId: existing.callerId,
+    rangeStart,
+    rangeEnd,
+    actingCreatedById: existing.createdById,
+    excludeCallId: existing.id,
+  });
+  if (callerConflict) {
+    return NextResponse.json(
+      { error: formatCallerConflictMessageUk(callerConflict) },
+      { status: 409 },
     );
   }
 

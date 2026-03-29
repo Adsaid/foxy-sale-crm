@@ -2,8 +2,50 @@ import { prisma } from "@/lib/prisma";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+/** Якщо `NEXT_PUBLIC_BASE_URL` не задано — збіг з продакшен-деплоєм. */
+const DEFAULT_CRM_PUBLIC_ORIGIN = "https://sale-crm-nine.vercel.app";
+
 function tgApi(method: string) {
   return `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+}
+
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function getCrmPublicOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (raw) return raw.replace(/\/$/, "");
+  return DEFAULT_CRM_PUBLIC_ORIGIN;
+}
+
+/** HTML-футер: клікабельне посилання на CRM (для parse_mode HTML). */
+export function telegramCrmLinkFooterHtml(): string {
+  const origin = getCrmPublicOrigin();
+  const href = escapeHtml(origin);
+  return `\n\n<a href="${href}">${escapeHtml("Відкрити Foxy Sale CRM")}</a>`;
+}
+
+export function appendTelegramCrmLinkFooter(htmlBody: string): string {
+  return `${htmlBody}${telegramCrmLinkFooterHtml()}`;
+}
+
+/**
+ * Тіло сповіщення в HTML: якщо перший рядок починається з ПІБ сейла/дева — виділяємо його <b>.
+ * Кастомні кольори бейджа в Telegram Bot API (HTML) не підтримуються — лише жирний/курсив/код тощо.
+ */
+export function formatTelegramNotificationBodyHtml(
+  message: string,
+  actorName?: string | null
+): string {
+  const actor = actorName?.trim();
+  if (actor && message.startsWith(actor)) {
+    return `<b>${escapeHtml(actor)}</b>${escapeHtml(message.slice(actor.length))}`;
+  }
+  return escapeHtml(message);
 }
 
 export async function sendTelegramMessage(
@@ -45,7 +87,8 @@ export async function sendTelegramPlainMessage(
 export async function sendTelegramNotification(
   userId: string,
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN) return;
   const user = await prisma.user.findUnique({
@@ -53,7 +96,9 @@ export async function sendTelegramNotification(
     select: { telegramChatId: true },
   });
   if (!user?.telegramChatId) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await sendTelegramMessage(user.telegramChatId, text);
 }
 
@@ -63,14 +108,17 @@ export async function sendTelegramNotification(
 export async function sendTelegramNotifications(
   userIds: string[],
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN || userIds.length === 0) return;
   const users = await prisma.user.findMany({
     where: { id: { in: userIds }, telegramChatId: { not: null } },
     select: { telegramChatId: true },
   });
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await Promise.allSettled(
     users
       .filter((u) => u.telegramChatId)
@@ -83,7 +131,8 @@ export async function sendTelegramNotifications(
  */
 export async function sendTelegramToAllAdmins(
   title: string,
-  message: string
+  message: string,
+  options?: { actorName?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN) return;
   const admins = await prisma.user.findMany({
@@ -91,17 +140,12 @@ export async function sendTelegramToAllAdmins(
     select: { telegramChatId: true },
   });
   if (admins.length === 0) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${escapeHtml(message)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await Promise.allSettled(
     admins.map((a) => sendTelegramMessage(a.telegramChatId!, text))
   );
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
 
 export async function setTelegramWebhook(url: string): Promise<{ ok: boolean; description?: string }> {

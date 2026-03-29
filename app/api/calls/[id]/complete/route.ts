@@ -37,7 +37,16 @@ export async function PATCH(
     },
     include: {
       account: true,
-      caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      caller: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          badgeBgColor: true,
+          badgeTextColor: true,
+        },
+      },
       createdBy: {
         select: {
           id: true,
@@ -88,6 +97,9 @@ export async function PATCH(
     userId: updated.createdById,
     type: "CALL_COMPLETED",
     title: `Дзвінок завершено — ${updated.company}`,
+    telegramActorName: devName || undefined,
+    telegramActorBadgeBgColor: updated.caller?.badgeBgColor,
+    telegramActorBadgeTextColor: updated.caller?.badgeTextColor,
     message: [
       `${devName} завершив дзвінок.`,
       `Компанія: ${updated.company}`,

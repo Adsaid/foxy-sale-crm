@@ -5,6 +5,11 @@ import { isSalesLike } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
 import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
+import {
+  CALL_SLOT_MS,
+  findCallerConflictWithOtherSales,
+  formatCallerConflictMessageUk,
+} from "@/lib/call-caller-conflict";
 
 const callInclude = {
   account: true,
@@ -38,10 +43,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const canAccess =
-    user!.role === "ADMIN" ||
-    (isSalesLike(user!.role) && call.createdById === user!.id) ||
-    call.callerId === user!.id;
+  const canAccess = isSalesLike(user!.role) || call.callerId === user!.id;
 
   if (!canAccess) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -78,14 +80,31 @@ export async function PATCH(
     typeof body.transferredReason === "string" ? body.transferredReason.trim() : null;
 
   const existing = await prisma.callEvent.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (user!.role !== "ADMIN" && existing.createdById !== user!.id)
-  ) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const statusAfter = (body.status ?? existing.status) as typeof existing.status;
+
+  if (body.callStartedAt !== undefined) {
+    const newStart = new Date(body.callStartedAt);
+    if (newStart.getTime() !== existing.callStartedAt.getTime()) {
+      const rangeEnd = new Date(newStart.getTime() + CALL_SLOT_MS);
+      const callerConflict = await findCallerConflictWithOtherSales(prisma, {
+        callerId: existing.callerId,
+        rangeStart: newStart,
+        rangeEnd,
+        actingCreatedById: existing.createdById,
+        excludeCallId: existing.id,
+      });
+      if (callerConflict) {
+        return NextResponse.json(
+          { error: formatCallerConflictMessageUk(callerConflict) },
+          { status: 409 },
+        );
+      }
+    }
+  }
 
   if (
     body.outcome !== undefined &&
@@ -229,12 +248,18 @@ export async function PATCH(
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED", err));
     await notifyAllAdmins({
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED admin", err));
   }
@@ -262,12 +287,18 @@ export async function PATCH(
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
     await notifyAllAdmins({
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED admin", err));
   }
@@ -285,6 +316,9 @@ export async function PATCH(
       userId: updated.callerId,
       type: "CALL_LINK_UPDATED",
       title: `Посилання оновлено — ${updated.company}`,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       message: [
         `${salesName} оновив посилання на дзвінок.`,
         `Компанія: ${updated.company}`,
@@ -314,10 +348,7 @@ export async function DELETE(
   const { id } = await params;
 
   const existing = await prisma.callEvent.findUnique({ where: { id } });
-  if (
-    !existing ||
-    (user!.role !== "ADMIN" && existing.createdById !== user!.id)
-  ) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

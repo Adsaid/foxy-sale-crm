@@ -3,20 +3,32 @@ import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
 
-export async function GET(request: Request) {
+/**
+ * Виклик ззовні (cron-job.org, GitHub Actions тощо).
+ * Якщо задано CRON_SECRET — обов’язкова перевірка одним із способів:
+ * - Authorization: Bearer <CRON_SECRET>
+ * - X-Cron-Secret: <CRON_SECRET> (зручно в cron-job.org → Headers)
+ */
+function isCronAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("Authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) return true;
+  const auth = request.headers.get("authorization");
+  if (auth === `Bearer ${secret}`) return true;
+  const xCron = request.headers.get("x-cron-secret");
+  if (xCron === secret) return true;
+  return false;
+}
+
+export async function GET(request: Request) {
+  if (process.env.CRON_SECRET && !isCronAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const now = new Date();
   const target = new Date(now.getTime() + 20 * 60 * 1000);
 
   // Find calls that start within the next 20 minutes.
-  // This endpoint is intended to be invoked frequently (e.g. every 1 minute).
+  // Краще викликати часто (кожні 1–5 хв); рідше — ризик пізнішого нагадування в межах 20 хв до дзвінка.
   const calls = await prisma.callEvent.findMany({
     where: {
       status: "SCHEDULED",
@@ -52,8 +64,10 @@ export async function GET(request: Request) {
     const typeLabel = callTypeLabelUk(call.callType);
 
     const receivers = [...new Set([call.callerId, call.createdById, ...adminIds])];
+    const startIso = call.callStartedAt.toISOString();
     for (const userId of receivers) {
-      const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}`;
+      // Час у ключі: після переносу дзвінка — нове нагадування; без дублікатів у межах одного слоту.
+      const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}:${startIso}`;
       const already = await prisma.notification.findFirst({
         where: { dedupeKey },
         select: { id: true },

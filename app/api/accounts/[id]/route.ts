@@ -139,6 +139,9 @@ export async function PATCH(
       userId: body.ownerId,
       type: "ACCOUNT_REASSIGNED",
       title: `Новий акаунт — ${updated.account}`,
+      telegramActorName: adminName || undefined,
+      telegramActorBadgeBgColor: user!.badgeBgColor,
+      telegramActorBadgeTextColor: user!.badgeTextColor,
       message: [
         `${adminName} передав вам акаунт.`,
         `Назва: ${updated.account}`,
@@ -175,6 +178,9 @@ export async function PATCH(
       userId: existing.ownerId,
       type: "ACCOUNT_UPDATED_BY_ADMIN",
       title: `Акаунт оновлено — ${updated.account}`,
+      telegramActorName: adminName || undefined,
+      telegramActorBadgeBgColor: user!.badgeBgColor,
+      telegramActorBadgeTextColor: user!.badgeTextColor,
       message: nameLines.join("\n"),
       payload: {
         accountId: updated.id,

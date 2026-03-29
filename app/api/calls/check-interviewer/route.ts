@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { isSalesLike } from "@/lib/roles";
 import { normalizeInterviewerName } from "@/lib/interviewer-name";
 import type { CallType, CallStatus, CallOutcome } from "@prisma/client";
 
@@ -16,8 +17,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ matches: [] });
   }
 
-  const scopeWhere =
-    user!.role === "ADMIN" ? {} : { createdById: user!.id };
+  const scopeWhere = isSalesLike(user!.role) ? {} : { createdById: user!.id };
 
   const [events, summaries] = await Promise.all([
     prisma.callEvent.findMany({

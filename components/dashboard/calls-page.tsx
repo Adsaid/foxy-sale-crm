@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useCalls,
@@ -10,6 +10,7 @@ import {
   useAdvanceCallStage,
   useCompleteCall,
 } from "@/hooks/use-calls";
+import { useDevs } from "@/hooks/use-devs";
 import { useTable } from "@/hooks/use-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,9 @@ import {
   StepForward,
   Video,
   Banknote,
+  LayoutList,
+  CalendarRange,
+  ChevronsUpDown,
 } from "lucide-react";
 import { CallCreateDialog } from "@/components/dialogs/call-create-dialog";
 import { CallEditDialog } from "@/components/dialogs/call-edit-dialog";
@@ -63,7 +67,19 @@ import {
   SortableHeader,
 } from "@/components/ui/data-table-controls";
 import type { CallEvent } from "@/types/crm";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { CallsCalendarView } from "@/components/dashboard/calls-calendar-view";
 import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -83,6 +99,18 @@ const statusLabels: Record<string, string> = {
   SCHEDULED: "Заплановано",
   COMPLETED: "Завершено",
   CANCELLED: "Скасовано",
+};
+
+const SALES_FILTER_ALL = "all";
+/** Лише для ролі SALES: фільтр «лише мої створені дзвінки». */
+const SALES_FILTER_MINE = "mine";
+const DEV_FILTER_ALL = "all";
+
+/** Підписи спеціалізації в рядку DEV у випадаючому списку фільтра. */
+const devSpecLabels: Record<string, string> = {
+  FRONTEND: "Frontend",
+  BACKEND: "Backend",
+  FULLSTACK: "Fullstack",
 };
 
 function isToday(dateStr: string) {
@@ -358,6 +386,8 @@ export function CallsPage() {
   const showCreatedByColumn = user?.role === "DEV" || user?.role === "ADMIN";
 
   const { data: calls, isLoading } = useCalls();
+  /** /api/users/devs лише для SALES/ADMIN; інакше 403 → редірект на /login (axios). */
+  const { data: devs, isLoading: devsLoading } = useDevs({ enabled: isSalesLike });
   const createMutation = useCreateCall();
   const updateMutation = useUpdateCall();
   const deleteMutation = useDeleteCall();
@@ -371,6 +401,76 @@ export function CallsPage() {
       .sort((a, b) => new Date(a.callStartedAt).getTime() - new Date(b.callStartedAt).getTime());
   }, [calls]);
 
+  const [salesFilterId, setSalesFilterId] = useState<string>(() =>
+    user?.role === "SALES" ? SALES_FILTER_MINE : SALES_FILTER_ALL
+  );
+  const [salesFilterOpen, setSalesFilterOpen] = useState(false);
+  const salesFilterDefaultAppliedForUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (user?.role === "SALES" && user.id) {
+      if (salesFilterDefaultAppliedForUserId.current !== user.id) {
+        salesFilterDefaultAppliedForUserId.current = user.id;
+        setSalesFilterId(SALES_FILTER_MINE);
+      }
+    } else {
+      salesFilterDefaultAppliedForUserId.current = null;
+    }
+  }, [user?.id, user?.role]);
+
+  const salesFilterOptions = useMemo(() => {
+    if (!calls?.length) return [];
+    const map = new Map<string, NonNullable<CallEvent["createdBy"]>>();
+    for (const c of calls) {
+      if (!c.createdById || !c.createdBy) continue;
+      if (!map.has(c.createdById)) map.set(c.createdById, c.createdBy);
+    }
+    const sorted = [...map.values()].sort((a, b) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "uk")
+    );
+    if (user?.role === "SALES" && user.id) {
+      return sorted.filter((u) => u.id !== user.id);
+    }
+    return sorted;
+  }, [calls, user?.role, user?.id]);
+
+  const salesFilterPredicate = useCallback(
+    (call: CallEvent) => {
+      if (salesFilterId === SALES_FILTER_ALL) return true;
+      if (salesFilterId === SALES_FILTER_MINE) {
+        if (user?.role !== "SALES" || !user?.id) return true;
+        return call.createdById === user.id;
+      }
+      return call.createdById === salesFilterId;
+    },
+    [salesFilterId, user?.id, user?.role],
+  );
+
+  const selectedSalesForFilter = useMemo(() => {
+    if (salesFilterId === SALES_FILTER_ALL || salesFilterId === SALES_FILTER_MINE) return null;
+    return salesFilterOptions.find((u) => u.id === salesFilterId) ?? null;
+  }, [salesFilterId, salesFilterOptions]);
+
+  const [devFilterId, setDevFilterId] = useState<string>(DEV_FILTER_ALL);
+  const [devFilterOpen, setDevFilterOpen] = useState(false);
+
+  const selectedDevForFilter = useMemo(() => {
+    if (devFilterId === DEV_FILTER_ALL) return null;
+    return devs?.find((d) => d.id === devFilterId) ?? null;
+  }, [devFilterId, devs]);
+
+  const tableFilterPredicate = useCallback(
+    (call: CallEvent) => {
+      if (!salesFilterPredicate(call)) return false;
+      if (devFilterId === DEV_FILTER_ALL) return true;
+      return call.callerId === devFilterId;
+    },
+    [salesFilterPredicate, devFilterId],
+  );
+
+  const tableFiltersActive =
+    salesFilterId !== SALES_FILTER_ALL || devFilterId !== DEV_FILTER_ALL;
+
   const table = useTable({
     data: calls,
     searchableFields: [
@@ -382,12 +482,21 @@ export function CallsPage() {
       "createdBy.firstName",
       "createdBy.lastName",
       "createdBy.email",
+      "caller.firstName",
+      "caller.lastName",
+      "caller.email",
       "status",
       "outcome",
       "notes",
     ],
     defaultSort: { column: "callStartedAt", direction: "desc" },
+    predicate: tableFilterPredicate,
+    filtersActive: tableFiltersActive,
   });
+
+  useEffect(() => {
+    table.setPage(1);
+  }, [salesFilterId, devFilterId, table.setPage]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editCall, setEditCall] = useState<CallEvent | null>(null);
@@ -534,188 +643,376 @@ export function CallsPage() {
         </Carousel>
       )}
 
-      {/* All calls table */}
+      {/* All calls — table / calendar tabs */}
       <div className="space-y-4">
         <h3 className="text-sm font-semibold">Всі дзвінки</h3>
 
-        <TableToolbar
-          search={table.search}
-          onSearchChange={table.setSearch}
-          placeholder="Пошук дзвінків..."
-        />
+        <Tabs defaultValue="table">
+          <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+            <TabsList className="w-full shrink-0 justify-start md:w-auto">
+              <TabsTrigger value="table">
+                <LayoutList className="size-4" />
+                Таблиця
+              </TabsTrigger>
+              <TabsTrigger value="calendar">
+                <CalendarRange className="size-4" />
+                Календар
+              </TabsTrigger>
+            </TabsList>
 
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableHeader column="company" label="Компанія" sort={table.sort} onSort={table.toggleSort} />
-                <SortableHeader column="interviewerName" label="Інтерв'юер" sort={table.sort} onSort={table.toggleSort} />
-                <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
-                <SortableHeader
-                  column="account.account"
-                  label="Акаунт"
-                  sort={table.sort}
-                  onSort={table.toggleSort}
-                />
-                {showCreatedByColumn && (
-                  <SortableHeader
-                    column="createdBy.firstName"
-                    label="Сейл"
-                    sort={table.sort}
-                    onSort={table.toggleSort}
-                  />
-                )}
-                {isSalesLike && <TableHead>DEV</TableHead>}
-                <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
-                <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
-                <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
-              <TableHead>Нотатки</TableHead>
-              {isSalesLike && <TableHead className="w-28 text-center">Наступний етап</TableHead>}
-              <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableBodySkeleton colSpan={colSpan} />
-              ) : !table.rows.length ? (
-                <TableRow>
-                  <TableCell colSpan={colSpan} className="text-center text-muted-foreground">
-                    {table.isFiltered ? "Нічого не знайдено" : "Немає дзвінків"}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.rows.map((call) => (
-                  <TableRow
-                    key={call.id}
-                    className="cursor-pointer"
-                    onClick={() => setSheetCall(call)}
+            <TableToolbar
+              className="min-w-0 w-full md:flex-1"
+              search={table.search}
+              onSearchChange={table.setSearch}
+              placeholder="Пошук дзвінків..."
+            >
+              <Popover open={salesFilterOpen} onOpenChange={setSalesFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={salesFilterOpen}
+                    className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
                   >
-                    <TableCell className="font-medium">{call.company}</TableCell>
-                    <TableCell>{call.interviewerName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {call.account ? (
-                        <span className="inline-flex flex-wrap items-center gap-1.5">
-                          <span className="font-medium">{call.account.account}</span>
-                          <AccountTypeBadge type={call.account.type} />
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    {showCreatedByColumn && (
-                      <TableCell>
-                        {call.createdBy
-                          ? (
-                            <ManagerBadge
-                              name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
-                              bgColor={call.createdBy.badgeBgColor}
-                              textColor={call.createdBy.badgeTextColor}
-                            />
-                          )
-                          : "—"}
-                      </TableCell>
-                    )}
-                    {isSalesLike && (
-                      <TableCell>
-                        {call.caller
-                          ? `${call.caller.firstName} ${call.caller.lastName}`
-                          : "—"}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      {new Date(call.callStartedAt).toLocaleString("uk-UA", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{statusLabels[call.status]}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          call.outcome === "SUCCESS"
-                            ? "default"
-                            : call.outcome === "UNSUCCESSFUL"
-                              ? "destructive"
-                              : "outline"
-                        }
-                      >
-                        {outcomeLabels[call.outcome]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-48 truncate">
-                      {call.notes || "—"}
-                    </TableCell>
-                    {isSalesLike && (
-                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                        {canAdvanceToNextStage(call) ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 gap-1 text-xs"
-                            onClick={() => setNextStageCall(call)}
+                    <span className="truncate">
+                      {salesFilterId === SALES_FILTER_ALL
+                        ? "Усі сейли"
+                        : user?.role === "SALES" && salesFilterId === SALES_FILTER_MINE
+                          ? "Мої дзвінки"
+                          : selectedSalesForFilter
+                            ? `${selectedSalesForFilter.firstName} ${selectedSalesForFilter.lastName}`
+                            : "Сейл"}
+                    </span>
+                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(100vw-2rem,320px)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Пошук сейла..." />
+                    <CommandList>
+                      <CommandEmpty>Не знайдено</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="усі сейли всі"
+                          onSelect={() => {
+                            setSalesFilterId(SALES_FILTER_ALL);
+                            setSalesFilterOpen(false);
+                          }}
+                        >
+                          Усі сейли
+                        </CommandItem>
+                        {user?.role === "SALES" && (
+                          <CommandItem
+                            value="мої дзвінки мої"
+                            onSelect={() => {
+                              setSalesFilterId(SALES_FILTER_MINE);
+                              setSalesFilterOpen(false);
+                            }}
                           >
-                            <StepForward className="size-3.5" />
-                            Далі
-                          </Button>
-                        ) : (
-                          "—"
+                            Мої дзвінки
+                          </CommandItem>
                         )}
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
-                        {isSalesLike ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setEditCall(call)}
-                            >
-                              <Pencil className="size-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setDeleteId(call.id)}
-                            >
-                              <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                          </>
-                        ) : (
-                          canComplete(call.callStartedAt, call.callEndedAt) && (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setCompleteId(call.id)}
-                            >
-                              <CheckCircle className="size-4" />
-                            </Button>
-                          )
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                        {salesFilterOptions.map((u) => (
+                          <CommandItem
+                            key={u.id}
+                            value={`${u.firstName} ${u.lastName} ${u.email ?? ""}`}
+                            onSelect={() => {
+                              setSalesFilterId(u.id);
+                              setSalesFilterOpen(false);
+                            }}
+                          >
+                            <ManagerBadge
+                              name={`${u.firstName} ${u.lastName}`}
+                              bgColor={u.badgeBgColor}
+                              textColor={u.badgeTextColor}
+                            />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              {isSalesLike && (
+                <Popover modal={false} open={devFilterOpen} onOpenChange={setDevFilterOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={devFilterOpen}
+                      className="h-9 w-[min(100%,240px)] max-w-[240px] shrink-0 justify-between px-3 font-normal"
+                    >
+                      <span className="truncate">
+                        {devFilterId === DEV_FILTER_ALL
+                          ? "Усі деви"
+                          : selectedDevForFilter
+                            ? `${selectedDevForFilter.firstName} ${selectedDevForFilter.lastName}`
+                            : "Оберіть DEV"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Пошук DEV..." />
+                        <CommandList>
+                          {devsLoading ? (
+                            <div className="space-y-2 p-2">
+                              {Array.from({ length: 6 }).map((_, i) => (
+                                <Skeleton key={i} className="h-14 w-full" />
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              <CommandEmpty>Не знайдено</CommandEmpty>
+                              <CommandGroup>
+                                <CommandItem
+                                  value="усі деви всі"
+                                  onSelect={() => {
+                                    setDevFilterId(DEV_FILTER_ALL);
+                                    setDevFilterOpen(false);
+                                  }}
+                                >
+                                  Усі деви
+                                </CommandItem>
+                                {(devs ?? []).map((d) => (
+                                  <CommandItem
+                                    key={d.id}
+                                    value={`${d.firstName} ${d.lastName} ${d.specialization ?? ""} ${d.technologies.map((t) => t.name).join(" ")}`}
+                                    data-checked={devFilterId === d.id}
+                                    onSelect={() => {
+                                      setDevFilterId(d.id);
+                                      setDevFilterOpen(false);
+                                    }}
+                                  >
+                                    <div className="flex flex-col gap-0.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-medium">
+                                          {d.firstName} {d.lastName}
+                                        </span>
+                                        {d.specialization && (
+                                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                                            {devSpecLabels[d.specialization] ?? d.specialization}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      {d.technologies.length > 0 && (
+                                        <div className="flex flex-wrap items-center gap-1">
+                                          {d.technologies.map((t) => (
+                                            <Badge
+                                              key={t.id}
+                                              variant="outline"
+                                              className="px-1.5 py-0 text-[10px]"
+                                            >
+                                              {t.name}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                </Popover>
               )}
-            </TableBody>
-          </Table>
-        </div>
+            </TableToolbar>
+          </div>
 
-        <TablePagination
-          page={table.page}
-          totalPages={table.totalPages}
-          pageSize={table.pageSize}
-          totalItems={table.totalItems}
-          onPageChange={table.setPage}
-          onPageSizeChange={table.setPageSize}
-        />
+          <TabsContent value="table" className="space-y-4">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHeader column="company" label="Компанія" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader column="interviewerName" label="Інтерв'юер" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader
+                      column="account.account"
+                      label="Акаунт"
+                      sort={table.sort}
+                      onSort={table.toggleSort}
+                    />
+                    {showCreatedByColumn && (
+                      <SortableHeader
+                        column="createdBy.firstName"
+                        label="Сейл"
+                        sort={table.sort}
+                        onSort={table.toggleSort}
+                      />
+                    )}
+                    {isSalesLike && <TableHead>DEV</TableHead>}
+                    <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
+                    <TableHead>Нотатки</TableHead>
+                    {isSalesLike && <TableHead className="w-28 text-center">Наступний етап</TableHead>}
+                    <TableHead className="w-20" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableBodySkeleton colSpan={colSpan} />
+                  ) : !table.rows.length ? (
+                    <TableRow>
+                      <TableCell colSpan={colSpan} className="text-center text-muted-foreground">
+                        {table.isFiltered ? "Нічого не знайдено" : "Немає дзвінків"}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    table.rows.map((call) => (
+                      <TableRow
+                        key={call.id}
+                        className="cursor-pointer"
+                        onClick={() => setSheetCall(call)}
+                      >
+                        <TableCell className="font-medium">{call.company}</TableCell>
+                        <TableCell>{call.interviewerName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {call.account ? (
+                            <span className="inline-flex flex-wrap items-center gap-1.5">
+                              <span className="font-medium">{call.account.account}</span>
+                              <AccountTypeBadge type={call.account.type} />
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        {showCreatedByColumn && (
+                          <TableCell>
+                            {call.createdBy
+                              ? (
+                                <ManagerBadge
+                                  name={`${call.createdBy.firstName} ${call.createdBy.lastName}`}
+                                  bgColor={call.createdBy.badgeBgColor}
+                                  textColor={call.createdBy.badgeTextColor}
+                                />
+                              )
+                              : "—"}
+                          </TableCell>
+                        )}
+                        {isSalesLike && (
+                          <TableCell>
+                            {call.caller
+                              ? `${call.caller.firstName} ${call.caller.lastName}`
+                              : "—"}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          {new Date(call.callStartedAt).toLocaleString("uk-UA", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{statusLabels[call.status]}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              call.outcome === "SUCCESS"
+                                ? "default"
+                                : call.outcome === "UNSUCCESSFUL"
+                                  ? "destructive"
+                                  : "outline"
+                            }
+                          >
+                            {outcomeLabels[call.outcome]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="max-w-48 truncate">
+                          {call.notes || "—"}
+                        </TableCell>
+                        {isSalesLike && (
+                          <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                            {canAdvanceToNextStage(call) ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1 text-xs"
+                                onClick={() => setNextStageCall(call)}
+                              >
+                                <StepForward className="size-3.5" />
+                                Далі
+                              </Button>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+                            {isSalesLike ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => setEditCall(call)}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => setDeleteId(call.id)}
+                                >
+                                  <Trash2 className="size-4 text-destructive" />
+                                </Button>
+                              </>
+                            ) : (
+                              canComplete(call.callStartedAt, call.callEndedAt) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  onClick={() => setCompleteId(call.id)}
+                                >
+                                  <CheckCircle className="size-4" />
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <TablePagination
+              page={table.page}
+              totalPages={table.totalPages}
+              pageSize={table.pageSize}
+              totalItems={table.totalItems}
+              onPageChange={table.setPage}
+              onPageSizeChange={table.setPageSize}
+            />
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            {isLoading ? (
+              <div className="flex h-96 items-center justify-center text-muted-foreground">
+                Завантаження…
+              </div>
+            ) : (
+              <CallsCalendarView
+                calls={table.rows}
+                onEventClick={setSheetCall}
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Delete confirmation */}

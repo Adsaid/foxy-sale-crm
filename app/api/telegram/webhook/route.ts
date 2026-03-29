@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendTelegramMessage } from "@/lib/telegram";
+import { appendTelegramCrmLinkFooter, escapeHtml, sendTelegramMessage } from "@/lib/telegram";
 
 export async function POST(request: Request) {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -36,7 +36,11 @@ export async function POST(request: Request) {
     if (!token) {
       await sendTelegramMessage(
         chatId,
-        "Вітаю! Щоб підключити сповіщення, натисніть кнопку «TelegramBot» у CRM — вона містить унікальне посилання для прив'язки."
+        appendTelegramCrmLinkFooter(
+          escapeHtml(
+            "Вітаю! Щоб підключити сповіщення, натисніть кнопку «TelegramBot» у CRM — вона містить унікальне посилання для прив'язки."
+          )
+        )
       );
       return NextResponse.json({ ok: true });
     }
@@ -48,7 +52,11 @@ export async function POST(request: Request) {
     if (!pending || pending.expiresAt < new Date()) {
       await sendTelegramMessage(
         chatId,
-        "Посилання недійсне або прострочене. Спробуйте згенерувати нове у CRM."
+        appendTelegramCrmLinkFooter(
+          escapeHtml(
+            "Посилання недійсне або прострочене. Спробуйте згенерувати нове у CRM."
+          )
+        )
       );
       return NextResponse.json({ ok: true });
     }
@@ -62,7 +70,11 @@ export async function POST(request: Request) {
 
     await sendTelegramMessage(
       chatId,
-      "Telegram успішно підключено до CRM! Тепер ви будете отримувати сповіщення тут."
+      appendTelegramCrmLinkFooter(
+        escapeHtml(
+          "Telegram успішно підключено до CRM! Тепер ви будете отримувати сповіщення тут."
+        )
+      )
     );
 
     return NextResponse.json({ ok: true });

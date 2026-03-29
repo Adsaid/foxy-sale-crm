@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { callService } from "@/services/call-service";
 import type { CreateCallInput, UpdateCallInput, CompleteCallInput, AdvanceCallStageInput } from "@/types/crm";
 
+function toastApiError(err: unknown, fallback: string) {
+  const msg =
+    err &&
+    typeof err === "object" &&
+    "response" in err &&
+    (err as { response?: { data?: { error?: string } } }).response?.data?.error;
+  toast.error(typeof msg === "string" && msg.trim() ? msg : fallback);
+}
+
 export function useCalls() {
   return useQuery({
     queryKey: ["calls"],
@@ -21,7 +30,7 @@ export function useCreateCall() {
       qc.invalidateQueries({ queryKey: ["stats"] });
       toast.success("Дзвінок створено");
     },
-    onError: () => toast.error("Помилка створення дзвінка"),
+    onError: (err) => toastApiError(err, "Помилка створення дзвінка"),
   });
 }
 
@@ -36,7 +45,7 @@ export function useUpdateCall() {
       qc.invalidateQueries({ queryKey: ["summaries"] });
       toast.success("Дзвінок оновлено");
     },
-    onError: () => toast.error("Помилка оновлення дзвінка"),
+    onError: (err) => toastApiError(err, "Помилка оновлення дзвінка"),
   });
 }
 
@@ -51,9 +60,7 @@ export function useAdvanceCallStage() {
       qc.invalidateQueries({ queryKey: ["summaries"] });
       toast.success("Створено дзвінок наступного етапу");
     },
-    onError: (err: Error & { response?: { data?: { error?: string } } }) => {
-      toast.error(err.response?.data?.error ?? "Помилка переходу на наступний етап");
-    },
+    onError: (err) => toastApiError(err, "Помилка переходу на наступний етап"),
   });
 }
 
