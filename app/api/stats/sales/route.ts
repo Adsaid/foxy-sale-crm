@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { isSalesLike } from "@/lib/roles";
 
 export async function GET() {
   const { error, user } = await getApiUser(["SALES", "ADMIN"]);
   if (error) return error;
 
-  const callWhere =
-    user!.role === "ADMIN" ? {} : { createdById: user!.id };
+  const callWhere = isSalesLike(user!.role) ? {} : { createdById: user!.id };
   const accountWhere =
     user!.role === "ADMIN" ? {} : { ownerId: user!.id };
 

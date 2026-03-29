@@ -4,16 +4,17 @@ import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import { callTypeLabelUk, formatNotificationDateTime } from "@/lib/notification-copy";
+import {
+  CALL_SLOT_MS,
+  findCallerConflictWithOtherSales,
+  formatCallerConflictMessageUk,
+} from "@/lib/call-caller-conflict";
 
 export async function GET() {
   const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
   if (error) return error;
 
-  const where = isSalesLike(user!.role)
-    ? user!.role === "ADMIN"
-      ? {}
-      : { createdById: user!.id }
-    : { callerId: user!.id };
+  const where = isSalesLike(user!.role) ? {} : { callerId: user!.id };
 
   const calls = await prisma.callEvent.findMany({
     where,
@@ -61,6 +62,21 @@ export async function POST(request: Request) {
   }
 
   const createdById = user!.role === "ADMIN" ? account.ownerId : user!.id;
+
+  const rangeStart = new Date(callStartedAt);
+  const rangeEnd = new Date(rangeStart.getTime() + CALL_SLOT_MS);
+  const callerConflict = await findCallerConflictWithOtherSales(prisma, {
+    callerId,
+    rangeStart,
+    rangeEnd,
+    actingCreatedById: createdById,
+  });
+  if (callerConflict) {
+    return NextResponse.json(
+      { error: formatCallerConflictMessageUk(callerConflict) },
+      { status: 409 },
+    );
+  }
 
   const call = await prisma.callEvent.create({
     data: {

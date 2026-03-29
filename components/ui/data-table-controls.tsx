@@ -21,6 +21,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import type { SortState } from "@/hooks/use-table";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
@@ -29,6 +30,7 @@ interface TableToolbarProps {
   onSearchChange: (value: string) => void;
   placeholder?: string;
   children?: React.ReactNode;
+  className?: string;
 }
 
 export function TableToolbar({
@@ -36,16 +38,19 @@ export function TableToolbar({
   onSearchChange,
   placeholder = "Пошук...",
   children,
+  className,
 }: TableToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative flex-1 max-w-sm">
+    <div
+      className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}
+    >
+      <div className="relative min-w-[12rem] max-w-3xl flex-1">
         <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder={placeholder}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-8 h-9"
+          className="h-9 w-full pl-8"
         />
       </div>
       {children}
