@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useCallStats, useAdminAccountStats } from "@/hooks/use-stats";
+import { useAdminAccountStats } from "@/hooks/use-stats";
+import { CallStatsCallsPanel } from "@/components/dashboard/call-stats-calls-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,29 +36,6 @@ function LoadingSkeleton({ count }: { count: number }) {
             <Skeleton className="h-8 w-16" />
           </CardContent>
         </Card>
-      ))}
-    </div>
-  );
-}
-
-function CallStatsView() {
-  const { data: stats, isLoading } = useCallStats();
-
-  if (isLoading) return <LoadingSkeleton count={5} />;
-  if (!stats) return null;
-
-  const items = [
-    { label: "Всього дзвінків", value: stats.totalCalls },
-    { label: "Завершені", value: stats.completedCalls },
-    { label: "Успішні", value: stats.successCalls },
-    { label: "Неуспішні", value: stats.unsuccessfulCalls },
-    { label: "Очікують", value: stats.pendingCalls },
-  ];
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((item) => (
-        <StatCard key={item.label} label={item.label} value={item.value} />
       ))}
     </div>
   );
@@ -113,7 +91,12 @@ export function StatsPage() {
       ? "Статистика аккаунтів"
       : "Статистика дзвінків";
 
-  const callsSection = user ? <CallStatsView /> : null;
+  const callsSection = user ? (
+    <CallStatsCallsPanel
+      isAdmin={isAdmin}
+      fetchEnabled={!isAdmin || adminTab === "calls"}
+    />
+  ) : null;
 
   return (
     <div className="space-y-4">

@@ -1,9 +1,9 @@
 import api from "@/lib/api/client";
-import type { CallStatsData, AdminAccountStatsData } from "@/types/crm";
+import type { CallStatsData, CallStatsQueryParams, AdminAccountStatsData } from "@/types/crm";
 
 export const statsService = {
-  async getCallStats(): Promise<CallStatsData> {
-    const res = await api.get<CallStatsData>("/api/stats/calls");
+  async getCallStats(params: CallStatsQueryParams): Promise<CallStatsData> {
+    const res = await api.get<CallStatsData>("/api/stats/calls", { params });
     return res.data;
   },
 

@@ -287,6 +287,13 @@ export interface CallStatsData {
   pendingCalls: number;
 }
 
+/** Параметри GET /api/stats/calls (ISO-дати; salesId — лише для адміна). */
+export interface CallStatsQueryParams {
+  from?: string;
+  to?: string;
+  salesId?: string;
+}
+
 /** Агрегована статистика акаунтів (лише адмін, вкладка «Акаунти» на дашборді). */
 export interface AdminAccountStatsData {
   totalAccounts: number;

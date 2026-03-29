@@ -2,11 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { statsService } from "@/services/stats-service";
+import type { CallStatsQueryParams } from "@/types/crm";
 
-export function useCallStats() {
+export function useCallStats(filters: CallStatsQueryParams | null, enabled = true) {
   return useQuery({
-    queryKey: ["stats", "calls"],
-    queryFn: statsService.getCallStats,
+    queryKey: ["stats", "calls", filters],
+    queryFn: () => statsService.getCallStats(filters ?? {}),
+    enabled: enabled && filters !== null,
   });
 }
 
