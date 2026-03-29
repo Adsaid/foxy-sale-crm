@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,6 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -59,10 +61,30 @@ const roleLabels: Record<string, string> = {
   SALES: "Сейл",
 };
 
+/** Невелика пауза перед закриттям шиту — видно активний пункт, плавніше виглядає. */
+const MOBILE_SIDEBAR_CLOSE_DELAY_MS = 300;
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { mutate: logout } = useLogout();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const closeMobileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeMobileTimerRef.current) clearTimeout(closeMobileTimerRef.current);
+    };
+  }, []);
+
+  const closeMobileSidebar = () => {
+    if (!isMobile) return;
+    if (closeMobileTimerRef.current) clearTimeout(closeMobileTimerRef.current);
+    closeMobileTimerRef.current = setTimeout(() => {
+      closeMobileTimerRef.current = null;
+      setOpenMobile(false);
+    }, MOBILE_SIDEBAR_CLOSE_DELAY_MS);
+  };
 
   const role = user?.role ?? "SALES";
   const items = allNavItems.filter((item) => item.roles.includes(role));
@@ -77,7 +99,7 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/dashboard">
+              <Link href="/dashboard" onClick={closeMobileSidebar}>
                 <div className="relative flex size-9 shrink-0 overflow-hidden rounded-lg bg-muted/40">
                   <Image
                     src={FOX_LOGO_SRC}
@@ -109,7 +131,7 @@ export function AppSidebar() {
                   isActive={pathname === item.href}
                   tooltip={item.title}
                 >
-                  <Link href={item.href}>
+                  <Link href={item.href} onClick={closeMobileSidebar}>
                     <item.icon />
                     <span>{item.title}</span>
                   </Link>

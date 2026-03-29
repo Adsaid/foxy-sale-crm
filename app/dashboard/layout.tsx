@@ -16,7 +16,7 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+        <header className="z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-8 self-center" />
@@ -26,7 +26,9 @@ export default function DashboardLayout({
             <NotificationsBell />
           </div>
         </header>
-        <div className="flex min-w-0 flex-1 flex-col p-4">{children}</div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

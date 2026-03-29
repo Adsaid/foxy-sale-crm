@@ -404,18 +404,8 @@ function ReportAccordionItem({
         </div>
       </AccordionTrigger>
       <AccordionContent className="px-4 pb-4 pt-0">
-        <div className="rounded-md border bg-background">
-          <Table className="table-fixed">
-            <colgroup>
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "9%" }} />
-              <col style={{ width: "24%" }} />
-              <col style={{ width: "8%" }} />
-              <col style={{ width: "10%" }} />
-              <col style={{ width: "11%" }} />
-              <col style={{ width: "12%" }} />
-              <col style={{ width: "16%" }} />
-            </colgroup>
+        <div className="min-w-0 rounded-md border bg-background">
+          <Table className="w-max min-w-full">
             <TableHeader>
               <TableRow>
                 <SortableHeader
