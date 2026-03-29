@@ -15,6 +15,7 @@ export function escapeHtml(str: string): string {
 
 /**
  * Тіло сповіщення в HTML: якщо перший рядок починається з ПІБ сейла/дева — виділяємо його <b>.
+ * Кастомні кольори бейджа в Telegram Bot API (HTML) не підтримуються — лише жирний/курсив/код тощо.
  */
 export function formatTelegramNotificationBodyHtml(
   message: string,

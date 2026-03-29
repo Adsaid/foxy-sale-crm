@@ -20,11 +20,49 @@ interface CreateNotificationInput {
    * ПІБ сейла/дева/адміна на початку `message` — у Telegram обгортається в <b> (лише якщо message дійсно починається з цього рядка).
    */
   telegramActorName?: string;
+  /** Кольори бейджа з CRM (дзвіночок); у Telegram кастомний колір тексту недоступний у HTML. */
+  telegramActorBadgeBgColor?: string | null;
+  telegramActorBadgeTextColor?: string | null;
+}
+
+function mergeActorIntoPayload(
+  payload: Prisma.InputJsonValue | undefined,
+  actorName?: string,
+  bg?: string | null,
+  text?: string | null
+): Prisma.InputJsonValue | undefined {
+  const trimmed = actorName?.trim();
+  if (!trimmed) return payload;
+  const base =
+    payload !== undefined &&
+    payload !== null &&
+    typeof payload === "object" &&
+    !Array.isArray(payload)
+      ? { ...(payload as Record<string, unknown>) }
+      : {};
+  base.actorDisplayName = trimmed;
+  base.actorBadgeBgColor = bg ?? null;
+  base.actorBadgeTextColor = text ?? null;
+  return base as Prisma.InputJsonValue;
 }
 
 export async function createNotification(input: CreateNotificationInput) {
-  const { skipTelegram, telegramActorName, ...data } = input;
-  const result = await prisma.notification.create({ data: { ...data, readAt: null } });
+  const {
+    skipTelegram,
+    telegramActorName,
+    telegramActorBadgeBgColor,
+    telegramActorBadgeTextColor,
+    ...data
+  } = input;
+  const payload = mergeActorIntoPayload(
+    data.payload,
+    telegramActorName,
+    telegramActorBadgeBgColor,
+    telegramActorBadgeTextColor
+  );
+  const result = await prisma.notification.create({
+    data: { ...data, payload, readAt: null },
+  });
   if (!skipTelegram) {
     sendTelegramNotification(data.userId, data.title, data.message, {
       actorName: telegramActorName,
@@ -36,10 +74,21 @@ export async function createNotification(input: CreateNotificationInput) {
 export async function createNotifications(inputs: CreateNotificationInput[]) {
   if (inputs.length === 0) return;
   const rows = inputs.map((input) => {
-    const { skipTelegram: _skip, telegramActorName: _actor, ...rest } = input;
+    const {
+      skipTelegram: _skip,
+      telegramActorName,
+      telegramActorBadgeBgColor,
+      telegramActorBadgeTextColor,
+      ...rest
+    } = input;
     void _skip;
-    void _actor;
-    return { ...rest, readAt: null as Date | null };
+    const payload = mergeActorIntoPayload(
+      rest.payload,
+      telegramActorName,
+      telegramActorBadgeBgColor,
+      telegramActorBadgeTextColor
+    );
+    return { ...rest, payload, readAt: null as Date | null };
   });
   const result = await prisma.notification.createMany({ data: rows });
   for (const input of inputs) {
@@ -81,6 +130,8 @@ export async function notifyAdminsSalesAccountReport(opts: {
   salesFirstName: string;
   salesLastName: string;
   telegramBody: string;
+  salesBadgeBgColor?: string | null;
+  salesBadgeTextColor?: string | null;
 }): Promise<void> {
   const admins = await prisma.user.findMany({
     where: { role: "ADMIN" },
@@ -100,6 +151,9 @@ export async function notifyAdminsSalesAccountReport(opts: {
       message,
       payload: { reportId: opts.reportId },
       skipTelegram: true,
+      telegramActorName: name,
+      telegramActorBadgeBgColor: opts.salesBadgeBgColor,
+      telegramActorBadgeTextColor: opts.salesBadgeTextColor,
     }))
   );
 

@@ -75,6 +75,8 @@ export async function POST() {
     salesFirstName: user.firstName,
     salesLastName: user.lastName,
     telegramBody: telegramText,
+    salesBadgeBgColor: user.badgeBgColor,
+    salesBadgeTextColor: user.badgeTextColor,
   });
 
   return NextResponse.json({

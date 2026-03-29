@@ -230,6 +230,8 @@ export async function PATCH(
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
       telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED", err));
     await notifyAllAdmins({
@@ -237,6 +239,8 @@ export async function PATCH(
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
       telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED admin", err));
   }
@@ -265,6 +269,8 @@ export async function PATCH(
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
       telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
     await notifyAllAdmins({
@@ -272,6 +278,8 @@ export async function PATCH(
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
       telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED admin", err));
   }
@@ -290,6 +298,8 @@ export async function PATCH(
       type: "CALL_LINK_UPDATED",
       title: `Посилання оновлено — ${updated.company}`,
       telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       message: [
         `${salesName} оновив посилання на дзвінок.`,
         `Компанія: ${updated.company}`,

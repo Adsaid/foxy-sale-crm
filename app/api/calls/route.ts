@@ -119,6 +119,8 @@ export async function POST(request: Request) {
     title: `Новий дзвінок — ${call.company}`,
     message: assignedMessage,
     telegramActorName: salesName || undefined,
+    telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
+    telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
     payload: assignedPayload,
   }).catch((err) => {
     console.error("[notification] CALL_ASSIGNED", err);
@@ -128,6 +130,8 @@ export async function POST(request: Request) {
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
     telegramActorName: salesName || undefined,
+    telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
+    telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
     message: [
       `${salesName} призначив дзвінок DEV.`,
       `Компанія: ${call.company}`,

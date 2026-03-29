@@ -43,6 +43,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ManagerBadge } from "@/components/ui/manager-badge";
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_ASSIGNED: Phone,
@@ -55,6 +56,50 @@ const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_LINK_UPDATED: Link2,
   ACCOUNTS_REPORT_SUBMITTED: FileText,
 };
+
+function NotificationMessageBody({
+  message,
+  payload,
+  isUnread,
+}: {
+  message: string;
+  payload?: Record<string, unknown> | null;
+  isUnread: boolean;
+}) {
+  const actorName =
+    typeof payload?.actorDisplayName === "string" ? payload.actorDisplayName : null;
+  const bg = typeof payload?.actorBadgeBgColor === "string" ? payload.actorBadgeBgColor : null;
+  const tc =
+    typeof payload?.actorBadgeTextColor === "string" ? payload.actorBadgeTextColor : null;
+
+  const nl = message.indexOf("\n");
+  const firstLine = nl === -1 ? message : message.slice(0, nl);
+  const rest = nl === -1 ? "" : message.slice(nl + 1);
+
+  const bodyTone = isUnread ? "text-foreground" : "text-muted-foreground";
+
+  if (actorName && firstLine.startsWith(actorName)) {
+    const tailFirst = firstLine.slice(actorName.length);
+    return (
+      <div className={cn("space-y-0.5 text-xs leading-snug", bodyTone)}>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <ManagerBadge
+            name={actorName}
+            bgColor={bg}
+            textColor={tc}
+            className="h-auto min-h-6 shrink-0 py-0.5 text-[11px] font-medium leading-tight"
+          />
+          <span className="min-w-0">{tailFirst}</span>
+        </div>
+        {rest ? <div className="whitespace-pre-line">{rest}</div> : null}
+      </div>
+    );
+  }
+
+  return (
+    <span className={cn("whitespace-pre-line text-xs leading-snug", bodyTone)}>{message}</span>
+  );
+}
 
 function formatRelativeTime(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -104,9 +149,13 @@ function NotificationItem({
         >
           {notification.title}
         </p>
-        <p className="mt-0.5 whitespace-pre-line text-xs text-muted-foreground leading-snug">
-          {notification.message}
-        </p>
+        <div className="mt-0.5">
+          <NotificationMessageBody
+            message={notification.message}
+            payload={notification.payload}
+            isUnread={isUnread}
+          />
+        </div>
         <p className="mt-1 text-[11px] text-muted-foreground/70">
           {formatRelativeTime(notification.createdAt)}
         </p>
