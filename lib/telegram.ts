@@ -2,8 +2,36 @@ import { prisma } from "@/lib/prisma";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+const CRM_FRAME_SEPARATOR = "-----------------";
+
 function tgApi(method: string) {
   return `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
+}
+
+function getCrmBaseUrlTrimmed(): string {
+  return (process.env.NEXT_PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
+}
+
+/** Рамка для HTML-повідомлень бота (розділювач + тіло + посилання на CRM). */
+function wrapTelegramCrmFrameHtml(innerHtml: string): string {
+  const base = getCrmBaseUrlTrimmed();
+  const sep = escapeHtml(CRM_FRAME_SEPARATOR);
+  let out = `${sep}<br><br>${innerHtml}`;
+  if (base) {
+    const href = escapeHtml(base);
+    const label = escapeHtml("Foxy Sale CRM");
+    out += `<br><br><a href="${href}">${label}</a>`;
+  }
+  return out;
+}
+
+function wrapTelegramCrmFramePlain(inner: string): string {
+  const base = getCrmBaseUrlTrimmed();
+  let out = `${CRM_FRAME_SEPARATOR}\n\n${inner}`;
+  if (base) {
+    out += `\n\n${base}`;
+  }
+  return out;
 }
 
 export function escapeHtml(str: string): string {
@@ -31,17 +59,24 @@ export function formatTelegramNotificationBodyHtml(
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
-  options?: { parseMode: "HTML" | null }
+  options?: { parseMode: "HTML" | null; skipCrmFrame?: boolean }
 ): Promise<boolean> {
   if (!BOT_TOKEN) return false;
   const parseMode = options?.parseMode === null ? undefined : "HTML";
+  const isPlain = options?.parseMode === null;
+  const framed =
+    options?.skipCrmFrame === true
+      ? text
+      : isPlain
+        ? wrapTelegramCrmFramePlain(text)
+        : wrapTelegramCrmFrameHtml(text);
   try {
     const res = await fetch(tgApi("sendMessage"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text,
+        text: framed,
         ...(parseMode ? { parse_mode: parseMode } : {}),
       }),
     });
