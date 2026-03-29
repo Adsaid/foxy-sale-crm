@@ -2,41 +2,11 @@ import { prisma } from "@/lib/prisma";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-const CRM_FRAME_SEPARATOR = "-----------------";
-
-/** Ліміт Telegram; мінус запас під рамку (розділювач + посилання + <br>). */
-export const TELEGRAM_MESSAGE_HARD_MAX = 4096;
-export const TELEGRAM_CRM_FRAME_RESERVED = 340;
+/** Якщо `NEXT_PUBLIC_BASE_URL` не задано — збіг з продакшен-деплоєм. */
+const DEFAULT_CRM_PUBLIC_ORIGIN = "https://sale-crm-nine.vercel.app";
 
 function tgApi(method: string) {
   return `https://api.telegram.org/bot${BOT_TOKEN}/${method}`;
-}
-
-function getCrmBaseUrlTrimmed(): string {
-  return (process.env.NEXT_PUBLIC_BASE_URL ?? "").trim().replace(/\/$/, "");
-}
-
-/** Рамка для HTML-повідомлень бота (розділювач + тіло + посилання на CRM). */
-function wrapTelegramCrmFrameHtml(innerHtml: string): string {
-  const base = getCrmBaseUrlTrimmed();
-  const sep = escapeHtml(CRM_FRAME_SEPARATOR);
-  const normalized = innerHtml.replace(/\n/g, "<br>");
-  let out = `${sep}<br><br>${normalized}`;
-  if (base) {
-    const href = escapeHtml(base);
-    const label = escapeHtml("Foxy Sale CRM");
-    out += `<br><br><a href="${href}">${label}</a>`;
-  }
-  return out;
-}
-
-function wrapTelegramCrmFramePlain(inner: string): string {
-  const base = getCrmBaseUrlTrimmed();
-  let out = `${CRM_FRAME_SEPARATOR}\n\n${inner}`;
-  if (base) {
-    out += `\n\n${base}`;
-  }
-  return out;
 }
 
 export function escapeHtml(str: string): string {
@@ -44,6 +14,23 @@ export function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+export function getCrmPublicOrigin(): string {
+  const raw = process.env.NEXT_PUBLIC_BASE_URL?.trim();
+  if (raw) return raw.replace(/\/$/, "");
+  return DEFAULT_CRM_PUBLIC_ORIGIN;
+}
+
+/** HTML-футер: клікабельне посилання на CRM (для parse_mode HTML). */
+export function telegramCrmLinkFooterHtml(): string {
+  const origin = getCrmPublicOrigin();
+  const href = escapeHtml(origin);
+  return `\n\n<a href="${href}">${escapeHtml("Відкрити Foxy Sale CRM")}</a>`;
+}
+
+export function appendTelegramCrmLinkFooter(htmlBody: string): string {
+  return `${htmlBody}${telegramCrmLinkFooterHtml()}`;
 }
 
 /**
@@ -64,31 +51,20 @@ export function formatTelegramNotificationBodyHtml(
 export async function sendTelegramMessage(
   chatId: string,
   text: string,
-  options?: { parseMode: "HTML" | null; skipCrmFrame?: boolean }
+  options?: { parseMode: "HTML" | null }
 ): Promise<boolean> {
   if (!BOT_TOKEN) return false;
   const parseMode = options?.parseMode === null ? undefined : "HTML";
-  const isPlain = options?.parseMode === null;
-  const framed =
-    options?.skipCrmFrame === true
-      ? text
-      : isPlain
-        ? wrapTelegramCrmFramePlain(text)
-        : wrapTelegramCrmFrameHtml(text);
   try {
     const res = await fetch(tgApi("sendMessage"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: chatId,
-        text: framed,
+        text,
         ...(parseMode ? { parse_mode: parseMode } : {}),
       }),
     });
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error("[telegram] sendMessage failed", res.status, errBody.slice(0, 500));
-    }
     return res.ok;
   } catch (err) {
     console.error("[telegram] sendMessage error", err);
@@ -120,7 +96,9 @@ export async function sendTelegramNotification(
     select: { telegramChatId: true },
   });
   if (!user?.telegramChatId) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await sendTelegramMessage(user.telegramChatId, text);
 }
 
@@ -138,7 +116,9 @@ export async function sendTelegramNotifications(
     where: { id: { in: userIds }, telegramChatId: { not: null } },
     select: { telegramChatId: true },
   });
-  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await Promise.allSettled(
     users
       .filter((u) => u.telegramChatId)
@@ -160,7 +140,9 @@ export async function sendTelegramToAllAdmins(
     select: { telegramChatId: true },
   });
   if (admins.length === 0) return;
-  const text = `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`;
+  const text = appendTelegramCrmLinkFooter(
+    `<b>${escapeHtml(title)}</b>\n\n${formatTelegramNotificationBodyHtml(message, options?.actorName)}`
+  );
   await Promise.allSettled(
     admins.map((a) => sendTelegramMessage(a.telegramChatId!, text))
   );

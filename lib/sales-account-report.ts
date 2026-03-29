@@ -1,10 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { Account } from "@/types/crm";
-import {
-  escapeHtml,
-  TELEGRAM_CRM_FRAME_RESERVED,
-  TELEGRAM_MESSAGE_HARD_MAX,
-} from "@/lib/telegram";
+import { appendTelegramCrmLinkFooter, escapeHtml } from "@/lib/telegram";
 import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
@@ -162,8 +158,7 @@ export function buildSalesAccountReportTelegramText(snapshots: Account[]): strin
   return lines.join("\n");
 }
 
-/** Макс. довжина тіла до обгортки в sendTelegramMessage (рамка з’їдає ~TELEGRAM_CRM_FRAME_RESERVED). */
-const TELEGRAM_MAX = TELEGRAM_MESSAGE_HARD_MAX - TELEGRAM_CRM_FRAME_RESERVED;
+const TELEGRAM_MAX = 3900;
 
 /** HTML для Telegram (<b>…</b>); тіло екранується. Розбивка без розриву тегів. */
 export function chunkAccountReportTelegramHtmlParts(
@@ -181,7 +176,7 @@ export function chunkAccountReportTelegramHtmlParts(
   const full = `${htmlIntro}${sep}${escapedBody}`;
 
   if (full.length <= TELEGRAM_MAX) {
-    return [full];
+    return [appendTelegramCrmLinkFooter(full)];
   }
 
   const headerLen = htmlIntro.length + sep.length;
@@ -191,7 +186,7 @@ export function chunkAccountReportTelegramHtmlParts(
     for (let i = 0; i < escapedBody.length; i += TELEGRAM_MAX) {
       out.push(escapedBody.slice(i, i + TELEGRAM_MAX));
     }
-    return out;
+    return out.map((p) => appendTelegramCrmLinkFooter(p));
   }
 
   const parts: string[] = [
@@ -200,5 +195,5 @@ export function chunkAccountReportTelegramHtmlParts(
   for (let i = roomFirst; i < escapedBody.length; i += TELEGRAM_MAX) {
     parts.push(escapedBody.slice(i, i + TELEGRAM_MAX));
   }
-  return parts;
+  return parts.map((p) => appendTelegramCrmLinkFooter(p));
 }
