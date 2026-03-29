@@ -18,6 +18,7 @@ export function useCreateAccount() {
     mutationFn: (data: CreateAccountInput) => accountService.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["stats", "accounts"] });
       toast.success("Акаунт створено");
     },
     onError: () => toast.error("Помилка створення акаунту"),
@@ -31,6 +32,7 @@ export function useUpdateAccount() {
       accountService.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["stats", "accounts"] });
       toast.success("Акаунт оновлено");
     },
     onError: () => toast.error("Помилка оновлення акаунту"),
@@ -43,6 +45,7 @@ export function useDeleteAccount() {
     mutationFn: (id: string) => accountService.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: ["stats", "accounts"] });
       toast.success("Акаунт видалено");
     },
     onError: () => toast.error("Помилка видалення акаунту"),

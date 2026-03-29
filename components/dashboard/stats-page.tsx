@@ -1,98 +1,60 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useSalesStats, useDevStats } from "@/hooks/use-stats";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function LoadingSkeleton({ count }: { count: number }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2">
-            <Skeleton className="h-4 w-24" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-function SalesStatsView() {
-  const { data: stats, isLoading } = useSalesStats();
-
-  if (isLoading) return <LoadingSkeleton count={6} />;
-  if (!stats) return null;
-
-  const items = [
-    { label: "Всього дзвінків", value: stats.totalCalls },
-    { label: "Завершені", value: stats.completedCalls },
-    { label: "Успішні", value: stats.successCalls },
-    { label: "Неуспішні", value: stats.unsuccessfulCalls },
-    { label: "Очікують", value: stats.pendingCalls },
-    { label: "Акаунтів", value: stats.totalAccounts },
-  ];
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((item) => (
-        <StatCard key={item.label} label={item.label} value={item.value} />
-      ))}
-    </div>
-  );
-}
-
-function DevStatsView() {
-  const { data: stats, isLoading } = useDevStats();
-
-  if (isLoading) return <LoadingSkeleton count={4} />;
-  if (!stats) return null;
-
-  const items = [
-    { label: "Призначено дзвінків", value: stats.totalAssigned },
-    { label: "Завершено", value: stats.completed },
-    { label: "Успішність", value: `${stats.successRate}%` },
-    { label: "Очікують", value: stats.pending },
-  ];
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {items.map((item) => (
-        <StatCard key={item.label} label={item.label} value={item.value} />
-      ))}
-    </div>
-  );
-}
+import { CallStatsCallsPanel } from "@/components/dashboard/call-stats-calls-panel";
+import { AccountStatsPanel } from "@/components/dashboard/account-stats-panel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function StatsPage() {
   const { user, isLoading } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const [adminTab, setAdminTab] = useState<"calls" | "accounts">("calls");
 
-  if (isLoading) return <LoadingSkeleton count={4} />;
+  if (isLoading) return null;
+
+  const heading =
+    isAdmin && adminTab === "accounts"
+      ? "Статистика аккаунтів"
+      : "Статистика дзвінків";
+
+  const callsSection = user ? (
+    <CallStatsCallsPanel
+      isAdmin={isAdmin}
+      fetchEnabled={!isAdmin || adminTab === "calls"}
+    />
+  ) : null;
 
   return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Статистика</h2>
-      {(user?.role === "SALES" || user?.role === "ADMIN") && <SalesStatsView />}
-      {user?.role === "DEV" && <DevStatsView />}
+      <h2 className="text-2xl font-bold">{heading}</h2>
+
+      {isAdmin ? (
+        <Tabs
+          value={adminTab}
+          onValueChange={(v) => setAdminTab(v as "calls" | "accounts")}
+          className="w-full min-w-0"
+        >
+          <TabsList variant="line" className="mb-4">
+            <TabsTrigger value="calls">Дзвінки</TabsTrigger>
+            <TabsTrigger value="accounts">Акаунти</TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="calls"
+            className="mt-0 space-y-4 outline-none focus-visible:outline-none"
+          >
+            {callsSection}
+          </TabsContent>
+          <TabsContent
+            value="accounts"
+            className="mt-0 space-y-4 outline-none focus-visible:outline-none"
+          >
+            <AccountStatsPanel fetchEnabled={adminTab === "accounts"} />
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div className="space-y-4">{callsSection}</div>
+      )}
     </div>
   );
 }

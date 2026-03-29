@@ -2,17 +2,36 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { statsService } from "@/services/stats-service";
+import type { AccountStatsQueryParams, CallStatsQueryParams } from "@/types/crm";
 
-export function useSalesStats() {
+export function useCallStats(filters: CallStatsQueryParams | null, enabled = true) {
   return useQuery({
-    queryKey: ["stats", "sales"],
-    queryFn: statsService.getSalesStats,
+    queryKey: ["stats", "calls", filters],
+    queryFn: () => statsService.getCallStats(filters ?? {}),
+    enabled: enabled && filters !== null,
   });
 }
 
-export function useDevStats() {
+export function useCallStatsTimeseries(filters: CallStatsQueryParams | null, enabled = true) {
   return useQuery({
-    queryKey: ["stats", "dev"],
-    queryFn: statsService.getDevStats,
+    queryKey: ["stats", "calls", "timeseries", filters],
+    queryFn: () => statsService.getCallStatsTimeseries(filters ?? {}),
+    enabled: enabled && filters !== null,
+  });
+}
+
+export function useAccountStats(filters: AccountStatsQueryParams | null, enabled = true) {
+  return useQuery({
+    queryKey: ["stats", "accounts", filters],
+    queryFn: () => statsService.getAccountStats(filters ?? {}),
+    enabled: enabled && filters !== null,
+  });
+}
+
+export function useAccountStatsTimeseries(filters: AccountStatsQueryParams | null, enabled = true) {
+  return useQuery({
+    queryKey: ["stats", "accounts", "timeseries", filters],
+    queryFn: () => statsService.getAccountStatsTimeseries(filters ?? {}),
+    enabled: enabled && filters !== null,
   });
 }
