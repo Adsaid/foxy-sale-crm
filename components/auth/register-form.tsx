@@ -177,58 +177,63 @@ export function RegisterForm({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Роль</FormLabel>
-                  <Select
-                    onValueChange={(val) => {
-                      field.onChange(val);
-                      if (val !== "DEV") {
-                        form.setValue("specialization", undefined);
-                        form.setValue("technologyIds", []);
-                      }
-                      if (val !== "SALES") {
-                        form.setValue("badgeBgColor", "#EEF2FF");
-                        form.setValue("badgeTextColor", "#3730A3");
-                      }
-                    }}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Оберіть роль" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allowAdminRegistration && (
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                      )}
-                      <SelectItem value="DEV">Developer</SelectItem>
-                      <SelectItem value="SALES">Sales</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
+            <div
+              className={cn(
+                "grid min-w-0 gap-4",
+                watchRole === "DEV" ? "grid-cols-2" : "grid-cols-1",
               )}
-            />
+            >
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem className="w-full min-w-0">
+                    <FormLabel>Роль</FormLabel>
+                    <Select
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        if (val !== "DEV") {
+                          form.setValue("specialization", undefined);
+                          form.setValue("technologyIds", []);
+                        }
+                        if (val !== "SALES") {
+                          form.setValue("badgeBgColor", "#EEF2FF");
+                          form.setValue("badgeTextColor", "#3730A3");
+                        }
+                      }}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Оберіть роль" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allowAdminRegistration && (
+                          <SelectItem value="ADMIN">Admin</SelectItem>
+                        )}
+                        <SelectItem value="DEV">Developer</SelectItem>
+                        <SelectItem value="SALES">Sales</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {watchRole === "DEV" && (
-              <>
+              {watchRole === "DEV" && (
                 <FormField
                   control={form.control}
                   name="specialization"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="w-full min-w-0">
                       <FormLabel>Спеціалізація</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="w-full">
                             <SelectValue placeholder="Оберіть спеціалізацію" />
                           </SelectTrigger>
                         </FormControl>
@@ -242,24 +247,26 @@ export function RegisterForm({
                     </FormItem>
                   )}
                 />
+              )}
+            </div>
 
-                <FormField
-                  control={form.control}
-                  name="technologyIds"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Технології</FormLabel>
-                      <FormControl>
-                        <TechnologyMultiSelect
-                          value={field.value ?? []}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
+            {watchRole === "DEV" && (
+              <FormField
+                control={form.control}
+                name="technologyIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Технології</FormLabel>
+                    <FormControl>
+                      <TechnologyMultiSelect
+                        value={field.value ?? []}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
             {watchRole === "SALES" && (
