@@ -292,6 +292,23 @@ export interface CallStatsQueryParams {
   from?: string;
   to?: string;
   salesId?: string;
+  /** IANA, наприклад Europe/Kyiv — для бакетів графіка в календарі користувача. */
+  timeZone?: string;
+  /** `hour` — погодинна вісь (пресет «Сьогодні» або один календарний день). */
+  granularity?: "hour" | "day";
+}
+
+/** Точка часового ряду для графіка дзвінків (GET /api/stats/calls/timeseries). */
+export interface CallStatsTimeseriesPoint {
+  key: string;
+  label: string;
+  total: number;
+  success: number;
+  unsuccessful: number;
+}
+
+export interface CallStatsTimeseriesResponse {
+  points: CallStatsTimeseriesPoint[];
 }
 
 /** Агрегована статистика акаунтів (лише адмін, вкладка «Акаунти» на дашборді). */

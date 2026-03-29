@@ -40,26 +40,26 @@ export function callStatsRangeFromPreset(
         to: endOfDay(now).toISOString(),
       };
     case "this_week": {
-      const start = startOfISOWeek(now);
-      const end = endOfISOWeek(now);
+      const start = startOfDay(startOfISOWeek(now));
+      const end = endOfDay(endOfISOWeek(now));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "last_week": {
       const ref = subWeeks(now, 1);
-      const start = startOfISOWeek(ref);
-      const end = endOfISOWeek(ref);
+      const start = startOfDay(startOfISOWeek(ref));
+      const end = endOfDay(endOfISOWeek(ref));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "this_month":
       return {
-        from: startOfMonth(now).toISOString(),
-        to: endOfMonth(now).toISOString(),
+        from: startOfDay(startOfMonth(now)).toISOString(),
+        to: endOfDay(endOfMonth(now)).toISOString(),
       };
     case "last_month": {
       const ref = subMonths(now, 1);
       return {
-        from: startOfMonth(ref).toISOString(),
-        to: endOfMonth(ref).toISOString(),
+        from: startOfDay(startOfMonth(ref)).toISOString(),
+        to: endOfDay(endOfMonth(ref)).toISOString(),
       };
     }
     case "custom": {

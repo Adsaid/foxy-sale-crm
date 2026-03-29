@@ -12,6 +12,14 @@ export function useCallStats(filters: CallStatsQueryParams | null, enabled = tru
   });
 }
 
+export function useCallStatsTimeseries(filters: CallStatsQueryParams | null, enabled = true) {
+  return useQuery({
+    queryKey: ["stats", "calls", "timeseries", filters],
+    queryFn: () => statsService.getCallStatsTimeseries(filters ?? {}),
+    enabled: enabled && filters !== null,
+  });
+}
+
 export function useAdminAccountStats(enabled: boolean) {
   return useQuery({
     queryKey: ["stats", "accounts"],

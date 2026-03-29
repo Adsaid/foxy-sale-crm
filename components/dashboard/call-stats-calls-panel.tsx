@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { uk } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { CalendarRange, ChevronsUpDown } from "lucide-react";
-import { useCallStats } from "@/hooks/use-stats";
+import { useCallStats, useCallStatsTimeseries } from "@/hooks/use-stats";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import {
   callStatsRangeFromPreset,
@@ -13,7 +14,14 @@ import {
 } from "@/lib/call-stats-range";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   Command,
   CommandEmpty,
@@ -32,7 +40,11 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ManagerBadge } from "@/components/ui/manager-badge";
-import type { CallStatsData, CallStatsQueryParams } from "@/types/crm";
+import type {
+  CallStatsData,
+  CallStatsQueryParams,
+  CallStatsTimeseriesPoint,
+} from "@/types/crm";
 
 const SALES_ALL = "all";
 
@@ -46,34 +58,101 @@ const PRESET_OPTIONS: { value: CallStatsPreset; label: string }[] = [
   { value: "custom", label: "Свій період" },
 ];
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCardCompact({ label, value }: { label: string; value: string | number }) {
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold">{value}</p>
-      </CardContent>
-    </Card>
+    <div className="rounded-lg border bg-card px-3 py-2 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-semibold tabular-nums tracking-tight">{value}</p>
+    </div>
   );
 }
 
-function LoadingSkeleton({ count }: { count: number }) {
+const CALL_STATS_CHART_CONFIG = {
+  total: { label: "Усі дзвінки", color: "var(--chart-1)" },
+  success: { label: "Успішні", color: "var(--chart-2)" },
+  unsuccessful: { label: "Неуспішні", color: "var(--chart-3)" },
+} satisfies ChartConfig;
+
+function LoadingSkeletonCompact({ count }: { count: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {Array.from({ length: count }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="pb-2">
-            <Skeleton className="h-4 w-24" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16" />
-          </CardContent>
-        </Card>
+        <div key={i} className="rounded-lg border px-3 py-2">
+          <Skeleton className="mb-2 h-2.5 w-20" />
+          <Skeleton className="h-7 w-9" />
+        </div>
       ))}
+    </div>
+  );
+}
+
+function ChartAreaSkeleton() {
+  return <Skeleton className="h-[280px] w-full rounded-lg border" />;
+}
+
+function CallStatsAreaChart({ points }: { points: CallStatsTimeseriesPoint[] }) {
+  const data = useMemo(
+    () =>
+      points.map((p) => ({
+        name: p.label,
+        total: p.total,
+        success: p.success,
+        unsuccessful: p.unsuccessful,
+      })),
+    [points]
+  );
+
+  return (
+    <div className="rounded-lg border bg-card p-4 pt-2">
+      <ChartContainer config={CALL_STATS_CHART_CONFIG} className="aspect-auto h-[280px] w-full">
+        <AreaChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/60" />
+          <XAxis
+            dataKey="name"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            interval="preserveStartEnd"
+            className="text-[10px] sm:text-xs"
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            width={36}
+            allowDecimals={false}
+            className="text-[10px] sm:text-xs"
+          />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+          <Area
+            type="monotone"
+            dataKey="total"
+            stroke="var(--color-total)"
+            fill="var(--color-total)"
+            fillOpacity={0.12}
+            strokeWidth={1.5}
+          />
+          <Area
+            type="monotone"
+            dataKey="success"
+            stroke="var(--color-success)"
+            fill="var(--color-success)"
+            fillOpacity={0.12}
+            strokeWidth={1.5}
+          />
+          <Area
+            type="monotone"
+            dataKey="unsuccessful"
+            stroke="var(--color-unsuccessful)"
+            fill="var(--color-unsuccessful)"
+            fillOpacity={0.12}
+            strokeWidth={1.5}
+          />
+          <ChartLegend content={<ChartLegendContent />} className="pt-3" />
+        </AreaChart>
+      </ChartContainer>
     </div>
   );
 }
@@ -84,7 +163,7 @@ function customRangeButtonLabel(range: DateRange | undefined): string {
   return `${format(range.from, "d MMM yyyy", { locale: uk })} — ${format(end, "d MMM yyyy", { locale: uk })}`;
 }
 
-function CallStatsCards({ stats }: { stats: CallStatsData }) {
+function CallStatsCardsCompact({ stats }: { stats: CallStatsData }) {
   const items = [
     { label: "Всього дзвінків", value: stats.totalCalls },
     { label: "Завершені", value: stats.completedCalls },
@@ -93,9 +172,9 @@ function CallStatsCards({ stats }: { stats: CallStatsData }) {
     { label: "Очікують", value: stats.pendingCalls },
   ];
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       {items.map((item) => (
-        <StatCard key={item.label} label={item.label} value={item.value} />
+        <StatCardCompact key={item.label} label={item.label} value={item.value} />
       ))}
     </div>
   );
@@ -147,10 +226,23 @@ export function CallStatsCallsPanel({
     if (isAdmin && salesFilter !== SALES_ALL) {
       out.salesId = salesFilter;
     }
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    out.timeZone = timeZone;
+    if (preset === "today") {
+      out.granularity = "hour";
+    } else if (
+      preset === "custom" &&
+      customRange?.from &&
+      customRange?.to &&
+      isSameDay(customRange.from, customRange.to)
+    ) {
+      out.granularity = "hour";
+    }
     return out;
   }, [preset, customRange, isAdmin, salesFilter]);
 
-  const { data, isLoading, isError, error } = useCallStats(apiFilters, fetchEnabled);
+  const statsQuery = useCallStats(apiFilters, fetchEnabled);
+  const seriesQuery = useCallStatsTimeseries(apiFilters, fetchEnabled);
 
   return (
     <div className="space-y-4">
@@ -271,15 +363,30 @@ export function CallStatsCallsPanel({
         <p className="text-sm text-muted-foreground">
           Оберіть початок і кінець періоду в календарі.
         </p>
-      ) : isLoading ? (
-        <LoadingSkeleton count={5} />
-      ) : isError ? (
+      ) : statsQuery.isLoading ? (
+        <div className="space-y-4">
+          <LoadingSkeletonCompact count={5} />
+          <ChartAreaSkeleton />
+        </div>
+      ) : statsQuery.isError ? (
         <p className="text-sm text-destructive">
-          {(error as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-            "Не вдалося завантажити статистику"}
+          {(statsQuery.error as { response?: { data?: { error?: string } } })?.response?.data
+            ?.error ?? "Не вдалося завантажити статистику"}
         </p>
-      ) : data ? (
-        <CallStatsCards stats={data} />
+      ) : statsQuery.data ? (
+        <div className="space-y-4">
+          <CallStatsCardsCompact stats={statsQuery.data} />
+          {seriesQuery.isLoading ? (
+            <ChartAreaSkeleton />
+          ) : seriesQuery.isError ? (
+            <p className="text-sm text-destructive">
+              {(seriesQuery.error as { response?: { data?: { error?: string } } })?.response?.data
+                ?.error ?? "Не вдалося завантажити графік"}
+            </p>
+          ) : seriesQuery.data ? (
+            <CallStatsAreaChart points={seriesQuery.data.points} />
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
