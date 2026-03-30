@@ -210,6 +210,8 @@ export interface UpdateCallInput {
   /** Mark call as rescheduled/transfered when editing datetime (used for CallSummary) */
   transferred?: boolean;
   transferredReason?: string | null;
+  /** Перепризначення DEV; дозволено лише для статусу SCHEDULED (перевірка на API). */
+  callerId?: string;
 }
 
 export interface CompleteCallInput {

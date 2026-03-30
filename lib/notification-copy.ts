@@ -4,6 +4,8 @@
  */
 export const notifVerbPast = {
   assignedCall: "призначив(ла)",
+  /** Дзвінок знято з поточного DEV і передано іншому. */
+  reassignedCallFromYou: "перепризначив(ла)",
   movedCall: "переніс(ла)",
   cancelledCall: "скасував(ла)",
   updatedCallLink: "оновив(ла)",

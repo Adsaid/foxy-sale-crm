@@ -14,11 +14,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
-import { Building2, User, Clock, MessageSquare } from "lucide-react";
+import { Building2, User, Clock, MessageSquare, ChevronsUpDown } from "lucide-react";
 import type { CallEvent, CallStatus, CallOutcome, UpdateCallInput } from "@/types/crm";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useMemo, useState } from "react";
+import { useDevs } from "@/hooks/use-devs";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -40,6 +55,12 @@ const outcomeLabels: Record<string, string> = {
   PENDING: "Очікує",
 };
 
+const specLabels: Record<string, string> = {
+  FRONTEND: "Frontend",
+  BACKEND: "Backend",
+  FULLSTACK: "Fullstack",
+};
+
 interface CallEditFormProps {
   call: CallEvent;
   isPending: boolean;
@@ -58,6 +79,14 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     callLink: call.callLink ?? "",
     description: call.description ?? "",
   });
+
+  const { data: devs, isLoading: devsLoading } = useDevs({
+    enabled: form.status === "SCHEDULED",
+  });
+
+  const [callerId, setCallerId] = useState(call.callerId);
+  const [devOpen, setDevOpen] = useState(false);
+  const [specFilter, setSpecFilter] = useState("");
 
   const [markTransferred, setMarkTransferred] = useState(false);
   const [transferredReason, setTransferredReason] = useState("");
@@ -80,6 +109,17 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
 
   const isCompleted = form.status === "COMPLETED";
   const isCancelled = form.status === "CANCELLED";
+  const isScheduled = form.status === "SCHEDULED";
+
+  const selectedDev = devs?.find((d) => d.id === callerId);
+  const filteredDevs = devs?.filter((d) => {
+    if (specFilter && d.specialization !== specFilter) return false;
+    return true;
+  });
+
+  const headerDev = isScheduled
+    ? selectedDev ?? call.caller ?? null
+    : call.caller ?? null;
 
   function handleSubmit() {
     onSubmit({
@@ -96,6 +136,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       transferredReason: markTransferred
         ? transferredReason.trim() || null
         : undefined,
+      ...(isScheduled ? { callerId } : {}),
     });
   }
 
@@ -111,10 +152,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
             <User className="size-3.5" />
             {call.interviewerName}
           </span>
-          {call.caller && (
+          {headerDev && (
             <span className="flex items-center gap-1.5">
               <Building2 className="size-3.5" />
-              {call.caller.firstName} {call.caller.lastName}
+              {headerDev.firstName} {headerDev.lastName}
             </span>
           )}
           {call.account && (
@@ -128,6 +169,96 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       </div>
 
       <Separator />
+
+      {isScheduled && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">DEV (який вийде на дзвінок)</label>
+            <div className="ml-auto flex gap-1">
+              <Badge
+                variant={specFilter === "" ? "default" : "outline"}
+                className="cursor-pointer px-1.5 py-0 text-[10px]"
+                onClick={() => setSpecFilter("")}
+              >
+                Всі
+              </Badge>
+              {Object.entries(specLabels).map(([k, v]) => (
+                <Badge
+                  key={k}
+                  variant={specFilter === k ? "default" : "outline"}
+                  className="cursor-pointer px-1.5 py-0 text-[10px]"
+                  onClick={() => setSpecFilter(specFilter === k ? "" : k)}
+                >
+                  {v}
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <Popover modal={false} open={devOpen} onOpenChange={setDevOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full justify-between font-normal">
+                {selectedDev
+                  ? `${selectedDev.firstName} ${selectedDev.lastName}`
+                  : "Оберіть DEV"}
+                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Пошук DEV..." />
+                <CommandList>
+                  {devsLoading ? (
+                    <div className="space-y-2 p-2">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <Skeleton key={i} className="h-14 w-full" />
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty>Не знайдено</CommandEmpty>
+                      <CommandGroup>
+                        {filteredDevs?.map((d) => (
+                          <CommandItem
+                            key={d.id}
+                            value={`${d.firstName} ${d.lastName} ${d.specialization ?? ""} ${d.technologies.map((t) => t.name).join(" ")}`}
+                            data-checked={callerId === d.id}
+                            onSelect={() => {
+                              setCallerId(d.id);
+                              setDevOpen(false);
+                            }}
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium">
+                                  {d.firstName} {d.lastName}
+                                </span>
+                                {d.specialization && (
+                                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+                                    {specLabels[d.specialization] ?? d.specialization}
+                                  </Badge>
+                                )}
+                              </div>
+                              {d.technologies.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {d.technologies.map((t) => (
+                                    <Badge key={t.id} variant="outline" className="px-1.5 py-0 text-[10px]">
+                                      {t.name}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
 
       <div>
         <label className="mb-1.5 block text-sm font-medium">Дата та час дзвінка</label>

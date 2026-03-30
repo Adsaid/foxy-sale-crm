@@ -11,6 +11,7 @@ const POLL_INTERVAL = 5_000;
 
 const toastConfig: Record<NotificationType, { variant: "info" | "success"; icon?: string }> = {
   CALL_ASSIGNED: { variant: "info" },
+  CALL_DEV_REASSIGNED_AWAY: { variant: "info" },
   CALL_RESCHEDULED: { variant: "info" },
   CALL_COMPLETED: { variant: "success" },
   ACCOUNT_REASSIGNED: { variant: "info" },

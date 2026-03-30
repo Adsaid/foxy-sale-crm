@@ -2,12 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
-import { createNotification, notifyAllAdmins } from "@/lib/notifications";
-import {
-  callTypeLabelUk,
-  formatNotificationDateTime,
-  notifVerbPast,
-} from "@/lib/notification-copy";
+import { notifyCallAssignedToDevAndAdmins } from "@/lib/call-assigned-notifications";
 import {
   CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
@@ -112,57 +107,7 @@ export async function POST(request: Request) {
     },
   });
 
-  const salesName = `${call.createdBy?.firstName ?? ""} ${call.createdBy?.lastName ?? ""}`.trim();
-  const devName = `${call.caller?.firstName ?? ""} ${call.caller?.lastName ?? ""}`.trim();
-  const accountLabel = call.account?.account ?? "—";
-  const when = formatNotificationDateTime(call.callStartedAt);
-  const typeLabel = callTypeLabelUk(call.callType);
-  const assignedMessage = [
-    `${salesName} ${notifVerbPast.assignedCall} вам дзвінок.`,
-    `Компанія: ${call.company}`,
-    `Тип: ${typeLabel}`,
-    `Час: ${when}`,
-    `Інтерв'юер: ${call.interviewerName}`,
-    `Акаунт: ${accountLabel}`,
-  ].join("\n");
-  const assignedPayload = {
-    callId: call.id,
-    company: call.company,
-    callType: call.callType,
-    callStartedAt: call.callStartedAt.toISOString(),
-    interviewerName: call.interviewerName,
-    accountName: accountLabel,
-  };
-
-  await createNotification({
-    userId: call.callerId,
-    type: "CALL_ASSIGNED",
-    title: `Новий дзвінок — ${call.company}`,
-    message: assignedMessage,
-    telegramActorName: salesName || undefined,
-    telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
-    telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
-    payload: assignedPayload,
-  }).catch((err) => {
-    console.error("[notification] CALL_ASSIGNED", err);
-  });
-
-  await notifyAllAdmins({
-    type: "CALL_ASSIGNED",
-    title: `Новий дзвінок — ${call.company}`,
-    telegramActorName: salesName || undefined,
-    telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
-    telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
-    message: [
-      `${salesName} ${notifVerbPast.assignedCall} дзвінок ${devName || "розробнику"}.`,
-      `Компанія: ${call.company}`,
-      `Тип: ${typeLabel}`,
-      `Час: ${when}`,
-      `Інтерв'юер: ${call.interviewerName}`,
-      `Акаунт: ${accountLabel}`,
-    ].join("\n"),
-    payload: assignedPayload,
-  }).catch((err) => console.error("[notification] CALL_ASSIGNED admin", err));
+  await notifyCallAssignedToDevAndAdmins(call);
 
   return NextResponse.json(call, { status: 201 });
 }

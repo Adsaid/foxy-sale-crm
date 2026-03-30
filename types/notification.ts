@@ -1,5 +1,6 @@
 export type NotificationType =
   | "CALL_ASSIGNED"
+  | "CALL_DEV_REASSIGNED_AWAY"
   | "CALL_RESCHEDULED"
   | "CALL_COMPLETED"
   | "ACCOUNT_REASSIGNED"

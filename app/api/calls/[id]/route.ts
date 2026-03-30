@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike, canMutateCall } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
+import { notifyCallAssignedToDevAndAdmins } from "@/lib/call-assigned-notifications";
 import {
   callTypeLabelUk,
   formatNotificationDateTime,
@@ -101,23 +102,64 @@ export async function PATCH(
 
   const statusAfter = (body.status ?? existing.status) as typeof existing.status;
 
-  if (body.callStartedAt !== undefined) {
-    const newStart = new Date(body.callStartedAt);
-    if (newStart.getTime() !== existing.callStartedAt.getTime()) {
-      const rangeEnd = new Date(newStart.getTime() + CALL_SLOT_MS);
-      const callerConflict = await findCallerConflictWithOtherSales(prisma, {
-        callerId: existing.callerId,
-        rangeStart: newStart,
-        rangeEnd,
-        actingCreatedById: existing.createdById,
-        excludeCallId: existing.id,
+  let effectiveCallerId = existing.callerId;
+  if (Object.prototype.hasOwnProperty.call(body, "callerId")) {
+    if (body.callerId === null || body.callerId === undefined) {
+      return NextResponse.json(
+        { error: "Некоректний callerId" },
+        { status: 400 },
+      );
+    }
+    if (existing.status !== "SCHEDULED") {
+      return NextResponse.json(
+        {
+          error:
+            "Змінити відповідального DEV можна лише для дзвінка зі статусом «Заплановано».",
+        },
+        { status: 400 },
+      );
+    }
+    if (typeof body.callerId !== "string" || !body.callerId.trim()) {
+      return NextResponse.json({ error: "Некоректний callerId" }, { status: 400 });
+    }
+    effectiveCallerId = body.callerId.trim();
+    if (effectiveCallerId !== existing.callerId) {
+      const devUser = await prisma.user.findUnique({
+        where: { id: effectiveCallerId },
+        select: { id: true, role: true },
       });
-      if (callerConflict) {
+      if (!devUser || devUser.role !== "DEV") {
         return NextResponse.json(
-          { error: formatCallerConflictMessageUk(callerConflict) },
-          { status: 409 },
+          { error: "Обраний користувач не знайдений або не є DEV" },
+          { status: 400 },
         );
       }
+    }
+  }
+
+  const effectiveStart =
+    body.callStartedAt !== undefined
+      ? new Date(body.callStartedAt)
+      : existing.callStartedAt;
+  const callerChanged = effectiveCallerId !== existing.callerId;
+  const startChanged =
+    body.callStartedAt !== undefined &&
+    effectiveStart.getTime() !== existing.callStartedAt.getTime();
+
+  if (callerChanged || startChanged) {
+    const rangeEnd = new Date(effectiveStart.getTime() + CALL_SLOT_MS);
+    const callerConflict = await findCallerConflictWithOtherSales(prisma, {
+      callerId: effectiveCallerId,
+      rangeStart: effectiveStart,
+      rangeEnd,
+      actingCreatedById: existing.createdById,
+      excludeCallId: existing.id,
+    });
+    if (callerConflict) {
+      return NextResponse.json(
+        { error: formatCallerConflictMessageUk(callerConflict) },
+        { status: 409 },
+      );
     }
   }
 
@@ -134,10 +176,6 @@ export async function PATCH(
 
   const transitioningToCompleted =
     statusAfter === "COMPLETED" && existing.status !== "COMPLETED";
-  const effectiveStart =
-    body.callStartedAt !== undefined
-      ? new Date(body.callStartedAt)
-      : existing.callStartedAt;
   const callEndedAtForBackdatedCompletion =
     transitioningToCompleted && isCallStartedBeforeTodayKyiv(effectiveStart)
       ? callEndedAtOneHourAfterStart(effectiveStart)
@@ -158,6 +196,7 @@ export async function PATCH(
       ...(body.salaryTo !== undefined && { salaryTo: body.salaryTo }),
       ...(body.callLink !== undefined && { callLink: body.callLink || null }),
       ...(body.description !== undefined && { description: body.description || null }),
+      ...(callerChanged && { callerId: effectiveCallerId }),
       ...(callEndedAtForBackdatedCompletion !== undefined && {
         callEndedAt: callEndedAtForBackdatedCompletion,
       }),
@@ -330,6 +369,44 @@ export async function PATCH(
       telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED admin", err));
+  }
+
+  if (callerChanged) {
+    const salesName = `${updated.createdBy?.firstName ?? ""} ${updated.createdBy?.lastName ?? ""}`.trim();
+    const newDevName = `${updated.caller?.firstName ?? ""} ${updated.caller?.lastName ?? ""}`.trim();
+    const when = formatNotificationDateTime(updated.callStartedAt);
+    const typeLabel = callTypeLabelUk(updated.callType);
+    const awayLines = [
+      `${salesName} ${notifVerbPast.reassignedCallFromYou} дзвінок іншому DEV.`,
+      `Компанія: ${updated.company}`,
+      `Тип: ${typeLabel}`,
+      `Час: ${when}`,
+      `Інтерв'юер: ${updated.interviewerName}`,
+    ];
+    if (newDevName) awayLines.push(`Новий DEV: ${newDevName}`);
+    const awayMessage = awayLines.join("\n");
+    const awayPayload = {
+      callId: updated.id,
+      company: updated.company,
+      callType: updated.callType,
+      callStartedAt: updated.callStartedAt.toISOString(),
+      interviewerName: updated.interviewerName,
+      newCallerId: updated.callerId,
+      ...(newDevName ? { newDevName } : {}),
+    };
+    await createNotification({
+      userId: existing.callerId,
+      type: "CALL_DEV_REASSIGNED_AWAY",
+      title: `Дзвінок перепризначено — ${updated.company}`,
+      message: awayMessage,
+      telegramActorName: salesName || undefined,
+      telegramActorBadgeBgColor: updated.createdBy?.badgeBgColor,
+      telegramActorBadgeTextColor: updated.createdBy?.badgeTextColor,
+      payload: awayPayload,
+    }).catch((err) =>
+      console.error("[notification] CALL_DEV_REASSIGNED_AWAY", err),
+    );
+    await notifyCallAssignedToDevAndAdmins(updated);
   }
 
   const linkChanged =

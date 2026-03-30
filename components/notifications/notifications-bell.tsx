@@ -14,6 +14,7 @@ import {
   Clock,
   Link2,
   FileText,
+  UserMinus,
   Send,
   Loader2,
   MessageCircle,
@@ -48,6 +49,7 @@ import { ManagerBadge } from "@/components/ui/manager-badge";
 
 const typeIcons: Record<NotificationType, typeof Bell> = {
   CALL_ASSIGNED: Phone,
+  CALL_DEV_REASSIGNED_AWAY: UserMinus,
   CALL_RESCHEDULED: ArrowRightLeft,
   CALL_COMPLETED: CheckCheck,
   ACCOUNT_REASSIGNED: Briefcase,
