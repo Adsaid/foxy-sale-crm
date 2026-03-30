@@ -69,6 +69,7 @@ import {
 import type { CallEvent } from "@/types/crm";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CallsCalendarView } from "@/components/dashboard/calls-calendar-view";
+import { canMutateCall } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -187,6 +188,9 @@ function TodayCallCard({
   fillHeight = false,
   onOpenDetails,
 }: TodayCallCardProps) {
+  const { user: todayUser } = useAuth();
+  const canManageThisCall =
+    !!todayUser && canMutateCall(todayUser, call.createdById);
   const timeUntil = getTimeUntil(call.callStartedAt, nowMs);
   const isPast = new Date(call.callStartedAt) <= new Date();
   const isCompleted = call.status === "COMPLETED";
@@ -266,7 +270,7 @@ function TodayCallCard({
             )}
           </div>
           <div className="flex shrink-0 items-center">
-            {isSalesLike && isActive && (
+            {isSalesLike && isActive && canManageThisCall && (
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -385,6 +389,11 @@ export function CallsPage() {
   const isSalesLike = user?.role === "SALES" || user?.role === "ADMIN";
   const showCreatedByColumn = user?.role === "DEV" || user?.role === "ADMIN";
 
+  const canManageCallRow = useCallback(
+    (call: CallEvent) => !!(user && canMutateCall(user, call.createdById)),
+    [user],
+  );
+
   const { data: calls, isLoading } = useCalls();
   /** /api/users/devs лише для SALES/ADMIN; інакше 403 → редірект на /login (axios). */
   const { data: devs, isLoading: devsLoading } = useDevs({ enabled: isSalesLike });
@@ -397,9 +406,15 @@ export function CallsPage() {
   const todayCalls = useMemo(() => {
     if (!calls) return [];
     return calls
-      .filter((c) => isToday(c.callStartedAt))
+      .filter((c) => {
+        if (!isToday(c.callStartedAt)) return false;
+        if (user?.role === "SALES" && user.id) {
+          return c.createdById === user.id;
+        }
+        return true;
+      })
       .sort((a, b) => new Date(a.callStartedAt).getTime() - new Date(b.callStartedAt).getTime());
-  }, [calls]);
+  }, [calls, user?.role, user?.id]);
 
   const [salesFilterId, setSalesFilterId] = useState<string>(() =>
     user?.role === "SALES" ? SALES_FILTER_MINE : SALES_FILTER_ALL
@@ -936,7 +951,7 @@ export function CallsPage() {
                         </TableCell>
                         {isSalesLike && (
                           <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                            {canAdvanceToNextStage(call) ? (
+                            {canManageCallRow(call) && canAdvanceToNextStage(call) ? (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -954,6 +969,7 @@ export function CallsPage() {
                         <TableCell>
                           <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
                             {isSalesLike ? (
+                              canManageCallRow(call) ? (
                               <>
                                 <Button
                                   variant="ghost"
@@ -970,6 +986,7 @@ export function CallsPage() {
                                   <Trash2 className="size-4 text-destructive" />
                                 </Button>
                               </>
+                              ) : null
                             ) : (
                               canComplete(call.callStartedAt, call.callEndedAt) && (
                                 <Button

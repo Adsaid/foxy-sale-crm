@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
-import { isSalesLike } from "@/lib/roles";
+import { isSalesLike, canMutateCall } from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import {
   callTypeLabelUk,
@@ -86,6 +86,13 @@ export async function PATCH(
   const existing = await prisma.callEvent.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canMutateCall(user!, existing.createdById)) {
+    return NextResponse.json(
+      { error: "Немає прав на зміну цього дзвінка" },
+      { status: 403 },
+    );
   }
 
   const statusAfter = (body.status ?? existing.status) as typeof existing.status;
@@ -354,6 +361,13 @@ export async function DELETE(
   const existing = await prisma.callEvent.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canMutateCall(user!, existing.createdById)) {
+    return NextResponse.json(
+      { error: "Немає прав на видалення цього дзвінка" },
+      { status: 403 },
+    );
   }
 
   await prisma.callSummary.updateMany({

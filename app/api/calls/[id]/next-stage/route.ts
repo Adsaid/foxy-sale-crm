@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { canMutateCall } from "@/lib/roles";
 import type { CallStage, CallType } from "@prisma/client";
 import {
   CALL_SLOT_MS,
@@ -29,6 +30,13 @@ export async function POST(
   const existing = await prisma.callEvent.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (!canMutateCall(user!, existing.createdById)) {
+    return NextResponse.json(
+      { error: "Немає прав на зміну цього дзвінка" },
+      { status: 403 },
+    );
   }
 
   if (existing.status !== "COMPLETED" || existing.outcome !== "SUCCESS") {
