@@ -11,6 +11,8 @@ export type AccountDesktopType =
   | "ANY_DESK"
   | "RIVNE_IP"
   | "LUTSK_IP"
+  | "LVIV_IP"
+  | "DOLPHIN"
   | "MODEM";
 export type CallType = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStage = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";

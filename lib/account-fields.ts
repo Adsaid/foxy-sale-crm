@@ -17,6 +17,8 @@ export const ACCOUNT_DESKTOP_TYPE_VALUES = [
   "ANY_DESK",
   "RIVNE_IP",
   "LUTSK_IP",
+  "LVIV_IP",
+  "DOLPHIN",
   "MODEM",
 ] as const;
 
@@ -43,6 +45,8 @@ export const accountDesktopTypeLabelUk: Record<AccountDesktopType, string> = {
   ANY_DESK: "Any Desk",
   RIVNE_IP: "Рівне IP",
   LUTSK_IP: "Луцьк IP",
+  LVIV_IP: "Львів IP",
+  DOLPHIN: "Dolphin",
   MODEM: "Модем",
 };
 

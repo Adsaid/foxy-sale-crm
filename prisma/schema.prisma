@@ -43,6 +43,8 @@ enum AccountDesktopType {
   ANY_DESK
   RIVNE_IP
   LUTSK_IP
+  LVIV_IP
+  DOLPHIN
   MODEM
 }
 
