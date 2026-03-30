@@ -10,6 +10,7 @@ import type {
   EventClickArg,
   EventContentArg,
   EventInput,
+  EventMountArg,
 } from "@fullcalendar/core";
 import { CRM_TIMEZONE } from "@/lib/date-kyiv";
 import { kyivIntlTimezonePlugin } from "@/lib/fullcalendar-named-timezone";
@@ -114,6 +115,27 @@ function eventClassNames(arg: EventContentArg): string[] {
   return [];
 }
 
+/** Інлайн закреслення: базові стилі посилань / FC часто глушать CSS text-decoration. */
+function eventDidMountStrikethroughIfCancelled(info: EventMountArg) {
+  const call = info.event.extendedProps.call as CallEvent | undefined;
+  if (call?.status !== "CANCELLED") return;
+  const root = info.el;
+  const selectors = [
+    null,
+    ".fc-event-main",
+    ".fc-event-main-frame",
+    ".fc-event-time",
+    ".fc-event-title-container",
+    ".fc-event-title",
+  ];
+  for (const sel of selectors) {
+    const el = sel ? root.querySelector(sel) : root;
+    if (el instanceof HTMLElement) {
+      el.style.setProperty("text-decoration", "line-through", "important");
+    }
+  }
+}
+
 interface SalesLegendItem {
   key: string;
   name: string;
@@ -154,6 +176,10 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
     [onEventClick],
   );
 
+  const handleEventDidMount = useCallback((info: EventMountArg) => {
+    eventDidMountStrikethroughIfCancelled(info);
+  }, []);
+
   const calendarOptions = useMemo(
     () =>
       ({
@@ -174,6 +200,7 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
         },
         events,
         eventClick: handleEventClick,
+        eventDidMount: handleEventDidMount,
         eventClassNames: eventClassNames,
         eventDisplay: "block" as const,
         views: {
@@ -199,7 +226,7 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
           meridiem: false,
         },
       }) as unknown as CalendarOptions,
-    [events, handleEventClick],
+    [events, handleEventClick, handleEventDidMount],
   );
 
   return (

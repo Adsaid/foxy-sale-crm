@@ -451,3 +451,22 @@
   opacity: 0.55;
   filter: grayscale(0.35);
 }
+
+/*
+ * Скасований дзвінок — закреслений текст.
+ * Базові стилі посилань (text-decoration: none) і flex-розкладка FC інакше глушать line-through.
+ */
+.fc-crm-wrapper .fc a.fc-event.fc-call-cancelled,
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled {
+  text-decoration: line-through !important;
+  text-decoration-thickness: from-font !important;
+}
+
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled .fc-event-main,
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled .fc-event-main-frame,
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled .fc-event-time,
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled .fc-event-title-container,
+.fc-crm-wrapper .fc .fc-event.fc-call-cancelled .fc-event-title {
+  text-decoration: line-through !important;
+  text-decoration-thickness: from-font !important;
+}
