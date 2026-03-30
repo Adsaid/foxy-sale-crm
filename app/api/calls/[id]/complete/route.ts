@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
 import {
+  callEndedAtOneHourAfterStart,
+  isCallStartedBeforeTodayKyiv,
+} from "@/lib/call-completion-time";
+import {
   callTypeLabelUk,
   formatNotificationDateTime,
   notifVerbPast,
@@ -32,10 +36,14 @@ export async function PATCH(
     return NextResponse.json({ error: "Call has not started yet" }, { status: 400 });
   }
 
+  const endedAt = isCallStartedBeforeTodayKyiv(call.callStartedAt)
+    ? callEndedAtOneHourAfterStart(call.callStartedAt)
+    : now;
+
   const updated = await prisma.callEvent.update({
     where: { id },
     data: {
-      callEndedAt: now,
+      callEndedAt: endedAt,
       status: "COMPLETED",
       devFeedback: body.devFeedback || null,
     },
@@ -75,7 +83,7 @@ export async function PATCH(
       callerLastName: updated.caller?.lastName ?? "",
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
-      callEndedAt: now,
+      callEndedAt: endedAt,
       outcome: updated.outcome,
       devFeedback: body.devFeedback || null,
       movingToNextStage: updated.movingToNextStage,
@@ -95,7 +103,7 @@ export async function PATCH(
 
   const devName = `${updated.caller?.firstName ?? ""} ${updated.caller?.lastName ?? ""}`.trim();
   const startStr = formatNotificationDateTime(updated.callStartedAt);
-  const endStr = formatNotificationDateTime(now);
+  const endStr = formatNotificationDateTime(endedAt);
   const typeLabel = callTypeLabelUk(updated.callType);
   await createNotification({
     userId: updated.createdById,
@@ -117,7 +125,7 @@ export async function PATCH(
       company: updated.company,
       callType: updated.callType,
       callStartedAt: updated.callStartedAt.toISOString(),
-      callEndedAt: now.toISOString(),
+      callEndedAt: endedAt.toISOString(),
       interviewerName: updated.interviewerName,
     },
   }).catch((err) => console.error("[notification] CALL_COMPLETED", err));

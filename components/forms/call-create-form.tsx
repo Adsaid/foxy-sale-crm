@@ -30,6 +30,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { formatCallTableDateTime } from "@/lib/date-kyiv";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronsUpDown, AlertTriangle } from "lucide-react";
@@ -67,13 +68,7 @@ interface CallCreateFormProps {
 }
 
 function formatCallWhen(iso: string) {
-  return new Date(iso).toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatCallTableDateTime(iso);
 }
 
 export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {

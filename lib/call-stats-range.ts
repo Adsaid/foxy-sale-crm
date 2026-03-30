@@ -11,6 +11,12 @@ import {
   subMonths,
   subWeeks,
 } from "date-fns";
+import { TZDate } from "@date-fns/tz";
+import { CRM_TIMEZONE } from "@/lib/date-kyiv";
+
+function asKyiv(now: Date): TZDate {
+  return TZDate.tz(CRM_TIMEZONE, now.getTime());
+}
 
 export type CallStatsPreset =
   | "all"
@@ -32,32 +38,33 @@ export function callStatsRangeFromPreset(
   now: Date,
   custom: { from: Date; to: Date } | null
 ): CallStatsRangeIso {
+  const z = asKyiv(now);
   switch (preset) {
     case "all":
       return { from: null, to: null };
     case "today":
       return {
-        from: startOfDay(now).toISOString(),
-        to: endOfDay(now).toISOString(),
+        from: startOfDay(z).toISOString(),
+        to: endOfDay(z).toISOString(),
       };
     case "this_week": {
-      const start = startOfDay(startOfISOWeek(now));
-      const end = endOfDay(endOfISOWeek(now));
+      const start = startOfDay(startOfISOWeek(z));
+      const end = endOfDay(endOfISOWeek(z));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "last_week": {
-      const ref = subWeeks(now, 1);
+      const ref = subWeeks(z, 1);
       const start = startOfDay(startOfISOWeek(ref));
       const end = endOfDay(endOfISOWeek(ref));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "this_month":
       return {
-        from: startOfDay(startOfMonth(now)).toISOString(),
-        to: endOfDay(endOfMonth(now)).toISOString(),
+        from: startOfDay(startOfMonth(z)).toISOString(),
+        to: endOfDay(endOfMonth(z)).toISOString(),
       };
     case "last_month": {
-      const ref = subMonths(now, 1);
+      const ref = subMonths(z, 1);
       return {
         from: startOfDay(startOfMonth(ref)).toISOString(),
         to: endOfDay(endOfMonth(ref)).toISOString(),
@@ -67,9 +74,11 @@ export function callStatsRangeFromPreset(
       if (!custom) return { from: null, to: null };
       const lo = minDate([custom.from, custom.to]);
       const hi = maxDate([custom.from, custom.to]);
+      const loZ = asKyiv(lo);
+      const hiZ = asKyiv(hi);
       return {
-        from: startOfDay(lo).toISOString(),
-        to: endOfDay(hi).toISOString(),
+        from: startOfDay(loZ).toISOString(),
+        to: endOfDay(hiZ).toISOString(),
       };
     }
   }
@@ -80,38 +89,39 @@ export function callStatsComparisonRangeFromPreset(
   preset: CallStatsPreset,
   now: Date
 ): CallStatsRangeIso | null {
+  const z = asKyiv(now);
   switch (preset) {
     case "all":
     case "custom":
       return null;
     case "today": {
-      const y = subDays(now, 1);
+      const y = subDays(z, 1);
       return {
         from: startOfDay(y).toISOString(),
         to: endOfDay(y).toISOString(),
       };
     }
     case "this_week": {
-      const ref = subWeeks(now, 1);
+      const ref = subWeeks(z, 1);
       const start = startOfDay(startOfISOWeek(ref));
       const end = endOfDay(endOfISOWeek(ref));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "last_week": {
-      const ref = subWeeks(now, 2);
+      const ref = subWeeks(z, 2);
       const start = startOfDay(startOfISOWeek(ref));
       const end = endOfDay(endOfISOWeek(ref));
       return { from: start.toISOString(), to: end.toISOString() };
     }
     case "this_month": {
-      const ref = subMonths(now, 1);
+      const ref = subMonths(z, 1);
       return {
         from: startOfDay(startOfMonth(ref)).toISOString(),
         to: endOfDay(endOfMonth(ref)).toISOString(),
       };
     }
     case "last_month": {
-      const ref = subMonths(now, 2);
+      const ref = subMonths(z, 2);
       return {
         from: startOfDay(startOfMonth(ref)).toISOString(),
         to: endOfDay(endOfMonth(ref)).toISOString(),

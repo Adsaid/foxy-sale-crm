@@ -29,6 +29,7 @@ import {
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
+import { formatDateKyiv } from "@/lib/date-kyiv";
 import type { AdminUser } from "@/types/crm";
 
 const roleLabels: Record<string, string> = {
@@ -156,7 +157,7 @@ export function UsersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {new Date(u.createdAt).toLocaleDateString("uk-UA")}
+                    {formatDateKyiv(u.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1">

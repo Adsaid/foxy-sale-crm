@@ -8,6 +8,7 @@ import { useAccountReports } from "@/hooks/use-account-reports";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { formatWeekRangeLabelFromStart, isoWeeksCsvFromDateRange } from "@/lib/report-week";
 import { accountDesktopTypeLabelUk, accountWarmUpStageLabelUk } from "@/lib/account-fields";
+import { formatCallTableDateTime, formatDateKyiv } from "@/lib/date-kyiv";
 import {
   Accordion,
   AccordionContent,
@@ -376,13 +377,7 @@ function ReportAccordionItem({
 
   const weekStart = new Date(report.weekStart);
   const weekLabel = formatWeekRangeLabelFromStart(weekStart);
-  const submitted = new Date(report.createdAt).toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const submitted = formatCallTableDateTime(report.createdAt);
   const { firstName, lastName } = report.submittedBy;
   const salesName = `${firstName} ${lastName}`.trim();
 
@@ -521,7 +516,7 @@ function ReportAccordionItem({
                     </TableCell>
                     <TableCell className="text-left align-middle tabular-nums">
                       {acc.accountCreatedAt
-                        ? new Date(acc.accountCreatedAt).toLocaleDateString("uk-UA")
+                        ? formatDateKyiv(acc.accountCreatedAt)
                         : "—"}
                     </TableCell>
                   </TableRow>

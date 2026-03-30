@@ -9,6 +9,7 @@ import {
 } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
+import { CRM_TIMEZONE } from "@/lib/date-kyiv"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
@@ -21,6 +22,8 @@ function Calendar({
   locale,
   formatters,
   components,
+  timeZone,
+  noonSafe,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
@@ -29,6 +32,8 @@ function Calendar({
 
   return (
     <DayPicker
+      timeZone={timeZone ?? CRM_TIMEZONE}
+      noonSafe={noonSafe ?? true}
       showOutsideDays={showOutsideDays}
       className={cn(
         "group/calendar bg-background p-3 [--cell-radius:var(--radius-4xl)] [--cell-size:--spacing(8)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
@@ -40,7 +45,10 @@ function Calendar({
       locale={locale}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
+          date.toLocaleString(locale?.code ?? "uk-UA", {
+            month: "short",
+            timeZone: CRM_TIMEZONE,
+          }),
         ...formatters,
       }}
       classNames={{
@@ -199,7 +207,9 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={day.date.toLocaleDateString(locale?.code ?? "uk-UA", {
+        timeZone: CRM_TIMEZONE,
+      })}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

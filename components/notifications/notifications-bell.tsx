@@ -37,6 +37,7 @@ import type { Notification, NotificationType } from "@/types/notification";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import api from "@/lib/api/client";
+import { formatNotificationRelativeTimeKyiv } from "@/lib/date-kyiv";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Tooltip,
@@ -101,18 +102,6 @@ function NotificationMessageBody({
   );
 }
 
-function formatRelativeTime(dateStr: string) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "щойно";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} хв тому`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} год тому`;
-  const days = Math.floor(hours / 24);
-  return `${days} дн тому`;
-}
-
 function NotificationItem({
   notification,
   onMarkRead,
@@ -157,7 +146,7 @@ function NotificationItem({
           />
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground/70">
-          {formatRelativeTime(notification.createdAt)}
+          {formatNotificationRelativeTimeKyiv(notification.createdAt)}
         </p>
       </div>
       {isUnread && (

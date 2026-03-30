@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { format, isSameDay, isValid, parseISO } from "date-fns";
 import { uk } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import {
@@ -34,6 +33,12 @@ import { useCallStats, useCallStatsTimeseries } from "@/hooks/use-stats";
 import { useAuth } from "@/hooks/use-auth";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { useDevs } from "@/hooks/use-devs";
+import {
+  CRM_TIMEZONE,
+  formatComparePeriodTooltipKyiv,
+  formatStatsPeriodShortKyiv,
+  isSameKyivCalendarDay,
+} from "@/lib/date-kyiv";
 import {
   callStatsComparisonRangeFromPreset,
   callStatsRangeFromPreset,
@@ -133,19 +138,6 @@ function callStatDeltaToneClass(sentiment: CallStatDelta["sentiment"]) {
   return sentiment === "positive"
     ? "text-emerald-600 dark:text-emerald-400"
     : "text-red-600 dark:text-red-400";
-}
-
-/** Текст тултіпа: з яким періодом порівнюються картки (дати попереднього діапазону). */
-function formatComparePeriodTooltip(isoFrom: string, isoTo: string): string {
-  const from = parseISO(isoFrom);
-  const to = parseISO(isoTo);
-  if (!isValid(from) || !isValid(to)) {
-    return "Порівняння з попереднім періодом такого ж типу";
-  }
-  if (isSameDay(from, to)) {
-    return `Порівняння з ${format(from, "d MMMM yyyy", { locale: uk })}`;
-  }
-  return `Порівняння з періодом ${format(from, "d MMM yyyy", { locale: uk })} — ${format(to, "d MMM yyyy", { locale: uk })}`;
 }
 
 const CALL_STATS_CARD_VARIANT_STYLES: Record<
@@ -734,7 +726,7 @@ function CallStatsAreaChart({
 function customRangeButtonLabel(range: DateRange | undefined): string {
   if (!range?.from) return "Оберіть період";
   const end = range.to ?? range.from;
-  return `${format(range.from, "d MMM yyyy", { locale: uk })} — ${format(end, "d MMM yyyy", { locale: uk })}`;
+  return `${formatStatsPeriodShortKyiv(range.from)} — ${formatStatsPeriodShortKyiv(end)}`;
 }
 
 function CallStatsCardsCompact({
@@ -859,15 +851,14 @@ export function CallStatsCallsPanel({
     if (showDevFilter && devFilter !== DEV_ALL) {
       out.callerId = devFilter;
     }
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    out.timeZone = timeZone;
+    out.timeZone = CRM_TIMEZONE;
     if (preset === "today") {
       out.granularity = "hour";
     } else if (
       preset === "custom" &&
       customRange?.from &&
       customRange?.to &&
-      isSameDay(customRange.from, customRange.to)
+      isSameKyivCalendarDay(customRange.from, customRange.to)
     ) {
       out.granularity = "hour";
     }
@@ -881,7 +872,7 @@ export function CallStatsCallsPanel({
     const out: CallStatsQueryParams = {
       from: cmp.from,
       to: cmp.to,
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timeZone: CRM_TIMEZONE,
     };
     if (isAdmin && salesFilter !== SALES_ALL) {
       out.salesId = salesFilter;
@@ -897,7 +888,7 @@ export function CallStatsCallsPanel({
 
   const compareDeltaTooltip = useMemo(() => {
     if (!compareApiFilters?.from || !compareApiFilters?.to) return null;
-    return formatComparePeriodTooltip(compareApiFilters.from, compareApiFilters.to);
+    return formatComparePeriodTooltipKyiv(compareApiFilters.from, compareApiFilters.to);
   }, [compareApiFilters]);
 
   const statsQuery = useCallStats(apiFilters, fetchEnabled);

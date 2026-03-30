@@ -8,6 +8,10 @@ import {
   formatNotificationDateTime,
   notifVerbPast,
 } from "@/lib/notification-copy";
+import {
+  callEndedAtOneHourAfterStart,
+  isCallStartedBeforeTodayKyiv,
+} from "@/lib/call-completion-time";
 import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
 import {
   CALL_SLOT_MS,
@@ -128,6 +132,17 @@ export async function PATCH(
     );
   }
 
+  const transitioningToCompleted =
+    statusAfter === "COMPLETED" && existing.status !== "COMPLETED";
+  const effectiveStart =
+    body.callStartedAt !== undefined
+      ? new Date(body.callStartedAt)
+      : existing.callStartedAt;
+  const callEndedAtForBackdatedCompletion =
+    transitioningToCompleted && isCallStartedBeforeTodayKyiv(effectiveStart)
+      ? callEndedAtOneHourAfterStart(effectiveStart)
+      : undefined;
+
   const updated = await prisma.callEvent.update({
     where: { id },
     data: {
@@ -143,6 +158,9 @@ export async function PATCH(
       ...(body.salaryTo !== undefined && { salaryTo: body.salaryTo }),
       ...(body.callLink !== undefined && { callLink: body.callLink || null }),
       ...(body.description !== undefined && { description: body.description || null }),
+      ...(callEndedAtForBackdatedCompletion !== undefined && {
+        callEndedAt: callEndedAtForBackdatedCompletion,
+      }),
     },
     include: callInclude,
   });

@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
+import { formatCallTableDateTime } from "@/lib/date-kyiv";
 
 /** Тривалість «слоту» дзвінка для перевірки зайнятості (як у календарі). */
 export const CALL_SLOT_MS = 60 * 60 * 1000;
@@ -75,12 +76,6 @@ export async function findCallerConflictWithOtherSales(
 }
 
 export function formatCallerConflictMessageUk(c: CallerConflictInfo): string {
-  const when = new Date(c.callStartedAt).toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const when = formatCallTableDateTime(c.callStartedAt);
   return `Цей DEV уже зайнятий у цей час дзвінком іншого сейла (${c.salesName}): «${c.company}», ${when}.`;
 }

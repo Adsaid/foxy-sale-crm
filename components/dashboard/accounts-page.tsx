@@ -66,6 +66,7 @@ import type {
   AccountType,
   CreateAccountInput,
 } from "@/types/crm";
+import { formatDateKyiv } from "@/lib/date-kyiv";
 import { cn } from "@/lib/utils";
 
 export function AccountsPage() {
@@ -345,7 +346,7 @@ export function AccountsPage() {
                   )}
                   <TableCell className="tabular-nums">
                     {acc.accountCreatedAt
-                      ? new Date(acc.accountCreatedAt).toLocaleDateString("uk-UA")
+                      ? formatDateKyiv(acc.accountCreatedAt)
                       : "—"}
                   </TableCell>
                   <TableCell>

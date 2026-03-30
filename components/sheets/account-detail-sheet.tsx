@@ -18,6 +18,7 @@ import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
 } from "@/lib/account-fields";
+import { formatDateLongKyiv } from "@/lib/date-kyiv";
 
 interface AccountDetailSheetProps {
   account: Account | null;
@@ -115,11 +116,7 @@ export function AccountDetailSheet({
 
             <DetailRow label="Дата створення">
               {account.accountCreatedAt
-                ? new Date(account.accountCreatedAt).toLocaleDateString("uk-UA", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric",
-                  })
+                ? formatDateLongKyiv(account.accountCreatedAt)
                 : "—"}
             </DetailRow>
 

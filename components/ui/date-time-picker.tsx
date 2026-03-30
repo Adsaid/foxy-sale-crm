@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
+import { TZDate } from "@date-fns/tz";
 import { CalendarIcon } from "lucide-react";
+import { CRM_TIMEZONE } from "@/lib/date-kyiv";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -27,23 +29,41 @@ export function DateTimePicker({
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
 
+  const z = value ? TZDate.tz(CRM_TIMEZONE, new Date(value)) : undefined;
   const date = value ? new Date(value) : undefined;
-  const timeValue = date
-    ? `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+  const timeValue = z
+    ? `${String(z.getHours()).padStart(2, "0")}:${String(z.getMinutes()).padStart(2, "0")}`
     : "09:00";
 
   function handleDateSelect(selected: Date | undefined) {
     if (!selected) return;
+    const k = TZDate.tz(CRM_TIMEZONE, selected);
     const [hours, minutes] = timeValue.split(":").map(Number);
-    selected.setHours(hours, minutes, 0, 0);
-    onChange(selected.toISOString());
+    const combined = new TZDate(
+      k.getFullYear(),
+      k.getMonth(),
+      k.getDate(),
+      hours,
+      minutes,
+      0,
+      CRM_TIMEZONE
+    );
+    onChange(combined.toISOString());
   }
 
   function handleTimeChange(time: string) {
     const [hours, minutes] = time.split(":").map(Number);
-    const d = date ? new Date(date) : new Date();
-    d.setHours(hours, minutes, 0, 0);
-    onChange(d.toISOString());
+    const base = z ?? TZDate.tz(CRM_TIMEZONE, Date.now());
+    const combined = new TZDate(
+      base.getFullYear(),
+      base.getMonth(),
+      base.getDate(),
+      hours,
+      minutes,
+      0,
+      CRM_TIMEZONE
+    );
+    onChange(combined.toISOString());
   }
 
   return (
@@ -57,7 +77,7 @@ export function DateTimePicker({
           )}
         >
           <CalendarIcon className="mr-2 size-4" />
-          {date ? format(date, "dd.MM.yyyy HH:mm", { locale: uk }) : placeholder}
+          {z ? format(z, "dd.MM.yyyy HH:mm", { locale: uk }) : placeholder}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto flex-row gap-0 p-0" align="start">

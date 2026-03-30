@@ -21,6 +21,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { TextWithLinks } from "@/components/ui/text-with-links";
+import { formatCallTableDateTime } from "@/lib/date-kyiv";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -50,13 +51,7 @@ interface CallDetailSheetProps {
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatCallTableDateTime(value);
 }
 
 function Section({

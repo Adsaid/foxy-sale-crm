@@ -13,17 +13,10 @@ export const notifVerbPast = {
   sentAccountsReport: "надіслав(ла)",
 } as const;
 
-/** Дати/час для текстів сповіщень (укр. локаль). */
-export function formatNotificationDateTime(d: Date | string): string {
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+export {
+  CRM_TIMEZONE,
+  formatNotificationDateTime,
+} from "./date-kyiv";
 
 /** Короткі підписи типу дзвінка для повідомлень. */
 export function callTypeLabelUk(type: string): string {

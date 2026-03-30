@@ -69,6 +69,11 @@ import {
 import type { CallEvent } from "@/types/crm";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CallsCalendarView } from "@/components/dashboard/calls-calendar-view";
+import {
+  formatCallTableDateTime,
+  formatCallTimeKyiv,
+  isKyivCalendarToday,
+} from "@/lib/date-kyiv";
 import { canMutateCall } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import {
@@ -114,21 +119,8 @@ const devSpecLabels: Record<string, string> = {
   FULLSTACK: "Fullstack",
 };
 
-function isToday(dateStr: string) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  return (
-    d.getDate() === now.getDate() &&
-    d.getMonth() === now.getMonth() &&
-    d.getFullYear() === now.getFullYear()
-  );
-}
-
 function formatTime(dateStr: string) {
-  return new Date(dateStr).toLocaleTimeString("uk-UA", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatCallTimeKyiv(dateStr);
 }
 
 function getTimeUntil(dateStr: string, nowMs: number) {
@@ -403,18 +395,25 @@ export function CallsPage() {
   const advanceStageMutation = useAdvanceCallStage();
   const completeMutation = useCompleteCall();
 
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const todayCalls = useMemo(() => {
     if (!calls) return [];
     return calls
       .filter((c) => {
-        if (!isToday(c.callStartedAt)) return false;
+        if (!isKyivCalendarToday(c.callStartedAt, nowMs)) return false;
         if (user?.role === "SALES" && user.id) {
           return c.createdById === user.id;
         }
         return true;
       })
       .sort((a, b) => new Date(a.callStartedAt).getTime() - new Date(b.callStartedAt).getTime());
-  }, [calls, user?.role, user?.id]);
+  }, [calls, user?.role, user?.id, nowMs]);
 
   const [salesFilterId, setSalesFilterId] = useState<string>(() =>
     user?.role === "SALES" ? SALES_FILTER_MINE : SALES_FILTER_ALL
@@ -519,12 +518,6 @@ export function CallsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [nextStageCall, setNextStageCall] = useState<CallEvent | null>(null);
   const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   function canComplete(callStartedAt: string, callEndedAt: string | null | undefined) {
     if (callEndedAt) return false;
@@ -923,12 +916,7 @@ export function CallsPage() {
                           </TableCell>
                         )}
                         <TableCell>
-                          {new Date(call.callStartedAt).toLocaleString("uk-UA", {
-                            day: "2-digit",
-                            month: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {formatCallTableDateTime(call.callStartedAt)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{statusLabels[call.status]}</Badge>

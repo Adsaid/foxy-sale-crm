@@ -5,7 +5,14 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import ukLocale from "@fullcalendar/core/locales/uk";
-import type { EventClickArg, EventContentArg, EventInput } from "@fullcalendar/core";
+import type {
+  CalendarOptions,
+  EventClickArg,
+  EventContentArg,
+  EventInput,
+} from "@fullcalendar/core";
+import { CRM_TIMEZONE } from "@/lib/date-kyiv";
+import { kyivIntlTimezonePlugin } from "@/lib/fullcalendar-named-timezone";
 import type { CallEvent } from "@/types/crm";
 
 const DEFAULT_DURATION_MS = 60 * 60 * 1000;
@@ -147,6 +154,54 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
     [onEventClick],
   );
 
+  const calendarOptions = useMemo(
+    () =>
+      ({
+        plugins: [kyivIntlTimezonePlugin, dayGridPlugin, timeGridPlugin],
+        locale: ukLocale,
+        timeZone: CRM_TIMEZONE,
+        initialView: "timeGridWeek",
+        headerToolbar: {
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,timeGridWeek,timeGridDay",
+        },
+        buttonText: {
+          today: "Сьогодні",
+          month: "Місяць",
+          week: "Тиждень",
+          day: "День",
+        },
+        events,
+        eventClick: handleEventClick,
+        eventClassNames: eventClassNames,
+        eventDisplay: "block" as const,
+        views: {
+          dayGridMonth: {
+            eventDisplay: "block",
+          },
+        },
+        height: "auto",
+        allDaySlot: false,
+        slotMinTime: "00:00:00",
+        slotMaxTime: "24:00:00",
+        scrollTime: "06:00:00",
+        nowIndicator: true,
+        dayMaxEvents: 8,
+        weekends: true,
+        expandRows: true,
+        stickyHeaderDates: true,
+        displayEventTime: true,
+        eventTimeFormat: {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          meridiem: false,
+        },
+      }) as unknown as CalendarOptions,
+    [events, handleEventClick],
+  );
+
   return (
     <div className="space-y-3">
       {legend.length > 0 && (
@@ -167,51 +222,8 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
       )}
 
       <div className="fc-crm-wrapper">
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin]}
-          locale={ukLocale}
-          initialView="timeGridWeek"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay",
-          }}
-          buttonText={{
-            today: "Сьогодні",
-            month: "Місяць",
-            week: "Тиждень",
-            day: "День",
-          }}
-          events={events}
-          eventClick={handleEventClick}
-          eventClassNames={eventClassNames}
-          /* У місяці без «block» події виглядають як голий текст без смужки фону (як у тижні/дні) */
-          eventDisplay="block"
-          views={{
-            dayGridMonth: {
-              eventDisplay: "block",
-            },
-          }}
-          height="auto"
-          allDaySlot={false}
-          /* Повна доба: інакше дзвінки до 06:00 або після 23:00 не видно в тижні/дні */
-          slotMinTime="00:00:00"
-          slotMaxTime="24:00:00"
-          scrollTime="06:00:00"
-          nowIndicator
-          /* Більше подій у клітинці місяця без зайвого «+ще N» */
-          dayMaxEvents={8}
-          weekends
-          expandRows
-          stickyHeaderDates
-          displayEventTime
-          eventTimeFormat={{
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-            meridiem: false,
-          }}
-        />
+        {/* kyivIntlTimezonePlugin реєструє namedTimeZonedImpl у FullCalendar (опція в пропсах не діє) */}
+        <FullCalendar {...calendarOptions} />
       </div>
     </div>
   );

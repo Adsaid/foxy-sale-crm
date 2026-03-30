@@ -1,15 +1,18 @@
-/** Допоміжні функції для бакетів графіка в календарному часовому поясі користувача (IANA), через Intl. */
+/** Допоміжні функції для бакетів графіка в календарному часовому поясі (IANA), через Intl. */
+
+import { CRM_TIMEZONE } from "@/lib/date-kyiv";
 
 const SAFE_TZ_RE = /^[A-Za-z0-9_\/+-]+$/;
 
 export function sanitizeTimeZone(tz: string | null | undefined): string {
-  const t = (tz ?? "UTC").trim();
-  if (t.length > 80 || !SAFE_TZ_RE.test(t)) return "UTC";
+  const raw = (tz ?? "").trim();
+  const candidate = raw.length ? raw : CRM_TIMEZONE;
+  if (candidate.length > 80 || !SAFE_TZ_RE.test(candidate)) return CRM_TIMEZONE;
   try {
-    Intl.DateTimeFormat(undefined, { timeZone: t });
-    return t;
+    Intl.DateTimeFormat(undefined, { timeZone: candidate });
+    return candidate;
   } catch {
-    return "UTC";
+    return CRM_TIMEZONE;
   }
 }
 

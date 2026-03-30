@@ -35,6 +35,7 @@ import { Trash2 } from "lucide-react";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { CallDetailSheet } from "@/components/sheets/call-detail-sheet";
+import { formatCallTableDateTime } from "@/lib/date-kyiv";
 import type { CallEvent } from "@/types/crm";
 
 const callTypeLabels: Record<string, string> = {
@@ -52,12 +53,7 @@ const outcomeLabels: Record<string, string> = {
 };
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("uk-UA", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatCallTableDateTime(value);
 }
 
 function formatDuration(startedAt: string, endedAt: string | null | undefined) {
