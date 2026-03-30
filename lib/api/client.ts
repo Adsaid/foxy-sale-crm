@@ -9,14 +9,13 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (
-      error.response?.status === 401 ||
-      error.response?.status === 403
-    ) {
+    const status = error.response?.status;
+    if (status === 401) {
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
         window.location.href = "/login";
       }
     }
+    /** 403 (наприклад непідтверджений акаунт) — не скидаємо сесію примусово. */
     return Promise.reject(error);
   }
 );

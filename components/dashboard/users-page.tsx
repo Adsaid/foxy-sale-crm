@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/data-table-controls";
 import { formatDateKyiv } from "@/lib/date-kyiv";
 import type { AdminUser } from "@/types/crm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UsersRequestsTab } from "@/components/dashboard/users-requests-tab";
 
 const roleLabels: Record<string, string> = {
   SALES: "Сейл",
@@ -90,108 +92,124 @@ export function UsersPage() {
         }}
       />
 
-      <TableToolbar
-        search={table.search}
-        onSearchChange={table.setSearch}
-        placeholder="Пошук користувачів..."
-      >
-        <Select
-          value={roleFilter ?? "ALL"}
-          onValueChange={(v) => setRoleFilter(v === "ALL" ? undefined : v)}
+      <Tabs defaultValue="accounts" className="w-full min-w-0">
+        <TabsList variant="line" className="mb-4">
+          <TabsTrigger value="accounts">Облікові записи</TabsTrigger>
+          <TabsTrigger value="requests">Заявки та запрошення</TabsTrigger>
+        </TabsList>
+
+        <TabsContent
+          value="accounts"
+          className="mt-0 space-y-4 outline-none focus-visible:outline-none"
         >
-          <SelectTrigger className="w-40 h-9">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Всі ролі</SelectItem>
-            <SelectItem value="SALES">Сейли</SelectItem>
-            <SelectItem value="DEV">Розробники</SelectItem>
-          </SelectContent>
-        </Select>
-      </TableToolbar>
+          <TableToolbar
+            search={table.search}
+            onSearchChange={table.setSearch}
+            placeholder="Пошук користувачів..."
+          >
+            <Select
+              value={roleFilter ?? "ALL"}
+              onValueChange={(v) => setRoleFilter(v === "ALL" ? undefined : v)}
+            >
+              <SelectTrigger className="h-9 w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Всі ролі</SelectItem>
+                <SelectItem value="SALES">Сейли</SelectItem>
+                <SelectItem value="DEV">Розробники</SelectItem>
+              </SelectContent>
+            </Select>
+          </TableToolbar>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <SortableHeader column="firstName" label="Ім'я" sort={table.sort} onSort={table.toggleSort} />
-              <SortableHeader column="email" label="Email" sort={table.sort} onSort={table.toggleSort} />
-              <SortableHeader column="role" label="Роль" sort={table.sort} onSort={table.toggleSort} />
-              <SortableHeader column="specialization" label="Спеціалізація" sort={table.sort} onSort={table.toggleSort} />
-              <TableHead>Технології</TableHead>
-              <SortableHeader column="createdAt" label="Створено" sort={table.sort} onSort={table.toggleSort} />
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableBodySkeleton colSpan={7} />
-            ) : !table.rows.length ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
-                  {table.isFiltered ? "Нічого не знайдено" : "Немає користувачів"}
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.rows.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">
-                    {u.firstName} {u.lastName}
-                  </TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{roleLabels[u.role] ?? u.role}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {u.specialization ? specLabels[u.specialization] ?? u.specialization : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {u.technologies.length > 0
-                        ? u.technologies.map((t) => (
-                            <Badge key={t.id} variant="outline">
-                              {t.name}
-                            </Badge>
-                          ))
-                        : "—"}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {formatDateKyiv(u.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setEditUser(u)}
-                      >
-                        <Pencil className="size-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => setPasswordUser(u)}
-                      >
-                        <KeyRound className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHeader column="firstName" label="Ім'я" sort={table.sort} onSort={table.toggleSort} />
+                  <SortableHeader column="email" label="Email" sort={table.sort} onSort={table.toggleSort} />
+                  <SortableHeader column="role" label="Роль" sort={table.sort} onSort={table.toggleSort} />
+                  <SortableHeader column="specialization" label="Спеціалізація" sort={table.sort} onSort={table.toggleSort} />
+                  <TableHead>Технології</TableHead>
+                  <SortableHeader column="createdAt" label="Створено" sort={table.sort} onSort={table.toggleSort} />
+                  <TableHead className="w-24" />
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableBodySkeleton colSpan={7} />
+                ) : !table.rows.length ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      {table.isFiltered ? "Нічого не знайдено" : "Немає користувачів"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  table.rows.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">
+                        {u.firstName} {u.lastName}
+                      </TableCell>
+                      <TableCell>{u.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{roleLabels[u.role] ?? u.role}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {u.specialization ? specLabels[u.specialization] ?? u.specialization : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {u.technologies.length > 0
+                            ? u.technologies.map((t) => (
+                                <Badge key={t.id} variant="outline">
+                                  {t.name}
+                                </Badge>
+                              ))
+                            : "—"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatDateKyiv(u.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setEditUser(u)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setPasswordUser(u)}
+                          >
+                            <KeyRound className="size-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-      <TablePagination
-        page={table.page}
-        totalPages={table.totalPages}
-        pageSize={table.pageSize}
-        totalItems={table.totalItems}
-        onPageChange={table.setPage}
-        onPageSizeChange={table.setPageSize}
-      />
+          <TablePagination
+            page={table.page}
+            totalPages={table.totalPages}
+            pageSize={table.pageSize}
+            totalItems={table.totalItems}
+            onPageChange={table.setPage}
+            onPageSizeChange={table.setPageSize}
+          />
+        </TabsContent>
+
+        <TabsContent value="requests" className="mt-0 outline-none focus-visible:outline-none">
+          <UsersRequestsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

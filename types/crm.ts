@@ -375,11 +375,29 @@ export interface AdminUser {
   lastName: string;
   email: string;
   role: string;
+  accountStatus?: "APPROVED" | "PENDING";
   specialization?: string | null;
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;
   technologies: { id: string; name: string }[];
   createdAt: string;
+}
+
+export interface AdminInvitation {
+  id: string;
+  code: string;
+  email: string;
+  role: "SALES" | "DEV";
+  createdById: string;
+  createdAt: string;
+  usedAt: string | null;
+  usedByUserId: string | null;
+  createdBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 export interface UpdateUserInput {

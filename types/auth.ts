@@ -4,6 +4,8 @@ export interface AuthUser {
   lastName: string;
   email: string;
   role: "ADMIN" | "DEV" | "SALES";
+  /** Відсутність поля трактується як APPROVED (застарілі сесії). */
+  accountStatus?: "APPROVED" | "PENDING";
   specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | null;
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;

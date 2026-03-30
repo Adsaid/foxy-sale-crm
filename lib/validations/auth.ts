@@ -78,6 +78,8 @@ export function getRegisterSchema(allowAdmin: boolean) {
       technologyIds: z.array(z.string()).optional(),
       badgeBgColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір фону").optional(),
       badgeTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір тексту").optional(),
+      /** Код із посилання запрошення; роль тоді задає сервер за запрошенням. */
+      invitationCode: z.string().min(1).optional(),
     })
     .superRefine(registerSuperRefine);
 }
@@ -93,6 +95,7 @@ export type RegisterInput = {
   technologyIds?: string[];
   badgeBgColor?: string;
   badgeTextColor?: string;
+  invitationCode?: string;
 };
 
 export type LoginInput = z.infer<typeof loginSchema>;

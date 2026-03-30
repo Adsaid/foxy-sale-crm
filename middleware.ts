@@ -4,7 +4,7 @@ import { jwtVerify } from "jose";
 
 const SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
-const protectedPaths = ["/dashboard"];
+const protectedPaths = ["/dashboard", "/pending-approval"];
 const authPaths = ["/login", "/register"];
 
 export async function middleware(request: NextRequest) {
@@ -37,5 +37,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register"],
+  matcher: ["/dashboard/:path*", "/pending-approval", "/login", "/register"],
 };

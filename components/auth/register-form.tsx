@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -36,6 +37,7 @@ import { TechnologyMultiSelect } from "./technology-multi-select";
 import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
 import { cn } from "@/lib/utils";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
+import { invitationPublicService } from "@/services/invitation-service";
 
 const SALES_BADGE_PRESETS = [
   { bg: "#EEF2FF", text: "#3730A3" },
@@ -48,12 +50,22 @@ const SALES_BADGE_PRESETS = [
 
 type RegisterFormProps = {
   allowAdminRegistration?: boolean;
+  /** Код із query `?code=` — роль і email фіксуються запрошенням. */
+  invitationCodeFromUrl?: string | null;
 };
 
 export function RegisterForm({
   allowAdminRegistration = false,
+  invitationCodeFromUrl,
 }: RegisterFormProps) {
   const { mutate: register, isPending } = useRegister();
+
+  const { data: inviteMeta, isLoading: inviteLoading, isError: inviteError } = useQuery({
+    queryKey: ["invitation-validate", invitationCodeFromUrl],
+    queryFn: () => invitationPublicService.validate(invitationCodeFromUrl!),
+    enabled: !!invitationCodeFromUrl,
+    retry: false,
+  });
 
   const registerSchema = useMemo(
     () => getRegisterSchema(allowAdminRegistration),
@@ -82,6 +94,13 @@ export function RegisterForm({
     }
   }, [allowAdminRegistration, form]);
 
+  useEffect(() => {
+    if (inviteMeta) {
+      form.setValue("email", inviteMeta.email);
+      form.setValue("role", inviteMeta.role);
+    }
+  }, [inviteMeta, form]);
+
   const watchRole = form.watch("role");
   const watchBadgeBg = form.watch("badgeBgColor");
   const watchBadgeText = form.watch("badgeTextColor");
@@ -91,14 +110,33 @@ export function RegisterForm({
       <CardHeader className="text-center">
         <AuthFoxLogo />
         <CardTitle className="text-2xl">Реєстрація</CardTitle>
-        <CardDescription>
-          Створіть новий акаунт у Foxy Sale CRM
+        <CardDescription className="space-y-1">
+          <span className="block">
+            {invitationCodeFromUrl
+              ? "Реєстрація за запрошенням адміністратора"
+              : "Створіть новий акаунт у Foxy Sale CRM"}
+          </span>
+          {!invitationCodeFromUrl && (
+            <span className="block text-xs text-muted-foreground">
+              Після реєстрації адміністратор має підтвердити доступ до системи.
+            </span>
+          )}
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {inviteError && (
+          <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Запрошення недійсне або вже використане. Зверніться до адміністратора за новим посиланням.
+          </div>
+        )}
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit((data) => register(data))}
+            onSubmit={form.handleSubmit((data) =>
+              register({
+                ...data,
+                invitationCode: invitationCodeFromUrl ?? undefined,
+              }),
+            )}
             className="grid gap-4"
           >
             <div className="grid grid-cols-2 gap-4">
@@ -141,6 +179,7 @@ export function RegisterForm({
                     <Input
                       type="email"
                       placeholder="your@email.com"
+                      readOnly={!!inviteMeta}
                       {...field}
                     />
                   </FormControl>
@@ -190,6 +229,7 @@ export function RegisterForm({
                   <FormItem className="w-full min-w-0">
                     <FormLabel>Роль</FormLabel>
                     <Select
+                      disabled={!!inviteMeta}
                       onValueChange={(val) => {
                         field.onChange(val);
                         if (val !== "DEV") {
@@ -369,8 +409,12 @@ export function RegisterForm({
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? "Реєстрація..." : "Зареєструватися"}
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isPending || inviteLoading || !!inviteError || (!!invitationCodeFromUrl && !inviteMeta)}
+            >
+              {isPending ? "Реєстрація..." : inviteLoading ? "Перевірка запрошення..." : "Зареєструватися"}
             </Button>
           </form>
         </Form>

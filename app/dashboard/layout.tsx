@@ -6,12 +6,15 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { requireApprovedUser } from "@/lib/server-auth";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await requireApprovedUser();
+
   return (
     <SidebarProvider>
       <AppSidebar />

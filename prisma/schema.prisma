@@ -76,6 +76,11 @@ enum CallOutcome {
   PENDING
 }
 
+enum AccountStatus {
+  APPROVED
+  PENDING
+}
+
 model User {
   id              String          @id @default(auto()) @map("_id") @db.ObjectId
   firstName       String
@@ -83,6 +88,8 @@ model User {
   email           String          @unique
   password        String
   role            Role
+  /** Доступ до CRM: PENDING — лише після схвалення адміна (самореєстрація без запрошення). */
+  accountStatus   AccountStatus   @default(APPROVED)
   specialization  Specialization?
   badgeBgColor    String?
   badgeTextColor  String?
@@ -94,6 +101,21 @@ model User {
   callsAsdev      CallEvent[]     @relation("CallerDev")
   createdCalls           CallEvent[]           @relation("CreatedBySales")
   salesAccountReports    SalesAccountReport[]  @relation("SalesSubmittedReports")
+  invitationsCreated     Invitation[]         @relation("InvitationCreatedBy")
+}
+
+model Invitation {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  code         String    @unique
+  email        String
+  role         Role
+  createdById  String    @db.ObjectId
+  createdBy    User      @relation("InvitationCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+  usedByUserId String?   @db.ObjectId
+
+  @@index([createdById])
 }
 
 model SalesAccountReport {

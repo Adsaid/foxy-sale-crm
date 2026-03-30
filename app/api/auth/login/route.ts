@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { loginSchema } from "@/lib/validations/auth";
+import { normalizeEmail } from "@/lib/normalize-email";
+import { effectiveAccountStatus } from "@/lib/account-status";
 
 export async function POST(request: Request) {
   try {
@@ -17,8 +19,13 @@ export async function POST(request: Request) {
     }
 
     const { email, password } = parsed.data;
+    const emailNorm = normalizeEmail(email);
+    const trimmed = email.trim();
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email: emailNorm } });
+    if (!user && trimmed !== emailNorm) {
+      user = await prisma.user.findUnique({ where: { email: trimmed } });
+    }
     if (!user) {
       return NextResponse.json(
         { error: "Невірний email або пароль" },
@@ -40,8 +47,11 @@ export async function POST(request: Request) {
     return NextResponse.json({
       user: {
         id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
+        accountStatus: effectiveAccountStatus(user),
         specialization: user.specialization,
         badgeBgColor: user.badgeBgColor,
         badgeTextColor: user.badgeTextColor,

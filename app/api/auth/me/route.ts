@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { effectiveAccountStatus } from "@/lib/account-status";
 
 export async function GET() {
   const userId = await getCurrentUserId();
@@ -20,5 +21,10 @@ export async function GET() {
 
   const { password: _, ...safeUser } = user;
 
-  return NextResponse.json({ user: safeUser });
+  return NextResponse.json({
+    user: {
+      ...safeUser,
+      accountStatus: effectiveAccountStatus(user),
+    },
+  });
 }

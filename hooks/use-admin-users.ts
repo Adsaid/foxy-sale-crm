@@ -34,3 +34,60 @@ export function useChangePassword() {
     onError: () => toast.error("Помилка зміни пароля"),
   });
 }
+
+export function useAdminInvitations() {
+  return useQuery({
+    queryKey: ["admin", "invitations"],
+    queryFn: () => userService.getInvitations(),
+  });
+}
+
+export function useCreateInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { email: string; role: "SALES" | "DEV" }) =>
+      userService.createInvitation(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "invitations"] });
+      toast.success("Запрошення створено");
+    },
+    onError: () => toast.error("Не вдалося створити запрошення"),
+  });
+}
+
+export function useDeleteInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => userService.deleteInvitation(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "invitations"] });
+      toast.success("Запрошення видалено");
+    },
+    onError: (err: unknown) => {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error ?? "Не вдалося видалити запрошення";
+      toast.error(message);
+    },
+  });
+}
+
+export function usePendingUsers() {
+  return useQuery({
+    queryKey: ["admin", "pending-users"],
+    queryFn: () => userService.getPendingUsers(),
+  });
+}
+
+export function useApproveUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => userService.approveUser(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pending-users"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      toast.success("Доступ надано");
+    },
+    onError: () => toast.error("Не вдалося підтвердити"),
+  });
+}

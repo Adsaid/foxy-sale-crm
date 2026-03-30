@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authService } from "@/services/auth-service";
 import type { RegisterInput } from "@/lib/validations/auth";
+import type { AuthResponse } from "@/types/auth";
 
 export function useRegister() {
   const router = useRouter();
@@ -12,10 +13,11 @@ export function useRegister() {
 
   return useMutation({
     mutationFn: (data: RegisterInput) => authService.register(data),
-    onSuccess: () => {
+    onSuccess: (data: AuthResponse) => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("Реєстрація успішна!");
-      router.push("/dashboard");
+      const status = data.user.accountStatus ?? "APPROVED";
+      router.push(status === "PENDING" ? "/pending-approval" : "/dashboard");
     },
     onError: (err: unknown) => {
       const message =
