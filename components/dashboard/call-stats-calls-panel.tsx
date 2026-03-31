@@ -75,8 +75,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
 import { ManagerBadge } from "@/components/ui/manager-badge";
+import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 import type {
   CallStatsData,
   CallStatsQueryParams,
@@ -85,12 +85,6 @@ import type {
 
 const SALES_ALL = "all";
 const DEV_ALL = "all";
-
-const DEV_SPEC_LABELS: Record<string, string> = {
-  FRONTEND: "Frontend",
-  BACKEND: "Backend",
-  FULLSTACK: "Fullstack",
-};
 
 const PRESET_OPTIONS: { value: CallStatsPreset; label: string }[] = [
   { value: "all", label: "Увесь час" },
@@ -796,7 +790,7 @@ export function CallStatsCallsPanel({
 }: CallStatsCallsPanelProps) {
   const { user } = useAuth();
   const isSales = user?.role === "SALES";
-  /** Фільтр по DEV — для адміна та сейла (не для DEV-ролі на сторінці статистики). */
+  /** Фільтр по виконавцю — для адміна та сейла (не для ролей розробник/дизайнер на сторінці статистики). */
   const showDevFilter = isAdmin || isSales;
 
   const { data: salesUsers } = useAdminUsers("SALES", isAdmin);
@@ -1042,17 +1036,20 @@ export function CallStatsCallsPanel({
                 >
                   <span className="truncate">
                     {devFilter === DEV_ALL
-                      ? "Усі деви"
+                      ? "Усі виконавці"
                       : selectedDev
                         ? `${selectedDev.firstName} ${selectedDev.lastName}`
-                        : "Оберіть DEV"}
+                        : "Оберіть виконавця"}
                   </span>
                   <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <PopoverContent
+                className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-1.5rem)] p-0"
+                align="start"
+              >
                 <Command>
-                  <CommandInput placeholder="Пошук DEV..." />
+                  <CommandInput placeholder="Пошук виконавця..." />
                   <CommandList>
                     {devsLoading ? (
                       <div className="space-y-2 p-2">
@@ -1065,14 +1062,14 @@ export function CallStatsCallsPanel({
                         <CommandEmpty>Не знайдено</CommandEmpty>
                         <CommandGroup>
                           <CommandItem
-                            value="усі деви всі"
+                            value="усі виконавці всі"
                             data-checked={devFilter === DEV_ALL}
                             onSelect={() => {
                               setDevFilter(DEV_ALL);
                               setDevFilterOpen(false);
                             }}
                           >
-                            Усі деви
+                            Усі виконавці
                           </CommandItem>
                           {sortedDevs.map((d) => (
                             <CommandItem
@@ -1084,31 +1081,7 @@ export function CallStatsCallsPanel({
                                 setDevFilterOpen(false);
                               }}
                             >
-                              <div className="flex flex-col gap-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-medium">
-                                    {d.firstName} {d.lastName}
-                                  </span>
-                                  {d.specialization && (
-                                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                                      {DEV_SPEC_LABELS[d.specialization] ?? d.specialization}
-                                    </Badge>
-                                  )}
-                                </div>
-                                {d.technologies.length > 0 && (
-                                  <div className="flex flex-wrap items-center gap-1">
-                                    {d.technologies.map((t) => (
-                                      <Badge
-                                        key={t.id}
-                                        variant="outline"
-                                        className="px-1.5 py-0 text-[10px]"
-                                      >
-                                        {t.name}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                              <AssigneeOptionContent dev={d} />
                             </CommandItem>
                           ))}
                         </CommandGroup>

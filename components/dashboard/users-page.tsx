@@ -37,12 +37,16 @@ import { UsersRequestsTab } from "@/components/dashboard/users-requests-tab";
 const roleLabels: Record<string, string> = {
   SALES: "Сейл",
   DEV: "Розробник",
+  DESIGNER: "Дизайнер",
 };
 
 const specLabels: Record<string, string> = {
   FRONTEND: "Frontend",
   BACKEND: "Backend",
   FULLSTACK: "Fullstack",
+  UX_UI: "UX/UI",
+  UI: "UI",
+  UX: "UX",
 };
 
 export function UsersPage() {
@@ -118,6 +122,7 @@ export function UsersPage() {
                 <SelectItem value="ALL">Всі ролі</SelectItem>
                 <SelectItem value="SALES">Сейли</SelectItem>
                 <SelectItem value="DEV">Розробники</SelectItem>
+                <SelectItem value="DESIGNER">Дизайнери</SelectItem>
               </SelectContent>
             </Select>
           </TableToolbar>

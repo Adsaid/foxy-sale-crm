@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const role = request.nextUrl.searchParams.get("role");
 
   const users = await prisma.user.findMany({
-    where: role ? { role: role as "SALES" | "DEV" } : { role: { in: ["SALES", "DEV"] } },
+    where: role ? { role: role as "SALES" | "DEV" | "DESIGNER" } : { role: { in: ["SALES", "DEV", "DESIGNER"] } },
     include: { technologies: true },
     orderBy: { createdAt: "desc" },
   });

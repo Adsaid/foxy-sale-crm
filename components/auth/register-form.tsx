@@ -219,7 +219,9 @@ export function RegisterForm({
             <div
               className={cn(
                 "grid min-w-0 gap-4",
-                watchRole === "DEV" ? "grid-cols-2" : "grid-cols-1",
+                watchRole === "DEV" || watchRole === "DESIGNER"
+                  ? "grid-cols-2"
+                  : "grid-cols-1",
               )}
             >
               <FormField
@@ -232,7 +234,7 @@ export function RegisterForm({
                       disabled={!!inviteMeta}
                       onValueChange={(val) => {
                         field.onChange(val);
-                        if (val !== "DEV") {
+                        if (val !== "DEV" && val !== "DESIGNER") {
                           form.setValue("specialization", undefined);
                           form.setValue("technologyIds", []);
                         }
@@ -252,8 +254,9 @@ export function RegisterForm({
                         {allowAdminRegistration && (
                           <SelectItem value="ADMIN">Admin</SelectItem>
                         )}
-                        <SelectItem value="DEV">Developer</SelectItem>
-                        <SelectItem value="SALES">Sales</SelectItem>
+                        <SelectItem value="DEV">Розробник</SelectItem>
+                        <SelectItem value="DESIGNER">Дизайнер</SelectItem>
+                        <SelectItem value="SALES">Сейл</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -288,6 +291,34 @@ export function RegisterForm({
                   )}
                 />
               )}
+
+              {watchRole === "DESIGNER" && (
+                <FormField
+                  control={form.control}
+                  name="specialization"
+                  render={({ field }) => (
+                    <FormItem className="w-full min-w-0">
+                      <FormLabel>Спеціалізація</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Оберіть спеціалізацію" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="UX_UI">UX/UI</SelectItem>
+                          <SelectItem value="UI">UI</SelectItem>
+                          <SelectItem value="UX">UX</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
 
             {watchRole === "DEV" && (
@@ -299,6 +330,27 @@ export function RegisterForm({
                     <FormLabel>Технології</FormLabel>
                     <FormControl>
                       <TechnologyMultiSelect
+                        audience="DEV"
+                        value={field.value ?? []}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {watchRole === "DESIGNER" && (
+              <FormField
+                control={form.control}
+                name="technologyIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Інструменти / стек</FormLabel>
+                    <FormControl>
+                      <TechnologyMultiSelect
+                        audience="DESIGNER"
                         value={field.value ?? []}
                         onChange={field.onChange}
                       />

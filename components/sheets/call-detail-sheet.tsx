@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { TextWithLinks } from "@/components/ui/text-with-links";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
+import { assigneeFieldLabelEn } from "@/lib/roles";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -293,7 +294,7 @@ export function CallDetailSheet({
               )}
 
               {call.caller && (
-                <DetailRow label="DEV">
+                <DetailRow label={assigneeFieldLabelEn(call.caller.role)}>
                   <span className="font-medium">
                     {call.caller.firstName} {call.caller.lastName}
                   </span>
@@ -435,7 +436,7 @@ export function CallDetailSheet({
             )}
 
             {call.devFeedback && (
-              <TextBlock title="Фідбек від DEV" icon={MessageSquare}>
+              <TextBlock title="Фідбек від виконавця" icon={MessageSquare}>
                 <TextWithLinks text={call.devFeedback} className="whitespace-pre-wrap" />
               </TextBlock>
             )}

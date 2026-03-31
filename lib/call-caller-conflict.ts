@@ -26,7 +26,7 @@ export type CallerConflictInfo = {
 };
 
 /**
- * Чи є в іншого сейла перетин часу з цим DEV (той самий callerId, інший createdById).
+ * Чи є в іншого сейла перетин часу з цим виконавцем (той самий callerId, інший createdById).
  */
 export async function findCallerConflictWithOtherSales(
   prisma: PrismaClient,
@@ -77,5 +77,5 @@ export async function findCallerConflictWithOtherSales(
 
 export function formatCallerConflictMessageUk(c: CallerConflictInfo): string {
   const when = formatCallTableDateTime(c.callStartedAt);
-  return `Цей DEV уже зайнятий у цей час дзвінком іншого сейла (${c.salesName}): «${c.company}», ${when}.`;
+  return `Цей виконавець уже зайнятий у цей час дзвінком іншого сейла (${c.salesName}): «${c.company}», ${when}.`;
 }

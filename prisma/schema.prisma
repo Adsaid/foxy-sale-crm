@@ -10,6 +10,7 @@ datasource db {
 enum Role {
   ADMIN
   DEV
+  DESIGNER
   SALES
 }
 
@@ -17,6 +18,14 @@ enum Specialization {
   FRONTEND
   BACKEND
   FULLSTACK
+  UX_UI
+  UI
+  UX
+}
+
+enum TechStack {
+  DEV
+  DESIGNER
 }
 
 enum AccountType {
@@ -134,10 +143,11 @@ model SalesAccountReport {
 }
 
 model Technology {
-  id      String   @id @default(auto()) @map("_id") @db.ObjectId
-  name    String   @unique
-  userIds String[] @db.ObjectId
-  users   User[]   @relation(fields: [userIds], references: [id])
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String    @unique
+  stackAudience TechStack @default(DEV)
+  userIds       String[]  @db.ObjectId
+  users         User[]    @relation(fields: [userIds], references: [id])
 }
 
 model Account {
@@ -199,6 +209,7 @@ model CallSummary {
   callType         CallType
   callerFirstName  String
   callerLastName   String
+  callerRole       Role?
   interviewerName  String
   callStartedAt    DateTime
   callEndedAt      DateTime?

@@ -11,13 +11,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface Props {
   value: string[];
   onChange: (ids: string[]) => void;
+  /** Обмежити список стеком розробника або дизайнера. */
+  audience?: "DEV" | "DESIGNER";
 }
 
-export function TechnologyMultiSelect({ value, onChange }: Props) {
+export function TechnologyMultiSelect({ value, onChange, audience }: Props) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
-  const { data: technologies = [], isLoading } = useTechnologies();
+  const { data: technologies = [], isLoading } = useTechnologies(audience);
 
   const filtered = useMemo(
     () =>

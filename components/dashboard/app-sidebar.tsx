@@ -48,9 +48,9 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
-  { title: "Статистика", href: "/dashboard", icon: BarChart3, roles: ["SALES", "DEV", "ADMIN"] },
+  { title: "Статистика", href: "/dashboard", icon: BarChart3, roles: ["SALES", "DEV", "DESIGNER", "ADMIN"] },
   { title: "Акаунти", href: "/dashboard/accounts", icon: Building2, roles: ["SALES", "ADMIN"] },
-  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV", "ADMIN"] },
+  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV", "DESIGNER", "ADMIN"] },
   { title: "Підсумки", href: "/dashboard/summary", icon: ClipboardList, roles: ["SALES", "ADMIN"] },
   { title: "Користувачі", href: "/dashboard/users", icon: Users, roles: ["ADMIN"] },
 ];
@@ -58,6 +58,7 @@ const allNavItems: NavItem[] = [
 const roleLabels: Record<string, string> = {
   ADMIN: "Адміністратор",
   DEV: "Розробник",
+  DESIGNER: "Дизайнер",
   SALES: "Сейл",
 };
 

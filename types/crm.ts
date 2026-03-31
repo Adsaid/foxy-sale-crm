@@ -105,7 +105,13 @@ export interface CallEvent {
   callStartedAt: string;
   callEndedAt?: string | null;
   callerId: string;
-  caller?: { id: string; firstName: string; lastName: string; email: string };
+  caller?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role?: "DEV" | "DESIGNER";
+  };
   createdById: string;
   createdBy?: {
     id: string;
@@ -210,7 +216,7 @@ export interface UpdateCallInput {
   /** Mark call as rescheduled/transfered when editing datetime (used for CallSummary) */
   transferred?: boolean;
   transferredReason?: string | null;
-  /** Перепризначення DEV; дозволено лише для статусу SCHEDULED (перевірка на API). */
+  /** Перепризначення виконавця; дозволено лише для статусу SCHEDULED (перевірка на API). */
   callerId?: string;
 }
 
@@ -232,7 +238,7 @@ export interface InterviewerDuplicateMatch {
   interviewerName: string;
   callType: CallType;
   callStartedAt: string;
-  /** Ім'я DEV на дзвінку (прізвище та ім'я) */
+  /** Ім'я виконавця на дзвінку (прізвище та ім'я) */
   devName: string;
   status?: CallStatus;
   outcome?: CallOutcome;
@@ -247,6 +253,7 @@ export interface CallSummary {
   callType: CallType;
   callerFirstName: string;
   callerLastName: string;
+  callerRole?: "DEV" | "DESIGNER" | null;
   interviewerName: string;
   callStartedAt: string;
   callEndedAt?: string | null;
@@ -275,6 +282,7 @@ export interface CallSummary {
 
 export interface DevUser {
   id: string;
+  role: "DEV" | "DESIGNER";
   firstName: string;
   lastName: string;
   email: string;
@@ -387,7 +395,7 @@ export interface AdminInvitation {
   id: string;
   code: string;
   email: string;
-  role: "SALES" | "DEV";
+  role: "SALES" | "DEV" | "DESIGNER";
   createdById: string;
   createdAt: string;
   usedAt: string | null;

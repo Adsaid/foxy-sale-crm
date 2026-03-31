@@ -5,7 +5,7 @@ import type { CallEvent } from "@/types/crm";
 
 export const callDetailInclude = {
   account: true,
-  caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+  caller: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
   createdBy: {
     select: {
       id: true,
@@ -25,6 +25,7 @@ type CallWithDetail = PrismaCall & {
     firstName: string;
     lastName: string;
     email: string;
+    role: string;
   };
   createdBy: {
     id: string;
@@ -108,13 +109,19 @@ export async function buildCallEventDetailFromSummary(
         createdAt: summary.createdAt.toISOString(),
       };
 
+  const callerRole = (call?.caller?.role ?? summary.callerRole ?? undefined) as
+    | "DEV"
+    | "DESIGNER"
+    | undefined;
+
   const caller: CallEvent["caller"] = call
-    ? call.caller
+    ? { ...call.caller, role: callerRole }
     : {
         id: "",
         firstName: summary.callerFirstName,
         lastName: summary.callerLastName,
         email: "",
+        role: callerRole,
       };
 
   return {

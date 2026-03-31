@@ -28,10 +28,10 @@ export function InvitationCreateDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isPending: boolean;
-  onSubmit: (data: { email: string; role: "SALES" | "DEV" }) => void;
+  onSubmit: (data: { email: string; role: "SALES" | "DEV" | "DESIGNER" }) => void;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"SALES" | "DEV">("SALES");
+  const [role, setRole] = useState<"SALES" | "DEV" | "DESIGNER">("SALES");
 
   useEffect(() => {
     if (open) return;
@@ -68,13 +68,14 @@ export function InvitationCreateDialog({
 
           <div className="grid gap-1.5">
             <Label>Роль</Label>
-            <Select value={role} onValueChange={(v) => setRole(v as "SALES" | "DEV")}>
+            <Select value={role} onValueChange={(v) => setRole(v as "SALES" | "DEV" | "DESIGNER")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="SALES">Сейл</SelectItem>
                 <SelectItem value="DEV">Розробник</SelectItem>
+                <SelectItem value="DESIGNER">Дизайнер</SelectItem>
               </SelectContent>
             </Select>
           </div>

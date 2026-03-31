@@ -10,7 +10,7 @@ function registerSuperRefine(
     password: string;
     confirmPassword: string;
     role: string;
-    specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK";
+    specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | "UX_UI" | "UI" | "UX";
     technologyIds?: string[];
     badgeBgColor?: string;
     badgeTextColor?: string;
@@ -24,11 +24,43 @@ function registerSuperRefine(
       path: ["confirmPassword"],
     });
   }
+  const devSpecs = ["FRONTEND", "BACKEND", "FULLSTACK"] as const;
+  const designerSpecs = ["UX_UI", "UI", "UX"] as const;
+
   if (data.role === "DEV") {
     if (!data.specialization) {
       ctx.addIssue({
         code: "custom",
         message: "Оберіть спеціалізацію",
+        path: ["specialization"],
+      });
+    } else if (!devSpecs.includes(data.specialization as (typeof devSpecs)[number])) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Для розробника оберіть Frontend, Backend або Fullstack",
+        path: ["specialization"],
+      });
+    }
+    if (!data.technologyIds || data.technologyIds.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Оберіть хоча б одну технологію",
+        path: ["technologyIds"],
+      });
+    }
+  }
+
+  if (data.role === "DESIGNER") {
+    if (!data.specialization) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Оберіть спеціалізацію",
+        path: ["specialization"],
+      });
+    } else if (!designerSpecs.includes(data.specialization as (typeof designerSpecs)[number])) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Для дизайнера оберіть UX/UI, UI або UX",
         path: ["specialization"],
       });
     }
@@ -63,8 +95,8 @@ function registerSuperRefine(
  */
 export function getRegisterSchema(allowAdmin: boolean) {
   const roleEnum = allowAdmin
-    ? z.enum(["ADMIN", "DEV", "SALES"])
-    : z.enum(["DEV", "SALES"]);
+    ? z.enum(["ADMIN", "DEV", "DESIGNER", "SALES"])
+    : z.enum(["DEV", "DESIGNER", "SALES"]);
 
   return z
     .object({
@@ -74,7 +106,7 @@ export function getRegisterSchema(allowAdmin: boolean) {
       password: z.string().min(6, "Мінімум 6 символів"),
       confirmPassword: z.string(),
       role: roleEnum,
-      specialization: z.enum(["FRONTEND", "BACKEND", "FULLSTACK"]).optional(),
+      specialization: z.enum(["FRONTEND", "BACKEND", "FULLSTACK", "UX_UI", "UI", "UX"]).optional(),
       technologyIds: z.array(z.string()).optional(),
       badgeBgColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір фону").optional(),
       badgeTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір тексту").optional(),
@@ -90,8 +122,8 @@ export type RegisterInput = {
   email: string;
   password: string;
   confirmPassword: string;
-  role: "ADMIN" | "DEV" | "SALES";
-  specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK";
+  role: "ADMIN" | "DEV" | "DESIGNER" | "SALES";
+  specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | "UX_UI" | "UI" | "UX";
   technologyIds?: string[];
   badgeBgColor?: string;
   badgeTextColor?: string;

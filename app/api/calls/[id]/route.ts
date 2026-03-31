@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
-import { isSalesLike, canMutateCall } from "@/lib/roles";
+import {
+  isSalesLike,
+  canMutateCall,
+  callerRoleShortEn,
+} from "@/lib/roles";
 import { createNotification, notifyAllAdmins } from "@/lib/notifications";
 import { notifyCallAssignedToDevAndAdmins } from "@/lib/call-assigned-notifications";
 import {
@@ -19,10 +23,11 @@ import {
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
 
 const callInclude = {
   account: true,
-  caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+  caller: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
   createdBy: {
     select: {
       id: true,
@@ -39,7 +44,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
   if (error) return error;
 
   const { id } = await params;
@@ -114,7 +119,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           error:
-            "Змінити відповідального DEV можна лише для дзвінка зі статусом «Заплановано».",
+            "Змінити виконавця можна лише для дзвінка зі статусом «Заплановано».",
         },
         { status: 400 },
       );
@@ -128,9 +133,9 @@ export async function PATCH(
         where: { id: effectiveCallerId },
         select: { id: true, role: true },
       });
-      if (!devUser || devUser.role !== "DEV") {
+      if (!devUser || (devUser.role !== "DEV" && devUser.role !== "DESIGNER")) {
         return NextResponse.json(
-          { error: "Обраний користувач не знайдений або не є DEV" },
+          { error: "Обраний користувач не знайдений або не є виконавцем" },
           { status: 400 },
         );
       }
@@ -181,6 +186,9 @@ export async function PATCH(
       ? callEndedAtOneHourAfterStart(effectiveStart)
       : undefined;
 
+  const normalizedCallLink =
+    body.callLink !== undefined ? normalizeCallLinkForSave(body.callLink) : undefined;
+
   const updated = await prisma.callEvent.update({
     where: { id },
     data: {
@@ -194,7 +202,7 @@ export async function PATCH(
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.salaryFrom !== undefined && { salaryFrom: body.salaryFrom }),
       ...(body.salaryTo !== undefined && { salaryTo: body.salaryTo }),
-      ...(body.callLink !== undefined && { callLink: body.callLink || null }),
+      ...(normalizedCallLink !== undefined && { callLink: normalizedCallLink }),
       ...(body.description !== undefined && { description: body.description || null }),
       ...(callerChanged && { callerId: effectiveCallerId }),
       ...(callEndedAtForBackdatedCompletion !== undefined && {
@@ -222,6 +230,7 @@ export async function PATCH(
       callType: updated.callType,
       callerFirstName: updated.caller?.firstName ?? "",
       callerLastName: updated.caller?.lastName ?? "",
+      callerRole: updated.caller?.role ?? null,
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
       callEndedAt: updated.callEndedAt,
@@ -380,16 +389,21 @@ export async function PATCH(
   if (callerChanged) {
     const salesName = `${updated.createdBy?.firstName ?? ""} ${updated.createdBy?.lastName ?? ""}`.trim();
     const newDevName = `${updated.caller?.firstName ?? ""} ${updated.caller?.lastName ?? ""}`.trim();
+    const newCallerRole = updated.caller?.role ?? "DEV";
     const when = formatNotificationDateTime(updated.callStartedAt);
     const typeLabel = callTypeLabelUk(updated.callType);
     const awayLines = [
-      `${salesName} ${notifVerbPast.reassignedCallFromYou} дзвінок іншому DEV.`,
+      `${salesName} ${notifVerbPast.reassignedCallFromYou} дзвінок іншому виконавцю.`,
       `Компанія: ${updated.company}`,
       `Тип: ${typeLabel}`,
       `Час: ${when}`,
       `Інтерв'юер: ${updated.interviewerName}`,
     ];
-    if (newDevName) awayLines.push(`Новий DEV: ${newDevName}`);
+    if (newDevName) {
+      awayLines.push(
+        `Новий виконавець: ${newDevName} (${callerRoleShortEn(newCallerRole)})`,
+      );
+    }
     const awayMessage = awayLines.join("\n");
     const awayPayload = {
       callId: updated.id,
@@ -416,9 +430,9 @@ export async function PATCH(
   }
 
   const linkChanged =
-    body.callLink !== undefined &&
+    normalizedCallLink !== undefined &&
     existing.status === "SCHEDULED" &&
-    (existing.callLink ?? "") !== (body.callLink ?? "");
+    (existing.callLink ?? null) !== normalizedCallLink;
 
   if (linkChanged) {
     const salesName = `${updated.createdBy?.firstName ?? ""} ${updated.createdBy?.lastName ?? ""}`.trim();

@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
-import { isSalesLike } from "@/lib/roles";
+import { isCallAssigneeRole, isSalesLike } from "@/lib/roles";
 import { notifyCallAssignedToDevAndAdmins } from "@/lib/call-assigned-notifications";
 import {
   CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
 
 export async function GET() {
-  const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
   if (error) return error;
 
   const where = isSalesLike(user!.role) ? {} : { callerId: user!.id };
@@ -19,7 +20,7 @@ export async function GET() {
     where,
     include: {
       account: true,
-      caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      caller: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
       createdBy: {
         select: {
           id: true,
@@ -60,6 +61,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  const callerUser = await prisma.user.findUnique({
+    where: { id: callerId },
+    select: { id: true, role: true },
+  });
+  if (!callerUser || !isCallAssigneeRole(callerUser.role)) {
+    return NextResponse.json(
+      { error: "Обраний виконавець не знайдений або має неприпустиму роль" },
+      { status: 400 },
+    );
+  }
+
   const createdById = user!.role === "ADMIN" ? account.ownerId : user!.id;
 
   const rangeStart = new Date(callStartedAt);
@@ -88,12 +100,12 @@ export async function POST(request: Request) {
       createdById,
       salaryFrom,
       ...(salaryTo !== undefined && { salaryTo }),
-      ...(callLink !== undefined && { callLink }),
+      ...(callLink !== undefined && { callLink: normalizeCallLinkForSave(callLink) }),
       ...(description !== undefined && { description }),
     },
     include: {
       account: true,
-      caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      caller: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
       createdBy: {
         select: {
           id: true,

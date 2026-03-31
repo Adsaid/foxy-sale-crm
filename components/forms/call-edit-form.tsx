@@ -34,6 +34,8 @@ import type { CallEvent, CallStatus, CallOutcome, UpdateCallInput } from "@/type
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useMemo, useState } from "react";
 import { useDevs } from "@/hooks/use-devs";
+import { assigneeSpecLabelsUk } from "@/lib/roles";
+import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -53,12 +55,6 @@ const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
   PENDING: "Очікує",
-};
-
-const specLabels: Record<string, string> = {
-  FRONTEND: "Frontend",
-  BACKEND: "Backend",
-  FULLSTACK: "Fullstack",
 };
 
 interface CallEditFormProps {
@@ -173,8 +169,10 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       {isScheduled && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground">DEV (який вийде на дзвінок)</label>
-            <div className="ml-auto flex gap-1">
+            <label className="text-xs text-muted-foreground">
+              Виконавець (розробник або дизайнер)
+            </label>
+            <div className="ml-auto flex max-w-[min(100%,14rem)] flex-wrap justify-end gap-1">
               <Badge
                 variant={specFilter === "" ? "default" : "outline"}
                 className="cursor-pointer px-1.5 py-0 text-[10px]"
@@ -182,7 +180,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
               >
                 Всі
               </Badge>
-              {Object.entries(specLabels).map(([k, v]) => (
+              {Object.entries(assigneeSpecLabelsUk).map(([k, v]) => (
                 <Badge
                   key={k}
                   variant={specFilter === k ? "default" : "outline"}
@@ -199,13 +197,16 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
               <Button variant="outline" className="w-full justify-between font-normal">
                 {selectedDev
                   ? `${selectedDev.firstName} ${selectedDev.lastName}`
-                  : "Оберіть DEV"}
+                  : "Оберіть виконавця"}
                 <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <PopoverContent
+              className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-1.5rem)] p-0"
+              align="start"
+            >
               <Command>
-                <CommandInput placeholder="Пошук DEV..." />
+                <CommandInput placeholder="Пошук виконавця..." />
                 <CommandList>
                   {devsLoading ? (
                     <div className="space-y-2 p-2">
@@ -227,27 +228,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
                               setDevOpen(false);
                             }}
                           >
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-medium">
-                                  {d.firstName} {d.lastName}
-                                </span>
-                                {d.specialization && (
-                                  <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                                    {specLabels[d.specialization] ?? d.specialization}
-                                  </Badge>
-                                )}
-                              </div>
-                              {d.technologies.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1">
-                                  {d.technologies.map((t) => (
-                                    <Badge key={t.id} variant="outline" className="px-1.5 py-0 text-[10px]">
-                                      {t.name}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
+                            <AssigneeOptionContent dev={d} />
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -344,7 +325,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         <div className="rounded-lg border bg-muted/30 p-3">
           <div className="mb-1 flex items-center gap-1.5 text-sm font-medium">
             <MessageSquare className="size-3.5" />
-            Фідбек від DEV
+            Фідбек від виконавця
           </div>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">{call.devFeedback}</p>
         </div>
@@ -352,7 +333,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
 
       {isCompleted && !call.devFeedback && (
         <p className="text-xs text-muted-foreground">
-          DEV ще не залишив фідбек або він порожній.
+          Виконавець ще не залишив фідбек або він порожній.
         </p>
       )}
 
@@ -374,7 +355,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
             Очікуваний фідбек від клієнта
           </label>
           <p className="mb-1.5 text-xs text-muted-foreground">
-            Не плутати з фідбеком DEV — це дата, коли очікуєте відповідь від клієнта / замовника.
+            Не плутати з фідбеком виконавця — це дата, коли очікуєте відповідь від клієнта / замовника.
           </p>
           <DateTimePicker
             value={form.expectedFeedbackDate}

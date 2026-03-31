@@ -5,7 +5,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { normalizeEmail } from "@/lib/normalize-email";
 import type { Role } from "@prisma/client";
 
-const INVITE_ROLES: Role[] = ["SALES", "DEV"];
+const INVITE_ROLES: Role[] = ["SALES", "DEV", "DESIGNER"];
 
 export async function GET() {
   const { error, user } = await getApiUser(["ADMIN"]);
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
   if (!role || !INVITE_ROLES.includes(role)) {
     return NextResponse.json(
-      { error: "Роль має бути Sales або Developer" },
+      { error: "Роль має бути Sales, Developer або Designer" },
       { status: 400 },
     );
   }

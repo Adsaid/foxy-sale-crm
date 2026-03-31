@@ -7,9 +7,10 @@ export async function GET() {
   if (error) return error;
 
   const devs = await prisma.user.findMany({
-    where: { role: "DEV" },
+    where: { role: { in: ["DEV", "DESIGNER"] } },
     select: {
       id: true,
+      role: true,
       firstName: true,
       lastName: true,
       email: true,

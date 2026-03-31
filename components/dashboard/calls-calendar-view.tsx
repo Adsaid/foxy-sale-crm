@@ -15,6 +15,7 @@ import type {
 import { CRM_TIMEZONE } from "@/lib/date-kyiv";
 import { kyivIntlTimezonePlugin } from "@/lib/fullcalendar-named-timezone";
 import type { CallEvent } from "@/types/crm";
+import { assigneeFieldLabelEn } from "@/lib/roles";
 
 const DEFAULT_DURATION_MS = 60 * 60 * 1000;
 
@@ -86,7 +87,7 @@ function buildEventTitle(call: CallEvent): string {
   const dev = devShortLabel(call);
   const parts = [call.company, typeLabel];
   if (sales) parts.push(sales);
-  if (dev) parts.push(`DEV: ${dev}`);
+  if (dev) parts.push(`${assigneeFieldLabelEn(call.caller?.role)}: ${dev}`);
   return parts.join(" · ");
 }
 

@@ -29,7 +29,7 @@ export const userService = {
 
   async createInvitation(data: {
     email: string;
-    role: "SALES" | "DEV";
+    role: "SALES" | "DEV" | "DESIGNER";
   }): Promise<AdminInvitation> {
     const res = await api.post<AdminInvitation>("/api/admin/invitations", data);
     return res.data;

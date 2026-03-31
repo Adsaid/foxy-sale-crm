@@ -31,8 +31,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
+import { assigneeSpecLabelsUk } from "@/lib/roles";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 import { ChevronsUpDown, AlertTriangle } from "lucide-react";
 import type { CallType, CreateCallInput, InterviewerDuplicateMatch } from "@/types/crm";
 
@@ -54,12 +56,6 @@ const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
   PENDING: "Очікує",
-};
-
-const specLabels: Record<string, string> = {
-  FRONTEND: "Frontend",
-  BACKEND: "Backend",
-  FULLSTACK: "Fullstack",
 };
 
 interface CallCreateFormProps {
@@ -225,7 +221,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
                 <div className="font-medium text-foreground">{m.company}</div>
                 <div className="text-xs">
                   {formatCallWhen(m.callStartedAt)} · {callTypeLabels[m.callType]}
-                  {m.devName ? <> · DEV: {m.devName}</> : null}
+                  {m.devName ? <> · Dev/Design: {m.devName}</> : null}
                   {m.source === "active" && m.status && (
                     <> · {statusLabels[m.status] ?? m.status}</>
                   )}
@@ -276,8 +272,10 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">DEV (який вийде на дзвінок)</label>
-          <div className="ml-auto flex gap-1">
+          <label className="text-xs text-muted-foreground">
+            Виконавець (розробник або дизайнер)
+          </label>
+          <div className="ml-auto flex max-w-[min(100%,14rem)] flex-wrap justify-end gap-1">
             <Badge
               variant={specFilter === "" ? "default" : "outline"}
               className="cursor-pointer text-[10px] px-1.5 py-0"
@@ -285,7 +283,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
             >
               Всі
             </Badge>
-            {Object.entries(specLabels).map(([k, v]) => (
+            {Object.entries(assigneeSpecLabelsUk).map(([k, v]) => (
               <Badge
                 key={k}
                 variant={specFilter === k ? "default" : "outline"}
@@ -305,13 +303,16 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
             >
               {selectedDev
                 ? `${selectedDev.firstName} ${selectedDev.lastName}`
-                : "Оберіть DEV"}
+                : "Оберіть виконавця"}
               <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+          <PopoverContent
+            className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-1.5rem)] p-0"
+            align="start"
+          >
             <Command>
-              <CommandInput placeholder="Пошук DEV..." />
+              <CommandInput placeholder="Пошук виконавця..." />
               <CommandList>
                 {devsLoading ? (
                   <div className="space-y-2 p-2">
@@ -333,27 +334,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
                             setDevOpen(false);
                           }}
                         >
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-medium">
-                                {d.firstName} {d.lastName}
-                              </span>
-                              {d.specialization && (
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                  {specLabels[d.specialization] ?? d.specialization}
-                                </Badge>
-                              )}
-                            </div>
-                            {d.technologies.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1">
-                                {d.technologies.map((t) => (
-                                  <Badge key={t.id} variant="outline" className="text-[10px] px-1.5 py-0">
-                                    {t.name}
-                                  </Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <AssigneeOptionContent dev={d} />
                         </CommandItem>
                       ))}
                     </CommandGroup>

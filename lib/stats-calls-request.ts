@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import type { Prisma, Role, User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isCallAssigneeRole } from "@/lib/roles";
 
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 
 export function callWhereForRole(role: Role, userId: string): Prisma.CallEventWhereInput {
-  switch (role) {
-    case "ADMIN":
-      return {};
-    case "SALES":
-      return { createdById: userId };
-    case "DEV":
-      return { callerId: userId };
-  }
+  if (role === "ADMIN") return {};
+  if (role === "SALES") return { createdById: userId };
+  if (isCallAssigneeRole(role)) return { callerId: userId };
+  return {};
 }
 
 export type ResolvedCallStatsFilters =
@@ -113,14 +110,14 @@ export async function resolveCallStatsFilters(
         response: NextResponse.json({ error: "Некоректний ідентифікатор" }, { status: 400 }),
       };
     }
-    const devExists = await prisma.user.findFirst({
-      where: { id: callerIdParam, role: "DEV" },
+    const callerExists = await prisma.user.findFirst({
+      where: { id: callerIdParam, role: { in: ["DEV", "DESIGNER"] } },
       select: { id: true },
     });
-    if (!devExists) {
+    if (!callerExists) {
       return {
         ok: false,
-        response: NextResponse.json({ error: "DEV не знайдено" }, { status: 404 }),
+        response: NextResponse.json({ error: "Виконавця не знайдено" }, { status: 404 }),
       };
     }
     callWhere = { ...callWhere, callerId: callerIdParam };

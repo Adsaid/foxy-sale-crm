@@ -11,12 +11,13 @@ import {
   formatNotificationDateTime,
   notifVerbPast,
 } from "@/lib/notification-copy";
+import { callerRoleShortEn } from "@/lib/roles";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["DEV"]);
+  const { error, user } = await getApiUser(["DEV", "DESIGNER"]);
   if (error) return error;
 
   const { id } = await params;
@@ -55,6 +56,7 @@ export async function PATCH(
           firstName: true,
           lastName: true,
           email: true,
+          role: true,
           badgeBgColor: true,
           badgeTextColor: true,
         },
@@ -81,6 +83,7 @@ export async function PATCH(
       callType: updated.callType,
       callerFirstName: updated.caller?.firstName ?? "",
       callerLastName: updated.caller?.lastName ?? "",
+      callerRole: updated.caller?.role ?? null,
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
       callEndedAt: endedAt,
@@ -113,7 +116,7 @@ export async function PATCH(
     telegramActorBadgeBgColor: updated.caller?.badgeBgColor,
     telegramActorBadgeTextColor: updated.caller?.badgeTextColor,
     message: [
-      `${devName} ${notifVerbPast.completedCall} дзвінок.`,
+      `${devName} (${callerRoleShortEn(updated.caller?.role ?? user!.role)}) ${notifVerbPast.completedCall} дзвінок.`,
       `Компанія: ${updated.company}`,
       `Тип: ${typeLabel}`,
       `Інтерв'юер: ${updated.interviewerName}`,

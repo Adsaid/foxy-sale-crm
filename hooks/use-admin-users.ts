@@ -45,7 +45,7 @@ export function useAdminInvitations() {
 export function useCreateInvitation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { email: string; role: "SALES" | "DEV" }) =>
+    mutationFn: (data: { email: string; role: "SALES" | "DEV" | "DESIGNER" }) =>
       userService.createInvitation(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "invitations"] });

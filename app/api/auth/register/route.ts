@@ -69,10 +69,41 @@ export async function POST(request: Request) {
       badgeTextColor,
     } = raw;
 
-    if (effectiveRole === "DEV") {
+    if (effectiveRole === "DEV" || effectiveRole === "DESIGNER") {
       if (!specialization || !technologyIds?.length) {
         return NextResponse.json(
-          { error: "Для ролі Developer потрібні спеціалізація та технології" },
+          { error: "Для цієї ролі потрібні спеціалізація та технології" },
+          { status: 400 },
+        );
+      }
+      const devSpecs = ["FRONTEND", "BACKEND", "FULLSTACK"] as const;
+      const designerSpecs = ["UX_UI", "UI", "UX"] as const;
+      if (effectiveRole === "DEV" && !devSpecs.includes(specialization as (typeof devSpecs)[number])) {
+        return NextResponse.json(
+          { error: "Некоректна спеціалізація для ролі розробника" },
+          { status: 400 },
+        );
+      }
+      if (effectiveRole === "DESIGNER" && !designerSpecs.includes(specialization as (typeof designerSpecs)[number])) {
+        return NextResponse.json(
+          { error: "Некоректна спеціалізація для ролі дизайнера" },
+          { status: 400 },
+        );
+      }
+      const expectedAudience = effectiveRole === "DEV" ? "DEV" : "DESIGNER";
+      const techRows = await prisma.technology.findMany({
+        where: { id: { in: technologyIds } },
+        select: { id: true, stackAudience: true },
+      });
+      if (techRows.length !== technologyIds.length) {
+        return NextResponse.json(
+          { error: "Знайдено невідомі або недійсні технології" },
+          { status: 400 },
+        );
+      }
+      if (techRows.some((t) => t.stackAudience !== expectedAudience)) {
+        return NextResponse.json(
+          { error: "Обрані технології не відповідають ролі" },
           { status: 400 },
         );
       }
@@ -106,9 +137,9 @@ export async function POST(request: Request) {
         password: hashedPassword,
         role: effectiveRole,
         accountStatus,
-        specialization: effectiveRole === "DEV" ? specialization : null,
+        specialization: effectiveRole === "DEV" || effectiveRole === "DESIGNER" ? specialization : null,
         technologyIds:
-          effectiveRole === "DEV" && technologyIds ? technologyIds : [],
+          (effectiveRole === "DEV" || effectiveRole === "DESIGNER") && technologyIds ? technologyIds : [],
         badgeBgColor: effectiveRole === "SALES" ? badgeBgColor ?? null : null,
         badgeTextColor:
           effectiveRole === "SALES" ? badgeTextColor ?? null : null,

@@ -81,7 +81,7 @@ export async function POST(
     },
     include: {
       account: true,
-      caller: { select: { id: true, firstName: true, lastName: true, email: true } },
+      caller: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
       createdBy: {
         select: {
           id: true,

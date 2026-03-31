@@ -74,7 +74,12 @@ import {
   formatCallTimeKyiv,
   isKyivCalendarToday,
 } from "@/lib/date-kyiv";
-import { canMutateCall } from "@/lib/roles";
+import {
+  assigneeFieldLabelEn,
+  CALLER_COLUMN_LABEL,
+  callerRoleShortEn,
+  canMutateCall,
+} from "@/lib/roles";
 import { cn } from "@/lib/utils";
 import {
   Command,
@@ -86,6 +91,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -111,13 +117,6 @@ const SALES_FILTER_ALL = "all";
 /** Лише для ролі SALES: фільтр «лише мої створені дзвінки». */
 const SALES_FILTER_MINE = "mine";
 const DEV_FILTER_ALL = "all";
-
-/** Підписи спеціалізації в рядку DEV у випадаючому списку фільтра. */
-const devSpecLabels: Record<string, string> = {
-  FRONTEND: "Frontend",
-  BACKEND: "Backend",
-  FULLSTACK: "Fullstack",
-};
 
 function formatTime(dateStr: string) {
   return formatCallTimeKyiv(dateStr);
@@ -324,7 +323,7 @@ function TodayCallCard({
               </div>
               {isSalesLike && call.caller && (
                 <div className="min-w-0 space-y-0.5">
-                  <p className={participantLabelClass}>DEV</p>
+                  <p className={participantLabelClass}>{assigneeFieldLabelEn(call.caller.role)}</p>
                   <p className="text-sm font-medium leading-snug text-foreground">
                     {call.caller.firstName} {call.caller.lastName}
                   </p>
@@ -379,7 +378,8 @@ function TodayCallCard({
 export function CallsPage() {
   const { user } = useAuth();
   const isSalesLike = user?.role === "SALES" || user?.role === "ADMIN";
-  const showCreatedByColumn = user?.role === "DEV" || user?.role === "ADMIN";
+  const showCreatedByColumn =
+    user?.role === "DEV" || user?.role === "DESIGNER" || user?.role === "ADMIN";
 
   const canManageCallRow = useCallback(
     (call: CallEvent) => !!(user && canMutateCall(user, call.createdById)),
@@ -754,17 +754,20 @@ export function CallsPage() {
                     >
                       <span className="truncate">
                         {devFilterId === DEV_FILTER_ALL
-                          ? "Усі деви"
+                          ? "Усі виконавці"
                           : selectedDevForFilter
                             ? `${selectedDevForFilter.firstName} ${selectedDevForFilter.lastName}`
-                            : "Оберіть DEV"}
+                            : "Оберіть виконавця"}
                       </span>
                       <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
                     </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <PopoverContent
+                      className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-1.5rem)] p-0"
+                      align="start"
+                    >
                       <Command>
-                        <CommandInput placeholder="Пошук DEV..." />
+                        <CommandInput placeholder="Пошук виконавця..." />
                         <CommandList>
                           {devsLoading ? (
                             <div className="space-y-2 p-2">
@@ -777,13 +780,13 @@ export function CallsPage() {
                               <CommandEmpty>Не знайдено</CommandEmpty>
                               <CommandGroup>
                                 <CommandItem
-                                  value="усі деви всі"
+                                  value="усі виконавці всі"
                                   onSelect={() => {
                                     setDevFilterId(DEV_FILTER_ALL);
                                     setDevFilterOpen(false);
                                   }}
                                 >
-                                  Усі деви
+                                  Усі виконавці
                                 </CommandItem>
                                 {(devs ?? []).map((d) => (
                                   <CommandItem
@@ -795,31 +798,7 @@ export function CallsPage() {
                                       setDevFilterOpen(false);
                                     }}
                                   >
-                                    <div className="flex flex-col gap-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-medium">
-                                          {d.firstName} {d.lastName}
-                                        </span>
-                                        {d.specialization && (
-                                          <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
-                                            {devSpecLabels[d.specialization] ?? d.specialization}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      {d.technologies.length > 0 && (
-                                        <div className="flex flex-wrap items-center gap-1">
-                                          {d.technologies.map((t) => (
-                                            <Badge
-                                              key={t.id}
-                                              variant="outline"
-                                              className="px-1.5 py-0 text-[10px]"
-                                            >
-                                              {t.name}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
+                                    <AssigneeOptionContent dev={d} />
                                   </CommandItem>
                                 ))}
                               </CommandGroup>
@@ -855,7 +834,7 @@ export function CallsPage() {
                         onSort={table.toggleSort}
                       />
                     )}
-                    {isSalesLike && <TableHead>DEV</TableHead>}
+                    {isSalesLike && <TableHead>{CALLER_COLUMN_LABEL}</TableHead>}
                     <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
@@ -910,9 +889,20 @@ export function CallsPage() {
                         )}
                         {isSalesLike && (
                           <TableCell>
-                            {call.caller
-                              ? `${call.caller.firstName} ${call.caller.lastName}`
-                              : "—"}
+                            {call.caller ? (
+                              <div className="flex flex-row flex-wrap items-center gap-1.5">
+                                <span className="font-medium">
+                                  {call.caller.firstName} {call.caller.lastName}
+                                </span>
+                                {call.caller.role ? (
+                                  <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+                                    {callerRoleShortEn(call.caller.role)}
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            ) : (
+                              "—"
+                            )}
                           </TableCell>
                         )}
                         <TableCell>

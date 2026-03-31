@@ -29,7 +29,7 @@ export function CallNextStageDialog({
         <DialogHeader>
           <DialogTitle>Наступний етап</DialogTitle>
           <DialogDescription>
-            Буде створено новий дзвінок з тими ж акаунтом, компанією, інтерв&apos;юером та DEV.
+            Буде створено новий дзвінок з тими ж акаунтом, компанією, інтерв&apos;юером та виконавцем (розробник або дизайнер).
             Попередній запис буде видалено з активного списку (історія в підсумках збережена).
           </DialogDescription>
         </DialogHeader>

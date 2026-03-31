@@ -52,6 +52,20 @@ export async function GET(request: Request) {
   let created = 0;
   let skipped = 0;
 
+  const allReceiverIds = new Set<string>();
+  for (const call of calls) {
+    allReceiverIds.add(call.callerId);
+    allReceiverIds.add(call.createdById);
+  }
+  const receiverUsers =
+    allReceiverIds.size > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: [...allReceiverIds] } },
+          select: { id: true, role: true },
+        })
+      : [];
+  const roleById = new Map(receiverUsers.map((u) => [u.id, u.role]));
+
   for (const call of calls) {
     const whenFull = formatNotificationDateTime(call.callStartedAt);
     const typeLabel = callTypeLabelUk(call.callType);
@@ -59,6 +73,9 @@ export async function GET(request: Request) {
     const receivers = [...new Set([call.callerId, call.createdById])];
     const startIso = call.callStartedAt.toISOString();
     for (const userId of receivers) {
+      if (roleById.get(userId) === "ADMIN") {
+        continue;
+      }
       // Час у ключі: після переносу дзвінка — нове нагадування; без дублікатів у межах одного слоту.
       const dedupeKey = `CALL_STARTING_SOON:${userId}:${call.id}:${startIso}`;
       const already = await prisma.notification.findFirst({

@@ -4,6 +4,7 @@ import {
   formatNotificationDateTime,
   notifVerbPast,
 } from "@/lib/notification-copy";
+import { callerRoleShortEn } from "@/lib/roles";
 
 /** Мінімальні поля дзвінка після create/update з include як у POST / PATCH. */
 export type CallAssignedNotifShape = {
@@ -13,7 +14,7 @@ export type CallAssignedNotifShape = {
   callStartedAt: Date;
   interviewerName: string;
   callerId: string;
-  caller: { firstName: string; lastName: string } | null;
+  caller: { firstName: string; lastName: string; role?: string } | null;
   account: { account: string } | null;
   createdBy: {
     firstName: string;
@@ -24,13 +25,14 @@ export type CallAssignedNotifShape = {
 };
 
 /**
- * Сповіщення новому DEV (CALL_ASSIGNED) і всім адмінам — той самий текст, що при створенні дзвінка.
+ * Сповіщення новому виконавцю (CALL_ASSIGNED) і всім адмінам — той самий текст, що при створенні дзвінка.
  */
 export async function notifyCallAssignedToDevAndAdmins(
   call: CallAssignedNotifShape
 ): Promise<void> {
   const salesName = `${call.createdBy?.firstName ?? ""} ${call.createdBy?.lastName ?? ""}`.trim();
   const devName = `${call.caller?.firstName ?? ""} ${call.caller?.lastName ?? ""}`.trim();
+  const callerRole = call.caller?.role ?? "DEV";
   const accountLabel = call.account?.account ?? "—";
   const when = formatNotificationDateTime(call.callStartedAt);
   const typeLabel = callTypeLabelUk(call.callType);
@@ -64,6 +66,10 @@ export async function notifyCallAssignedToDevAndAdmins(
     console.error("[notification] CALL_ASSIGNED", err);
   });
 
+  const adminAssigneePhrase = devName
+    ? `${devName} (${callerRoleShortEn(callerRole)})`
+    : `виконавцю (${callerRoleShortEn(callerRole)})`;
+
   await notifyAllAdmins({
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
@@ -71,7 +77,7 @@ export async function notifyCallAssignedToDevAndAdmins(
     telegramActorBadgeBgColor: call.createdBy?.badgeBgColor,
     telegramActorBadgeTextColor: call.createdBy?.badgeTextColor,
     message: [
-      `${salesName} ${notifVerbPast.assignedCall} дзвінок ${devName || "розробнику"}.`,
+      `${salesName} ${notifVerbPast.assignedCall} дзвінок ${adminAssigneePhrase}.`,
       `Компанія: ${call.company}`,
       `Тип: ${typeLabel}`,
       `Час: ${when}`,

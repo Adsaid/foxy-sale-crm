@@ -36,6 +36,7 @@ import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { CallDetailSheet } from "@/components/sheets/call-detail-sheet";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
+import { callerRoleShortEn } from "@/lib/roles";
 import type { CallEvent } from "@/types/crm";
 
 const callTypeLabels: Record<string, string> = {
@@ -142,7 +143,7 @@ export function SummaryPage() {
                   onSort={table.toggleSort}
                 />
               )}
-              <TableHead>DEV</TableHead>
+              <TableHead>Dev/Design</TableHead>
               {isAdmin && (
                 <SortableHeader
                   column="callCreatedAt"
@@ -155,7 +156,7 @@ export function SummaryPage() {
               <SortableHeader column="callStartedAt" label="Тривалість" sort={table.sort} onSort={table.toggleSort} />
               <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
               <TableHead>Наступний етап</TableHead>
-              <TableHead>DEV Фідбек</TableHead>
+              <TableHead>Фідбек виконавця</TableHead>
               {isAdmin && <TableHead className="w-14" />}
             </TableRow>
           </TableHeader>
@@ -204,7 +205,16 @@ export function SummaryPage() {
                     </TableCell>
                   )}
                   <TableCell>
-                    {s.callerFirstName} {s.callerLastName}
+                    <div className="flex flex-row flex-wrap items-center gap-1.5">
+                      <span className="font-medium">
+                        {s.callerFirstName} {s.callerLastName}
+                      </span>
+                      {s.callerRole ? (
+                        <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+                          {callerRoleShortEn(s.callerRole)}
+                        </Badge>
+                      ) : null}
+                    </div>
                   </TableCell>
                   {isAdmin && (
                     <TableCell>

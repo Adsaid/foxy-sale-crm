@@ -3,10 +3,10 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   email: string;
-  role: "ADMIN" | "DEV" | "SALES";
+  role: "ADMIN" | "DEV" | "DESIGNER" | "SALES";
   /** Відсутність поля трактується як APPROVED (застарілі сесії). */
   accountStatus?: "APPROVED" | "PENDING";
-  specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | null;
+  specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | "UX_UI" | "UI" | "UX" | null;
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;
   technologies?: Technology[];
@@ -20,6 +20,7 @@ export interface AuthResponse {
 export interface Technology {
   id: string;
   name: string;
+  stackAudience?: "DEV" | "DESIGNER";
 }
 
 export interface DashboardUser {

@@ -37,6 +37,7 @@ import { toast } from "sonner";
 const roleLabels: Record<string, string> = {
   SALES: "Сейл",
   DEV: "Розробник",
+  DESIGNER: "Дизайнер",
 };
 
 export function UsersRequestsTab() {
@@ -70,7 +71,7 @@ export function UsersRequestsTab() {
     }
   }
 
-  function handleCreateInvite(data: { email: string; role: "SALES" | "DEV" }) {
+  function handleCreateInvite(data: { email: string; role: "SALES" | "DEV" | "DESIGNER" }) {
     createInv.mutate(data, {
       onSuccess: () => setInviteOpen(false),
     });

@@ -6,7 +6,7 @@ import { sanitizeTimeZone } from "@/lib/stats-buckets-tz";
 import { resolveCallStatsFilters } from "@/lib/stats-calls-request";
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["SALES", "DEV", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
   if (error) return error;
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

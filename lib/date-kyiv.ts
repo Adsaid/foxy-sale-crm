@@ -17,7 +17,7 @@ export function formatNotificationDateTime(d: Date | string): string {
   });
 }
 
-/** Таблиця дзвінків, прев’ю, конфлікти DEV. */
+/** Таблиця дзвінків, прев’ю, конфлікти виконавців. */
 export function formatCallTableDateTime(d: Date | string): string {
   return asDate(d).toLocaleString("uk-UA", {
     timeZone: CRM_TIMEZONE,

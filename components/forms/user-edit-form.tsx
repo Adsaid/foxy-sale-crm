@@ -32,7 +32,10 @@ interface UserEditFormProps {
 }
 
 export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
-  const { data: technologies } = useTechnologies();
+  const techAudience = user.role === "DESIGNER" ? "DESIGNER" : "DEV";
+  const { data: technologies } = useTechnologies(techAudience, {
+    enabled: user.role === "DEV" || user.role === "DESIGNER",
+  });
 
   const [form, setForm] = useState({
     firstName: user.firstName,
@@ -82,7 +85,7 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
         value={form.email}
         onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
       />
-      {user.role === "DEV" && (
+      {(user.role === "DEV" || user.role === "DESIGNER") && (
         <>
           <Select
             value={form.specialization}
@@ -92,24 +95,34 @@ export function UserEditForm({ user, isPending, onSubmit }: UserEditFormProps) {
               <SelectValue placeholder="Спеціалізація" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="FRONTEND">Frontend</SelectItem>
-              <SelectItem value="BACKEND">Backend</SelectItem>
-              <SelectItem value="FULLSTACK">Fullstack</SelectItem>
+              {user.role === "DEV" ? (
+                <>
+                  <SelectItem value="FRONTEND">Frontend</SelectItem>
+                  <SelectItem value="BACKEND">Backend</SelectItem>
+                  <SelectItem value="FULLSTACK">Fullstack</SelectItem>
+                </>
+              ) : (
+                <>
+                  <SelectItem value="UX_UI">UX/UI</SelectItem>
+                  <SelectItem value="UI">UI</SelectItem>
+                  <SelectItem value="UX">UX</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
           <div className="space-y-2">
             <p className="text-sm font-medium">Технології</p>
             <div className="flex flex-wrap gap-1.5">
               {technologies?.map((t) => (
-                <Badge
-                  key={t.id}
-                  variant={form.technologyIds.includes(t.id) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => toggleTechnology(t.id)}
-                >
-                  {t.name}
-                </Badge>
-              ))}
+                  <Badge
+                    key={t.id}
+                    variant={form.technologyIds.includes(t.id) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleTechnology(t.id)}
+                  >
+                    {t.name}
+                  </Badge>
+                ))}
             </div>
           </div>
         </>
