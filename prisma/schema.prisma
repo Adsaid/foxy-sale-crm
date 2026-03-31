@@ -191,7 +191,8 @@ model CallEvent {
 
 model CallSummary {
   id               String      @id @default(auto()) @map("_id") @db.ObjectId
-  callEventId      String?     @unique @db.ObjectId
+  /** Без @unique: Mongo unique без sparse не дозволяє кілька null (видалення дзвінків). */
+  callEventId      String?     @db.ObjectId
   company          String
   accountName      String
   accountType      AccountType
@@ -217,6 +218,8 @@ model CallSummary {
   /** Масив записів переносу: з якого часу на який, хто, причина (хронологія). */
   transferHistory   Json?
   createdAt        DateTime    @default(now())
+
+  @@index([callEventId])
 }
 
 model Notification {

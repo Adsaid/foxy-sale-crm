@@ -58,7 +58,7 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const summary = await prisma.callSummary.findUnique({
+  const summary = await prisma.callSummary.findFirst({
     where: { callEventId: id },
     select: {
       isTransferred: true,
@@ -207,7 +207,7 @@ export async function PATCH(
   const shouldNotifyCancelled =
     body.status === "CANCELLED" && existing.status !== "CANCELLED";
 
-  const existingSummary = await prisma.callSummary.findUnique({
+  const existingSummary = await prisma.callSummary.findFirst({
     where: { callEventId: updated.id },
     select: { id: true, transferHistory: true },
   });
@@ -252,40 +252,46 @@ export async function PATCH(
         }
       : {};
 
-    await prisma.callSummary.upsert({
-      where: { callEventId: updated.id },
-      update: {
-        ...baseSummaryData,
-        ...transferFieldsOnMark,
-      },
-      create: {
-        callEventId: updated.id,
-        ...baseSummaryData,
-        ...(markTransferred
-          ? {
-              isTransferred: true,
-              transferredById: user!.id,
-              transferredAt: new Date(),
-              transferredFromAt: existing.callStartedAt,
-              transferredToAt: updated.callStartedAt,
-              transferredReason: transferredReason,
-              transferHistory: appendTransferEntry(null, {
-                fromAt: existing.callStartedAt,
-                toAt: updated.callStartedAt,
-                byId: user!.id,
-                reason: transferredReason,
-              }),
-            }
-          : {
-              isTransferred: false,
-              transferredById: null,
-              transferredAt: null,
-              transferredFromAt: null,
-              transferredToAt: null,
-              transferredReason: null,
+    const summaryCreatePayload = {
+      callEventId: updated.id,
+      ...baseSummaryData,
+      ...(markTransferred
+        ? {
+            isTransferred: true,
+            transferredById: user!.id,
+            transferredAt: new Date(),
+            transferredFromAt: existing.callStartedAt,
+            transferredToAt: updated.callStartedAt,
+            transferredReason: transferredReason,
+            transferHistory: appendTransferEntry(null, {
+              fromAt: existing.callStartedAt,
+              toAt: updated.callStartedAt,
+              byId: user!.id,
+              reason: transferredReason,
             }),
-      },
-    });
+          }
+        : {
+            isTransferred: false,
+            transferredById: null,
+            transferredAt: null,
+            transferredFromAt: null,
+            transferredToAt: null,
+            transferredReason: null,
+          }),
+    };
+    if (existingSummary) {
+      await prisma.callSummary.update({
+        where: { id: existingSummary.id },
+        data: {
+          ...baseSummaryData,
+          ...transferFieldsOnMark,
+        },
+      });
+    } else {
+      await prisma.callSummary.create({
+        data: summaryCreatePayload,
+      });
+    }
   }
 
   if (markTransferred) {
