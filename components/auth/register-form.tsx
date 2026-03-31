@@ -232,6 +232,7 @@ export function RegisterForm({
                     <FormLabel>Роль</FormLabel>
                     <Select
                       disabled={!!inviteMeta}
+                      value={field.value}
                       onValueChange={(val) => {
                         field.onChange(val);
                         if (val !== "DEV" && val !== "DESIGNER") {
@@ -243,7 +244,6 @@ export function RegisterForm({
                           form.setValue("badgeTextColor", "#3730A3");
                         }
                       }}
-                      defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
@@ -271,10 +271,7 @@ export function RegisterForm({
                   render={({ field }) => (
                     <FormItem className="w-full min-w-0">
                       <FormLabel>Спеціалізація</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Оберіть спеціалізацію" />
@@ -299,10 +296,7 @@ export function RegisterForm({
                   render={({ field }) => (
                     <FormItem className="w-full min-w-0">
                       <FormLabel>Спеціалізація</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Оберіть спеціалізацію" />

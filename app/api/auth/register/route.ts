@@ -57,7 +57,11 @@ export async function POST(request: Request) {
       effectiveRole = invitation.role;
       accountStatus = "APPROVED";
     }
-    /** Відкрита реєстрація: accountStatus PENDING; роль обмежена схемою zod (ADMIN лише в dev). */
+    /** Адмін реєструється лише в dev (схема); одразу активний, без очікування схвалення. */
+    if (effectiveRole === "ADMIN") {
+      accountStatus = "APPROVED";
+    }
+    /** Відкрита реєстрація (не запрошення): SALES/DEV/DESIGNER — PENDING до схвалення адміном. */
 
     const {
       firstName,
