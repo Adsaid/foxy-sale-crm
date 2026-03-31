@@ -5,11 +5,14 @@ import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
+  const { resolvedTheme } = useTheme()
+  /** Немає ThemeProvider → лише light; інакше Sonner «dark» при темній ОС ламає контраст на світлому popover. */
+  const toastTheme: ToasterProps["theme"] =
+    resolvedTheme === "dark" ? "dark" : "light"
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={toastTheme}
       className="toaster group"
       icons={{
         success: (
@@ -38,7 +41,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast:
+            "cn-toast !border-border !bg-popover !text-popover-foreground shadow-md",
+          title: "!text-popover-foreground",
+          description: "!text-muted-foreground",
         },
       }}
       {...props}
