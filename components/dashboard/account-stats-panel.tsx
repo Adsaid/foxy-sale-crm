@@ -531,6 +531,11 @@ function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
               )}
             >
               <PieChart>
+                <defs>
+                  <filter id="accountTypePieRingShadow" x="-35%" y="-35%" width="170%" height="170%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.22" />
+                  </filter>
+                </defs>
                 <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Pie
                   data={pieData}
@@ -542,9 +547,16 @@ function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
                   outerRadius="74%"
                   paddingAngle={pieData.length > 1 ? 2.5 : 0}
                   strokeWidth={0}
+                  style={{ filter: "url(#accountTypePieRingShadow)" }}
                 >
                   {pieData.map((d) => (
-                    <Cell key={d.key} fill={d.fill} />
+                    <Cell
+                      key={d.key}
+                      fill={d.fill}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={1.5}
+                      style={{ filter: "drop-shadow(0 2px 4px rgba(15,23,42,0.16))" }}
+                    />
                   ))}
                   <Label
                     content={({ viewBox }) => {
@@ -626,6 +638,11 @@ function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
               )}
             >
               <PieChart>
+                <defs>
+                  <filter id="accountStatusPieRingShadow" x="-35%" y="-35%" width="170%" height="170%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.22" />
+                  </filter>
+                </defs>
                 <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Pie
                   data={pieData}
@@ -637,9 +654,16 @@ function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
                   outerRadius="74%"
                   paddingAngle={pieData.length > 1 ? 2.5 : 0}
                   strokeWidth={0}
+                  style={{ filter: "url(#accountStatusPieRingShadow)" }}
                 >
                   {pieData.map((d) => (
-                    <Cell key={d.key} fill={d.fill} />
+                    <Cell
+                      key={d.key}
+                      fill={d.fill}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={1.5}
+                      style={{ filter: "drop-shadow(0 2px 4px rgba(15,23,42,0.16))" }}
+                    />
                   ))}
                   <Label
                     content={({ viewBox }) => {
@@ -1293,8 +1317,17 @@ export function AccountStatsPanel({
         <Select
           value={preset}
           onValueChange={(v) => {
-            setPreset(v as CallStatsPreset);
-            if (v !== "custom") {
+            const nextPreset = v as CallStatsPreset;
+            setPreset(nextPreset);
+            if (nextPreset === "custom") {
+              const thisWeekRange = callStatsRangeFromPreset("this_week", new Date(), null);
+              if (thisWeekRange.from && thisWeekRange.to) {
+                setCustomRange({
+                  from: new Date(thisWeekRange.from),
+                  to: new Date(thisWeekRange.to),
+                });
+              }
+            } else {
               setCustomOpen(false);
             }
           }}
