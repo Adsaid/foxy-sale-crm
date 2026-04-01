@@ -86,9 +86,11 @@ export async function buildCallEventDetailFromSummary(
   });
 
   const status =
-    summary.callEndedAt != null
-      ? "COMPLETED"
-      : (call?.status ?? "SCHEDULED");
+    summary.outcome === "CANCELLED"
+      ? "CANCELLED"
+      : summary.callEndedAt != null
+        ? "COMPLETED"
+        : (call?.status ?? "SCHEDULED");
 
   const account: CallEvent["account"] = call
     ? mapAccount(call.account)

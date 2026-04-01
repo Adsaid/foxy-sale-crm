@@ -92,6 +92,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
+import { ensureUrlProtocol } from "@/lib/normalize-call-link";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -105,6 +106,7 @@ const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
   PENDING: "Очікує",
+  CANCELLED: "Скасовано",
 };
 
 const statusLabels: Record<string, string> = {
@@ -197,7 +199,7 @@ function TodayCallCard({
         }
       : undefined;
 
-  const linkHref = call.callLink?.trim();
+  const linkHref = call.callLink?.trim() ? ensureUrlProtocol(call.callLink.trim()) : undefined;
   const showSalary =
     call.salaryFrom != null || call.salaryTo != null;
   const showMetaBlock = !!(linkHref || showSalary);
@@ -916,7 +918,7 @@ export function CallsPage() {
                             variant={
                               call.outcome === "SUCCESS"
                                 ? "default"
-                                : call.outcome === "UNSUCCESSFUL"
+                                : call.outcome === "UNSUCCESSFUL" || call.outcome === "CANCELLED"
                                   ? "destructive"
                                   : "outline"
                             }

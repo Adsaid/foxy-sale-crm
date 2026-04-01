@@ -55,6 +55,7 @@ const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
   PENDING: "Очікує",
+  CANCELLED: "Скасовано",
 };
 
 interface CallEditFormProps {
@@ -280,11 +281,20 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
           <Select
             value={form.status}
             onValueChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                status: v as CallStatus,
-                outcome: v === "COMPLETED" ? f.outcome : v === "SCHEDULED" ? "PENDING" : f.outcome,
-              }))
+              setForm((f) => {
+                const status = v as CallStatus;
+                let outcome = f.outcome;
+                if (status === "CANCELLED") outcome = "CANCELLED";
+                else if (status === "SCHEDULED") outcome = "PENDING";
+                else if (status === "COMPLETED") {
+                  const ok =
+                    f.outcome === "SUCCESS" ||
+                    f.outcome === "UNSUCCESSFUL" ||
+                    f.outcome === "PENDING";
+                  if (!ok) outcome = "PENDING";
+                }
+                return { ...f, status, outcome };
+              })
             }
           >
             <SelectTrigger>
@@ -299,23 +309,27 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium">Результат дзвінка</label>
-          <Select
-            value={form.outcome}
-            onValueChange={(v) => setForm((f) => ({ ...f, outcome: v as CallOutcome }))}
-            disabled={!isCompleted}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(outcomeLabels).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {!isCompleted && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Успіх / неуспіх можна вибрати лише після статусу «Завершено» (SALES).
+          {isCompleted ? (
+            <Select
+              value={form.outcome}
+              onValueChange={(v) => setForm((f) => ({ ...f, outcome: v as CallOutcome }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(outcomeLabels)
+                  .filter(([k]) => k !== "CANCELLED")
+                  .map(([k, v]) => (
+                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {isCancelled
+                ? "Результат «Скасовано» встановлюється автоматично."
+                : "Успіх / неуспіх можна вибрати лише після статусу «Завершено»."}
             </p>
           )}
         </div>

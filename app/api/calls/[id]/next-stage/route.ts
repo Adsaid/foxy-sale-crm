@@ -102,6 +102,7 @@ export async function POST(
       movingToNextStage: true,
       nextStep: callType as CallStage,
       nextStepDate: new Date(callStartedAt),
+      callerId: existing.callerId,
     },
   });
 

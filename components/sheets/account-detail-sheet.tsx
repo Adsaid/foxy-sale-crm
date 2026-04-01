@@ -13,6 +13,7 @@ import { ExternalLink, UserCircle, Link2, FileText } from "lucide-react";
 import type { Account } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import { TextWithLinks } from "@/components/ui/text-with-links";
+import { ensureUrlProtocol } from "@/lib/normalize-call-link";
 import { AccountOperationalStatusBadge } from "@/components/ui/account-operational-status-badge";
 import {
   accountDesktopTypeLabelUk,
@@ -175,7 +176,7 @@ export function AccountDetailSheet({
                 {account.profileLinks.map((link, i) => (
                   <li key={i}>
                     <a
-                      href={link}
+                      href={ensureUrlProtocol(link)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-start gap-2 break-all text-base font-medium text-primary underline-offset-4 hover:underline"

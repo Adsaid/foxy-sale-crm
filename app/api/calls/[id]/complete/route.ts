@@ -84,6 +84,7 @@ export async function PATCH(
       callerFirstName: updated.caller?.firstName ?? "",
       callerLastName: updated.caller?.lastName ?? "",
       callerRole: updated.caller?.role ?? null,
+      callerId: updated.callerId,
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
       callEndedAt: endedAt,

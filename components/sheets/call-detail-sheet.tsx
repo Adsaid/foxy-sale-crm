@@ -23,6 +23,7 @@ import {
 import { TextWithLinks } from "@/components/ui/text-with-links";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
 import { assigneeFieldLabelEn } from "@/lib/roles";
+import { ensureUrlProtocol } from "@/lib/normalize-call-link";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -42,6 +43,7 @@ const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
   PENDING: "Очікує",
+  CANCELLED: "Скасовано",
 };
 
 interface CallDetailSheetProps {
@@ -182,7 +184,7 @@ export function CallDetailSheet({
                 variant={
                   call.outcome === "SUCCESS"
                     ? "default"
-                    : call.outcome === "UNSUCCESSFUL"
+                    : call.outcome === "UNSUCCESSFUL" || call.outcome === "CANCELLED"
                       ? "destructive"
                       : "outline"
                 }
@@ -244,7 +246,7 @@ export function CallDetailSheet({
                                     .map((link, i) => (
                                       <li key={i}>
                                         <a
-                                          href={link}
+                                          href={ensureUrlProtocol(link)}
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="inline-flex items-start gap-2 break-all text-sm font-medium text-primary underline-offset-4 hover:underline"
@@ -412,7 +414,7 @@ export function CallDetailSheet({
             {call.callLink && (
               <TextBlock title="Посилання на дзвінок" icon={Link2} variant="accent">
                 <a
-                  href={call.callLink}
+                  href={ensureUrlProtocol(call.callLink!)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-start gap-2 break-all text-base font-medium text-primary underline-offset-4 hover:underline"

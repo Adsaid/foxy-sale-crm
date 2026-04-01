@@ -115,7 +115,13 @@ export async function PATCH(
         { status: 400 },
       );
     }
-    if (existing.status !== "SCHEDULED") {
+    if (typeof body.callerId !== "string" || !body.callerId.trim()) {
+      return NextResponse.json({ error: "Некоректний callerId" }, { status: 400 });
+    }
+    effectiveCallerId = body.callerId.trim();
+    const callerIdChanged = effectiveCallerId !== existing.callerId;
+    /** Зміна виконавця лише коли після PATCH статус «Заплановано» (у тому ж запиті можна повернути зі скасованого). */
+    if (callerIdChanged && statusAfter !== "SCHEDULED") {
       return NextResponse.json(
         {
           error:
@@ -124,11 +130,7 @@ export async function PATCH(
         { status: 400 },
       );
     }
-    if (typeof body.callerId !== "string" || !body.callerId.trim()) {
-      return NextResponse.json({ error: "Некоректний callerId" }, { status: 400 });
-    }
-    effectiveCallerId = body.callerId.trim();
-    if (effectiveCallerId !== existing.callerId) {
+    if (callerIdChanged) {
       const devUser = await prisma.user.findUnique({
         where: { id: effectiveCallerId },
         select: { id: true, role: true },
@@ -178,6 +180,12 @@ export async function PATCH(
       { status: 400 }
     );
   }
+  if (body.outcome === "CANCELLED" && statusAfter !== "CANCELLED") {
+    return NextResponse.json(
+      { error: "Результат «Скасовано» встановлюється автоматично при скасуванні дзвінка" },
+      { status: 400 },
+    );
+  }
 
   const transitioningToCompleted =
     statusAfter === "COMPLETED" && existing.status !== "COMPLETED";
@@ -189,11 +197,15 @@ export async function PATCH(
   const normalizedCallLink =
     body.callLink !== undefined ? normalizeCallLinkForSave(body.callLink) : undefined;
 
+  const forceCancelledOutcome = statusAfter === "CANCELLED";
+
   const updated = await prisma.callEvent.update({
     where: { id },
     data: {
       ...(body.status !== undefined && { status: body.status }),
-      ...(body.outcome !== undefined && { outcome: body.outcome }),
+      ...(forceCancelledOutcome
+        ? { outcome: "CANCELLED" as const }
+        : body.outcome !== undefined && { outcome: body.outcome }),
       ...(body.callStartedAt !== undefined && { callStartedAt: new Date(body.callStartedAt) }),
       ...(body.movingToNextStage !== undefined && { movingToNextStage: body.movingToNextStage }),
       ...(body.nextStep !== undefined && { nextStep: body.nextStep }),
@@ -220,7 +232,11 @@ export async function PATCH(
     select: { id: true, transferHistory: true },
   });
 
-  const shouldUpsertSummary = updated.status === "COMPLETED" || markTransferred || !!existingSummary;
+  const shouldUpsertSummary =
+    updated.status === "COMPLETED" ||
+    updated.status === "CANCELLED" ||
+    markTransferred ||
+    !!existingSummary;
 
   if (shouldUpsertSummary) {
     const baseSummaryData = {
@@ -231,6 +247,7 @@ export async function PATCH(
       callerFirstName: updated.caller?.firstName ?? "",
       callerLastName: updated.caller?.lastName ?? "",
       callerRole: updated.caller?.role ?? null,
+      callerId: updated.callerId,
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
       callEndedAt: updated.callEndedAt,

@@ -50,6 +50,7 @@ const callTypeLabels: Record<string, string> = {
 const outcomeLabels: Record<string, string> = {
   SUCCESS: "Успіх",
   UNSUCCESSFUL: "Неуспіх",
+  CANCELLED: "Скасовано",
   PENDING: "Очікує",
 };
 
@@ -240,7 +241,7 @@ export function SummaryPage() {
                       variant={
                         s.outcome === "SUCCESS"
                           ? "default"
-                          : s.outcome === "UNSUCCESSFUL"
+                          : s.outcome === "UNSUCCESSFUL" || s.outcome === "CANCELLED"
                             ? "destructive"
                             : "outline"
                       }

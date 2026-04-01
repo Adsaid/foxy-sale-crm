@@ -83,6 +83,7 @@ enum CallOutcome {
   SUCCESS
   UNSUCCESSFUL
   PENDING
+  CANCELLED
 }
 
 enum AccountStatus {
@@ -210,6 +211,7 @@ model CallSummary {
   callerFirstName  String
   callerLastName   String
   callerRole       Role?
+  callerId         String?     @db.ObjectId
   interviewerName  String
   callStartedAt    DateTime
   callEndedAt      DateTime?

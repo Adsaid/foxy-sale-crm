@@ -11,3 +11,11 @@ export function normalizeCallLinkForSave(raw: unknown): string | null {
   if (/^[a-z][\w+.-]*:/i.test(t)) return t;
   return `https://${t.replace(/^\/+/, "")}`;
 }
+
+/** Додає https:// до URL без протоколу (для відображення / href старих даних). */
+export function ensureUrlProtocol(url: string): string {
+  const t = url.trim();
+  if (!t) return t;
+  if (/^[a-z][\w+.-]*:/i.test(t)) return t;
+  return `https://${t.replace(/^\/+/, "")}`;
+}

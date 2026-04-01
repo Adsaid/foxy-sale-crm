@@ -17,7 +17,7 @@ export type AccountDesktopType =
 export type CallType = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStage = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
-export type CallOutcome = "SUCCESS" | "UNSUCCESSFUL" | "PENDING";
+export type CallOutcome = "SUCCESS" | "UNSUCCESSFUL" | "PENDING" | "CANCELLED";
 
 export interface Account {
   id: string;
@@ -254,6 +254,7 @@ export interface CallSummary {
   callerFirstName: string;
   callerLastName: string;
   callerRole?: "DEV" | "DESIGNER" | null;
+  callerId?: string | null;
   interviewerName: string;
   callStartedAt: string;
   callEndedAt?: string | null;
