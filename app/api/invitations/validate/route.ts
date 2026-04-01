@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
       email: true,
       role: true,
       usedAt: true,
+      teamId: true,
+      team: { select: { name: true } },
     },
   });
 
@@ -27,5 +29,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     email: invitation.email,
     role: invitation.role,
+    teamId: invitation.teamId ?? null,
+    teamName: invitation.team?.name ?? null,
   });
 }

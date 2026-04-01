@@ -5,6 +5,7 @@ import { signToken, setAuthCookie } from "@/lib/auth";
 import { loginSchema } from "@/lib/validations/auth";
 import { normalizeEmail } from "@/lib/normalize-email";
 import { effectiveAccountStatus } from "@/lib/account-status";
+import { effectiveTeamStatus } from "@/lib/team-status";
 
 export async function POST(request: Request) {
   try {
@@ -44,6 +45,17 @@ export async function POST(request: Request) {
     const token = await signToken(user.id);
     await setAuthCookie(token);
 
+    const team = user.teamId
+      ? await prisma.team.findUnique({
+          where: { id: user.teamId },
+          select: { status: true },
+        })
+      : null;
+    const teamStatus = effectiveTeamStatus(team);
+    const pendingApproval =
+      effectiveAccountStatus(user) === "PENDING" ||
+      (user.role !== "SUPER_ADMIN" && teamStatus === "PENDING");
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -51,7 +63,10 @@ export async function POST(request: Request) {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        teamId: user.teamId ?? null,
         accountStatus: effectiveAccountStatus(user),
+        teamStatus,
+        pendingApproval,
         specialization: user.specialization,
         badgeBgColor: user.badgeBgColor,
         badgeTextColor: user.badgeTextColor,

@@ -24,6 +24,7 @@ import {
   formatCallerConflictMessageUk,
 } from "@/lib/call-caller-conflict";
 import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 const callInclude = {
   account: true,
@@ -41,15 +42,17 @@ const callInclude = {
 } as const;
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
-  const call = await prisma.callEvent.findUnique({
-    where: { id },
+  const call = await prisma.callEvent.findFirst({
+    where: { id, teamId: tg.teamId },
     include: callInclude,
   });
 
@@ -64,7 +67,7 @@ export async function GET(
   }
 
   const summary = await prisma.callSummary.findFirst({
-    where: { callEventId: id },
+    where: { callEventId: id, teamId: tg.teamId },
     select: {
       isTransferred: true,
       transferredFromAt: true,
@@ -84,8 +87,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
   const body = await request.json();
@@ -93,7 +98,7 @@ export async function PATCH(
   const transferredReason =
     typeof body.transferredReason === "string" ? body.transferredReason.trim() : null;
 
-  const existing = await prisma.callEvent.findUnique({ where: { id } });
+  const existing = await prisma.callEvent.findFirst({ where: { id, teamId: tg.teamId } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -133,9 +138,13 @@ export async function PATCH(
     if (callerIdChanged) {
       const devUser = await prisma.user.findUnique({
         where: { id: effectiveCallerId },
-        select: { id: true, role: true },
+        select: { id: true, role: true, teamId: true },
       });
-      if (!devUser || (devUser.role !== "DEV" && devUser.role !== "DESIGNER")) {
+      if (
+        !devUser ||
+        (devUser.role !== "DEV" && devUser.role !== "DESIGNER") ||
+        devUser.teamId !== tg.teamId
+      ) {
         return NextResponse.json(
           { error: "Обраний користувач не знайдений або не є виконавцем" },
           { status: 400 },
@@ -157,6 +166,7 @@ export async function PATCH(
     const rangeEnd = new Date(effectiveStart.getTime() + CALL_SLOT_MS);
     const callerConflict = await findCallerConflictWithOtherSales(prisma, {
       callerId: effectiveCallerId,
+      teamId: tg.teamId!,
       rangeStart: effectiveStart,
       rangeEnd,
       actingCreatedById: existing.createdById,
@@ -228,7 +238,7 @@ export async function PATCH(
     body.status === "CANCELLED" && existing.status !== "CANCELLED";
 
   const existingSummary = await prisma.callSummary.findFirst({
-    where: { callEventId: updated.id },
+    where: { callEventId: updated.id, teamId: tg.teamId },
     select: { id: true, transferHistory: true },
   });
 
@@ -240,6 +250,7 @@ export async function PATCH(
 
   if (shouldUpsertSummary) {
     const baseSummaryData = {
+      teamId: tg.teamId,
       company: updated.company,
       accountName: updated.account?.account ?? "",
       accountType: updated.account?.type ?? "UPWORK",
@@ -346,6 +357,7 @@ export async function PATCH(
     };
     await createNotification({
       userId: updated.callerId,
+      teamId: tg.teamId,
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
@@ -355,6 +367,7 @@ export async function PATCH(
       payload: reschedulePayload,
     }).catch((err) => console.error("[notification] CALL_RESCHEDULED", err));
     await notifyAllAdmins({
+      teamId: tg.teamId,
       type: "CALL_RESCHEDULED",
       title: `Дзвінок перенесено — ${updated.company}`,
       message: rescheduleMsg,
@@ -385,6 +398,7 @@ export async function PATCH(
     };
     await createNotification({
       userId: updated.callerId,
+      teamId: tg.teamId,
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
@@ -394,6 +408,7 @@ export async function PATCH(
       payload: cancelledPayload,
     }).catch((err) => console.error("[notification] CALL_CANCELLED", err));
     await notifyAllAdmins({
+      teamId: tg.teamId,
       type: "CALL_CANCELLED",
       title: `Дзвінок скасовано — ${updated.company}`,
       message: cancelledMsg,
@@ -434,6 +449,7 @@ export async function PATCH(
     };
     await createNotification({
       userId: existing.callerId,
+      teamId: tg.teamId,
       type: "CALL_DEV_REASSIGNED_AWAY",
       title: `Дзвінок перепризначено — ${updated.company}`,
       message: awayMessage,
@@ -458,6 +474,7 @@ export async function PATCH(
     const typeLabel = callTypeLabelUk(updated.callType);
     await createNotification({
       userId: updated.callerId,
+      teamId: tg.teamId,
       type: "CALL_LINK_UPDATED",
       title: `Посилання оновлено — ${updated.company}`,
       telegramActorName: salesName || undefined,
@@ -483,15 +500,17 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
 
-  const existing = await prisma.callEvent.findUnique({ where: { id } });
+  const existing = await prisma.callEvent.findFirst({ where: { id, teamId: tg.teamId } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -504,7 +523,7 @@ export async function DELETE(
   }
 
   await prisma.callSummary.updateMany({
-    where: { callEventId: id },
+    where: { callEventId: id, teamId: tg.teamId },
     data: { callEventId: null },
   });
 

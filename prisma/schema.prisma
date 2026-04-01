@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
   DEV
   DESIGNER
@@ -91,6 +92,11 @@ enum AccountStatus {
   PENDING
 }
 
+enum TeamStatus {
+  APPROVED
+  PENDING
+}
+
 model User {
   id              String          @id @default(auto()) @map("_id") @db.ObjectId
   firstName       String
@@ -98,6 +104,8 @@ model User {
   email           String          @unique
   password        String
   role            Role
+  teamId          String?         @db.ObjectId
+  team            Team?           @relation(fields: [teamId], references: [id])
   /** Доступ до CRM: PENDING — лише після схвалення адміна (самореєстрація без запрошення). */
   accountStatus   AccountStatus   @default(APPROVED)
   specialization  Specialization?
@@ -112,6 +120,8 @@ model User {
   createdCalls           CallEvent[]           @relation("CreatedBySales")
   salesAccountReports    SalesAccountReport[]  @relation("SalesSubmittedReports")
   invitationsCreated     Invitation[]         @relation("InvitationCreatedBy")
+
+  @@index([teamId, role])
 }
 
 model Invitation {
@@ -119,6 +129,8 @@ model Invitation {
   code         String    @unique
   email        String
   role         Role
+  teamId       String?   @db.ObjectId
+  team         Team?     @relation(fields: [teamId], references: [id])
   createdById  String    @db.ObjectId
   createdBy    User      @relation("InvitationCreatedBy", fields: [createdById], references: [id])
   createdAt    DateTime  @default(now())
@@ -126,11 +138,14 @@ model Invitation {
   usedByUserId String?   @db.ObjectId
 
   @@index([createdById])
+  @@index([teamId, createdAt])
 }
 
 model SalesAccountReport {
   id                 String   @id @default(auto()) @map("_id") @db.ObjectId
   createdAt          DateTime @default(now())
+  teamId             String?  @db.ObjectId
+  team               Team?    @relation(fields: [teamId], references: [id])
   submittedById      String   @db.ObjectId
   submittedBy        User     @relation("SalesSubmittedReports", fields: [submittedById], references: [id])
   weekYear           Int
@@ -139,7 +154,7 @@ model SalesAccountReport {
   accountsSnapshot   Json
   telegramText       String?
 
-  @@index([submittedById, createdAt])
+  @@index([teamId, submittedById, createdAt])
   @@index([weekYear, weekNumber])
 }
 
@@ -163,16 +178,22 @@ model Account {
   desktopType         AccountDesktopType?
   contactsCount       Int?
   profileViewsCount   Int?
+  teamId              String?                   @db.ObjectId
+  team                Team?                     @relation(fields: [teamId], references: [id])
   ownerId             String                    @db.ObjectId
   owner               User                      @relation(fields: [ownerId], references: [id])
   calls               CallEvent[]
   /** Дата створення акаунта на платформі (окремо від createdAt запису в CRM). */
   accountCreatedAt    DateTime?
   createdAt           DateTime                  @default(now())
+
+  @@index([teamId, ownerId])
 }
 
 model CallEvent {
   id                   String       @id @default(auto()) @map("_id") @db.ObjectId
+  teamId               String?      @db.ObjectId
+  team                 Team?        @relation(fields: [teamId], references: [id])
   accountId            String       @db.ObjectId
   account              Account      @relation(fields: [accountId], references: [id])
   company              String
@@ -198,10 +219,15 @@ model CallEvent {
   description          String?
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+
+  @@index([teamId, createdById, callStartedAt])
+  @@index([teamId, callerId, callStartedAt])
 }
 
 model CallSummary {
   id               String      @id @default(auto()) @map("_id") @db.ObjectId
+  teamId           String?     @db.ObjectId
+  team             Team?       @relation(fields: [teamId], references: [id])
   /** Без @unique: Mongo unique без sparse не дозволяє кілька null (видалення дзвінків). */
   callEventId      String?     @db.ObjectId
   company          String
@@ -233,11 +259,14 @@ model CallSummary {
   transferHistory   Json?
   createdAt        DateTime    @default(now())
 
+  @@index([teamId, callStartedAt])
   @@index([callEventId])
 }
 
 model Notification {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String?  @db.ObjectId
+  team      Team?    @relation(fields: [teamId], references: [id])
   userId    String   @db.ObjectId
   type      String
   title     String
@@ -247,7 +276,7 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime @default(now())
 
-  @@index([userId, createdAt])
+  @@index([teamId, userId, createdAt])
   @@index([dedupeKey])
 }
 
@@ -257,4 +286,22 @@ model TelegramLinkToken {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Team {
+  id                  String              @id @default(auto()) @map("_id") @db.ObjectId
+  name                String
+  status              TeamStatus          @default(APPROVED)
+  createdByUserId     String?             @db.ObjectId
+  createdByName       String?
+  createdByEmail      String?
+  approvedAt          DateTime?
+  createdAt           DateTime            @default(now())
+  users               User[]
+  accounts            Account[]
+  calls               CallEvent[]
+  summaries           CallSummary[]
+  salesAccountReports SalesAccountReport[]
+  invitations         Invitation[]
+  notifications       Notification[]
 }

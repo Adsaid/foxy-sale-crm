@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
 
   const { searchParams } = new URL(request.url);

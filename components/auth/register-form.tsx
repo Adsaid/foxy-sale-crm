@@ -39,6 +39,7 @@ import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
 import { cn } from "@/lib/utils";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { invitationPublicService } from "@/services/invitation-service";
+import { teamService } from "@/services/team-service";
 
 const SALES_BADGE_PRESETS = [
   { bg: "#EEF2FF", text: "#3730A3" },
@@ -51,12 +52,14 @@ const SALES_BADGE_PRESETS = [
 
 type RegisterFormProps = {
   allowAdminRegistration?: boolean;
+  allowSuperAdminRegistration?: boolean;
   /** Код із query `?code=` — роль і email фіксуються запрошенням. */
   invitationCodeFromUrl?: string | null;
 };
 
 export function RegisterForm({
   allowAdminRegistration = false,
+  allowSuperAdminRegistration = false,
   invitationCodeFromUrl,
 }: RegisterFormProps) {
   const { mutate: register, isPending } = useRegister();
@@ -69,10 +72,15 @@ export function RegisterForm({
     enabled: !!invitationCodeFromUrl,
     retry: false,
   });
+  const { data: teams = [] } = useQuery({
+    queryKey: ["teams-public-register"],
+    queryFn: () => teamService.listPublic(),
+    enabled: !invitationCodeFromUrl,
+  });
 
   const registerSchema = useMemo(
-    () => getRegisterSchema(allowAdminRegistration),
-    [allowAdminRegistration],
+    () => getRegisterSchema(allowAdminRegistration, allowSuperAdminRegistration),
+    [allowAdminRegistration, allowSuperAdminRegistration],
   );
 
   const form = useForm<RegisterInput>({
@@ -88,6 +96,8 @@ export function RegisterForm({
       technologyIds: [],
       badgeBgColor: "#EEF2FF",
       badgeTextColor: "#3730A3",
+      teamName: "",
+      teamId: "",
     },
   });
 
@@ -95,12 +105,16 @@ export function RegisterForm({
     if (!allowAdminRegistration && form.getValues("role") === "ADMIN") {
       form.setValue("role", "SALES");
     }
-  }, [allowAdminRegistration, form]);
+    if (!allowSuperAdminRegistration && form.getValues("role") === "SUPER_ADMIN") {
+      form.setValue("role", "SALES");
+    }
+  }, [allowAdminRegistration, allowSuperAdminRegistration, form]);
 
   useEffect(() => {
     if (inviteMeta) {
       form.setValue("email", inviteMeta.email);
       form.setValue("role", inviteMeta.role);
+      form.setValue("teamId", inviteMeta.teamId ?? "");
     }
   }, [inviteMeta, form]);
 
@@ -148,7 +162,7 @@ export function RegisterForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ім'я</FormLabel>
+                    <FormLabel>Ім&apos;я</FormLabel>
                     <FormControl>
                       <Input placeholder="Іван" {...field} />
                     </FormControl>
@@ -280,6 +294,12 @@ export function RegisterForm({
                           form.setValue("badgeBgColor", "#EEF2FF");
                           form.setValue("badgeTextColor", "#3730A3");
                         }
+                        if (val !== "ADMIN") {
+                          form.setValue("teamName", "");
+                        }
+                        if (val === "SUPER_ADMIN") {
+                          form.setValue("teamId", "");
+                        }
                       }}
                     >
                       <FormControl>
@@ -288,6 +308,9 @@ export function RegisterForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        {allowSuperAdminRegistration && (
+                          <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                        )}
                         {allowAdminRegistration && (
                           <SelectItem value="ADMIN">Admin</SelectItem>
                         )}
@@ -351,6 +374,62 @@ export function RegisterForm({
                 />
               )}
             </div>
+
+            {watchRole === "ADMIN" && (
+              <FormField
+                control={form.control}
+                name="teamName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Назва команди</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Наприклад: Foxy Sales Team A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {watchRole !== "ADMIN" && watchRole !== "SUPER_ADMIN" && (
+              <FormField
+                control={form.control}
+                name="teamId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Команда</FormLabel>
+                    <FormControl>
+                      {inviteMeta?.teamId ? (
+                        <Input
+                          value={inviteMeta.teamName || "Команда з запрошення"}
+                          readOnly
+                        />
+                      ) : (
+                        <Select
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                          disabled={teams.length === 0}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue
+                              placeholder={teams.length ? "Оберіть команду" : "Немає доступних команд"}
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {watchRole === "DEV" && (
               <FormField

@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     },
     select: {
       id: true,
+      teamId: true,
       company: true,
       callType: true,
       callStartedAt: true,
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
     const receivers = [...new Set([call.callerId, call.createdById])];
     const startIso = call.callStartedAt.toISOString();
     for (const userId of receivers) {
-      if (roleById.get(userId) === "ADMIN") {
+      if (roleById.get(userId) === "ADMIN" || roleById.get(userId) === "SUPER_ADMIN") {
         continue;
       }
       // Час у ключі: після переносу дзвінка — нове нагадування; без дублікатів у межах одного слоту.
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
       }
       await createNotification({
         userId,
+        teamId: call.teamId ?? null,
         type: "CALL_STARTING_SOON",
         title: `Через 20 хв — ${call.company}`,
         message: [

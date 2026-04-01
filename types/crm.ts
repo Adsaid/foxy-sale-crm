@@ -420,3 +420,12 @@ export interface UpdateUserInput {
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;
 }
+
+export interface PendingTeam {
+  id: string;
+  name: string;
+  createdAt: string;
+  createdByUserId?: string | null;
+  createdByName?: string | null;
+  createdByEmail?: string | null;
+}

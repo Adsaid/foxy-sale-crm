@@ -6,6 +6,16 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const activeTeamId = window.localStorage.getItem("activeTeamId");
+    if (activeTeamId) {
+      config.headers["x-team-id"] = activeTeamId;
+    }
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

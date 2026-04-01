@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { teamGuardResponse } from "@/lib/team-scope";
 
-export async function GET() {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+export async function GET(request: Request) {
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const summaries = await prisma.callSummary.findMany({
-    where: user!.role === "ADMIN" ? {} : { createdById: user!.id },
+    where:
+      user!.role === "ADMIN" || user!.role === "SUPER_ADMIN"
+        ? { teamId: tg.teamId }
+        : { createdById: user!.id, teamId: tg.teamId },
     orderBy: { callStartedAt: "desc" },
   });
 
@@ -24,7 +30,7 @@ export async function GET() {
   const [users, callEvents] = await Promise.all([
     usersIds.length
       ? prisma.user.findMany({
-          where: { id: { in: usersIds } },
+          where: { id: { in: usersIds }, teamId: tg.teamId },
           select: {
             id: true,
             firstName: true,
@@ -36,7 +42,7 @@ export async function GET() {
       : Promise.resolve([]),
     callEventIds.length
       ? prisma.callEvent.findMany({
-          where: { id: { in: callEventIds } },
+          where: { id: { in: callEventIds }, teamId: tg.teamId },
           select: { id: true, createdAt: true },
         })
       : Promise.resolve([]),

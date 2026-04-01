@@ -16,8 +16,8 @@ export function useLogin() {
     onSuccess: (data: AuthResponse) => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("Успішний вхід!");
-      const status = data.user.accountStatus ?? "APPROVED";
-      router.push(status === "PENDING" ? "/pending-approval" : "/dashboard");
+      const pending = data.user.pendingApproval ?? ((data.user.accountStatus ?? "APPROVED") === "PENDING");
+      router.push(pending ? "/pending-approval" : "/dashboard");
     },
     onError: (err: unknown) => {
       const message =

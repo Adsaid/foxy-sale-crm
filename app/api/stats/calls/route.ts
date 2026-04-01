@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { resolveCallStatsFilters } from "@/lib/stats-calls-request";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 function buildSummaryWhereForStats(
   callWhere: Prisma.CallEventWhereInput
@@ -46,18 +47,22 @@ function buildSummaryWhereForStats(
 }
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const tg = teamGuardResponse(user);
+  if (tg.error) return tg.error;
 
   const { searchParams } = new URL(request.url);
   const resolved = await resolveCallStatsFilters(searchParams, user);
   if (!resolved.ok) return resolved.response;
 
   const { callWhere } = resolved;
-  const summaryWhere = buildSummaryWhereForStats(callWhere);
+  const scopedCallWhere = { ...callWhere, teamId: tg.teamId };
+  const summaryWhere = { ...buildSummaryWhereForStats(callWhere), teamId: tg.teamId };
 
   const [
     totalEventCalls,
@@ -68,14 +73,12 @@ export async function GET(request: Request) {
     cancelledEventCalls,
     summaryRows,
   ] = await Promise.all([
-    prisma.callEvent.count({
-      where: { ...callWhere, status: { in: ["COMPLETED", "SCHEDULED", "CANCELLED"] } },
-    }),
-    prisma.callEvent.count({ where: { ...callWhere, status: "COMPLETED" } }),
-    prisma.callEvent.count({ where: { ...callWhere, outcome: "SUCCESS" } }),
-    prisma.callEvent.count({ where: { ...callWhere, outcome: "UNSUCCESSFUL" } }),
-    prisma.callEvent.count({ where: { ...callWhere, outcome: "PENDING" } }),
-    prisma.callEvent.count({ where: { ...callWhere, outcome: "CANCELLED" } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, status: { in: ["COMPLETED", "SCHEDULED", "CANCELLED"] } } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, status: "COMPLETED" } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, outcome: "SUCCESS" } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, outcome: "UNSUCCESSFUL" } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, outcome: "PENDING" } }),
+    prisma.callEvent.count({ where: { ...scopedCallWhere, outcome: "CANCELLED" } }),
     prisma.callSummary.findMany({
       where: summaryWhere,
       select: {
@@ -91,7 +94,7 @@ export async function GET(request: Request) {
   );
   const existingLinkedCalls = linkedSummaryCallEventIds.length
     ? await prisma.callEvent.findMany({
-        where: { id: { in: linkedSummaryCallEventIds } },
+        where: { id: { in: linkedSummaryCallEventIds }, teamId: tg.teamId },
         select: { id: true },
       })
     : [];

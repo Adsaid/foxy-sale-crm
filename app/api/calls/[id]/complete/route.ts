@@ -12,18 +12,21 @@ import {
   notifVerbPast,
 } from "@/lib/notification-copy";
 import { callerRoleShortEn } from "@/lib/roles";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["DEV", "DESIGNER"]);
+  const { error, user } = await getApiUser(["DEV", "DESIGNER"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
   const body = await request.json();
 
-  const call = await prisma.callEvent.findUnique({ where: { id } });
+  const call = await prisma.callEvent.findFirst({ where: { id, teamId: tg.teamId } });
   if (!call || call.callerId !== user!.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -76,6 +79,7 @@ export async function PATCH(
 
   await prisma.callSummary.create({
     data: {
+      teamId: tg.teamId,
       callEventId: updated.id,
       company: updated.company,
       accountName: updated.account?.account ?? "",
@@ -112,6 +116,7 @@ export async function PATCH(
   const typeLabel = callTypeLabelUk(updated.callType);
   await createNotification({
     userId: updated.createdById,
+    teamId: tg.teamId,
     type: "CALL_COMPLETED",
     title: `Дзвінок завершено — ${updated.company}`,
     telegramActorName: devName || undefined,

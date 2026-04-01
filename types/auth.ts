@@ -3,9 +3,12 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   email: string;
-  role: "ADMIN" | "DEV" | "DESIGNER" | "SALES";
+  role: "SUPER_ADMIN" | "ADMIN" | "DEV" | "DESIGNER" | "SALES";
+  teamId?: string | null;
   /** Відсутність поля трактується як APPROVED (застарілі сесії). */
   accountStatus?: "APPROVED" | "PENDING";
+  teamStatus?: "APPROVED" | "PENDING";
+  pendingApproval?: boolean;
   specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | "UX_UI" | "UI" | "UX" | null;
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;
@@ -29,6 +32,7 @@ export interface DashboardUser {
   lastName: string;
   email: string;
   role: string;
+  teamId?: string | null;
   specialization?: string | null;
   technologies: Technology[];
   createdAt: string | Date;

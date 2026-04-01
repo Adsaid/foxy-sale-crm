@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import {
   useAdminInvitations,
   useApproveUser,
+  useApproveTeam,
   useCreateInvitation,
   useDeleteInvitation,
+  usePendingTeams,
   usePendingUsers,
 } from "@/hooks/use-admin-users";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { InvitationCreateDialog } from "@/components/dialogs/invitation-create-dialog";
 import {
@@ -41,10 +44,15 @@ const roleLabels: Record<string, string> = {
 };
 
 export function UsersRequestsTab() {
+  const { user } = useAuth();
   const { data: pending, isLoading: pendingLoading } = usePendingUsers();
+  const { data: pendingTeams, isLoading: pendingTeamsLoading } = usePendingTeams(
+    user?.role === "SUPER_ADMIN",
+  );
   const { data: invitations, isLoading: invLoading } = useAdminInvitations();
   const createInv = useCreateInvitation();
   const approve = useApproveUser();
+  const approveTeam = useApproveTeam();
   const deleteInv = useDeleteInvitation();
 
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -79,6 +87,57 @@ export function UsersRequestsTab() {
 
   return (
     <div className="space-y-8">
+      {user?.role === "SUPER_ADMIN" && (
+        <section className="space-y-3">
+          <h3 className="text-lg font-semibold">Заявки на команди</h3>
+          <p className="text-sm text-muted-foreground">
+            Нові команди від адмінів очікують підтвердження супер-адміністратором.
+          </p>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Команда</TableHead>
+                  <TableHead>Зареєстрував</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Дата створення</TableHead>
+                  <TableHead className="w-36" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingTeamsLoading ? (
+                  <TableBodySkeleton colSpan={5} />
+                ) : !pendingTeams?.length ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      Немає заявок на команди
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  pendingTeams.map((team) => (
+                    <TableRow key={team.id}>
+                      <TableCell className="font-medium">{team.name}</TableCell>
+                      <TableCell>{team.createdByName || "—"}</TableCell>
+                      <TableCell>{team.createdByEmail || "—"}</TableCell>
+                      <TableCell>{formatDateKyiv(team.createdAt)}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          onClick={() => approveTeam.mutate(team.id)}
+                          disabled={approveTeam.isPending}
+                        >
+                          Підтвердити команду
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      )}
+
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">Заявки на доступ</h3>
         <p className="text-sm text-muted-foreground">

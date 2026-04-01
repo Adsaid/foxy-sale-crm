@@ -3,16 +3,18 @@ import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { signToken, setAuthCookie } from "@/lib/auth";
-import { isDevelopEnv } from "@/lib/app-env";
+import { isSuperEnv } from "@/lib/app-env";
 import { getRegisterSchema } from "@/lib/validations/auth";
 import { normalizeEmail } from "@/lib/normalize-email";
 import { effectiveAccountStatus } from "@/lib/account-status";
+import { effectiveTeamStatus } from "@/lib/team-status";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const allowAdminRegistration = isDevelopEnv();
-    const parsed = getRegisterSchema(allowAdminRegistration).safeParse(body);
+    const allowAdminRegistration = isSuperEnv();
+    const allowSuperAdminRegistration = isSuperEnv();
+    const parsed = getRegisterSchema(allowAdminRegistration, allowSuperAdminRegistration).safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
@@ -31,6 +33,10 @@ export async function POST(request: Request) {
 
     let effectiveRole: Role = raw.role;
     let accountStatus: "APPROVED" | "PENDING" = "PENDING";
+    let resolvedTeamId: string | null = null;
+    let invitationTeamId: string | null = null;
+    let createdTeamId: string | null = null;
+    let createdTeamStatus: "APPROVED" | "PENDING" = "APPROVED";
 
     if (invitationCode) {
       const invitation = await prisma.invitation.findUnique({
@@ -56,10 +62,17 @@ export async function POST(request: Request) {
       }
       effectiveRole = invitation.role;
       accountStatus = "APPROVED";
+      invitationTeamId = invitation.teamId ?? null;
+      if (!invitationTeamId) {
+        return NextResponse.json(
+          { error: "Запрошення не прив'язане до команди" },
+          { status: 400 },
+        );
+      }
     }
     /** Адмін реєструється лише в dev (схема); одразу активний, без очікування схвалення.
      * TS не виводить ADMIN у role після `getRegisterSchema(boolean)` і гілки запрошення — перевірка за фактичним enum. */
-    if ((effectiveRole as Role) === "ADMIN") {
+    if ((effectiveRole as string) === "ADMIN" || (effectiveRole as string) === "SUPER_ADMIN") {
       accountStatus = "APPROVED";
     }
     /** Відкрита реєстрація (не запрошення): SALES/DEV/DESIGNER — PENDING до схвалення адміном. */
@@ -72,6 +85,8 @@ export async function POST(request: Request) {
       technologyIds,
       badgeBgColor,
       badgeTextColor,
+      teamName,
+      teamId,
     } = raw;
 
     if (effectiveRole === "DEV" || effectiveRole === "DESIGNER") {
@@ -122,6 +137,13 @@ export async function POST(request: Request) {
       }
     }
 
+    if ((effectiveRole as string) === "SUPER_ADMIN" && !allowSuperAdminRegistration) {
+      return NextResponse.json(
+        { error: "Реєстрація Super Admin дозволена лише при APP_ENV=SUPER" },
+        { status: 403 },
+      );
+    }
+
     const existing = await prisma.user.findUnique({
       where: { email: emailNorm },
     });
@@ -130,6 +152,44 @@ export async function POST(request: Request) {
         { error: "Користувач з таким email вже існує" },
         { status: 409 },
       );
+    }
+
+    if ((effectiveRole as string) === "ADMIN") {
+      const name = teamName?.trim();
+      if (!name) {
+        return NextResponse.json(
+          { error: "Для ролі Admin потрібно вказати назву команди" },
+          { status: 400 },
+        );
+      }
+      const createdTeam = await prisma.team.create({
+        data: {
+          name,
+          status: "PENDING",
+          createdByName: `${firstName} ${lastName}`.trim(),
+          createdByEmail: emailNorm,
+        },
+        select: { id: true, status: true },
+      });
+      resolvedTeamId = createdTeam.id;
+      createdTeamId = createdTeam.id;
+      createdTeamStatus = createdTeam.status;
+    } else if ((effectiveRole as string) !== "SUPER_ADMIN") {
+      const candidate = invitationTeamId ?? teamId ?? null;
+      if (!candidate) {
+        return NextResponse.json(
+          { error: "Оберіть команду для реєстрації" },
+          { status: 400 },
+        );
+      }
+      const existingTeam = await prisma.team.findUnique({
+        where: { id: candidate },
+        select: { id: true },
+      });
+      if (!existingTeam) {
+        return NextResponse.json({ error: "Команду не знайдено" }, { status: 404 });
+      }
+      resolvedTeamId = existingTeam.id;
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -141,6 +201,7 @@ export async function POST(request: Request) {
         email: emailNorm,
         password: hashedPassword,
         role: effectiveRole,
+        teamId: resolvedTeamId,
         accountStatus,
         specialization: effectiveRole === "DEV" || effectiveRole === "DESIGNER" ? specialization : null,
         technologyIds:
@@ -150,6 +211,13 @@ export async function POST(request: Request) {
           effectiveRole === "SALES" ? badgeTextColor ?? null : null,
       },
     });
+
+    if (createdTeamId) {
+      await prisma.team.update({
+        where: { id: createdTeamId },
+        data: { createdByUserId: user.id },
+      });
+    }
 
     if (invitationCode) {
       await prisma.invitation.updateMany({
@@ -164,6 +232,17 @@ export async function POST(request: Request) {
     const token = await signToken(user.id);
     await setAuthCookie(token);
 
+    const team =
+      user.teamId != null
+        ? await prisma.team.findUnique({
+            where: { id: user.teamId },
+            select: { status: true },
+          })
+        : null;
+    const pendingApproval =
+      effectiveAccountStatus(user) === "PENDING" ||
+      (user.role !== "SUPER_ADMIN" && effectiveTeamStatus(team) === "PENDING");
+
     return NextResponse.json(
       {
         user: {
@@ -172,7 +251,13 @@ export async function POST(request: Request) {
           lastName: user.lastName,
           email: user.email,
           role: user.role,
+          teamId: user.teamId ?? null,
           accountStatus: effectiveAccountStatus(user),
+          teamStatus:
+            user.teamId != null
+              ? (team ? effectiveTeamStatus(team) : createdTeamStatus)
+              : "APPROVED",
+          pendingApproval,
           specialization: user.specialization,
           badgeBgColor: user.badgeBgColor,
           badgeTextColor: user.badgeTextColor,

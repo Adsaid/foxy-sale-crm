@@ -9,6 +9,7 @@ import { callerRoleShortEn } from "@/lib/roles";
 /** Мінімальні поля дзвінка після create/update з include як у POST / PATCH. */
 export type CallAssignedNotifShape = {
   id: string;
+  teamId?: string | null;
   company: string;
   callType: string;
   callStartedAt: Date;
@@ -55,6 +56,7 @@ export async function notifyCallAssignedToDevAndAdmins(
 
   await createNotification({
     userId: call.callerId,
+    teamId: call.teamId ?? null,
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
     message: assignedMessage,
@@ -71,6 +73,7 @@ export async function notifyCallAssignedToDevAndAdmins(
     : `виконавцю (${callerRoleShortEn(callerRole)})`;
 
   await notifyAllAdmins({
+    teamId: call.teamId ?? null,
     type: "CALL_ASSIGNED",
     title: `Новий дзвінок — ${call.company}`,
     telegramActorName: salesName || undefined,

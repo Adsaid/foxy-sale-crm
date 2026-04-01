@@ -36,7 +36,7 @@ export function PendingApprovalContent({ email }: { email: string }) {
           <CardTitle className="text-2xl">Очікування підтвердження</CardTitle>
           <CardDescription className="text-pretty">
             Ваш обліковий запис <span className="font-medium text-foreground">{email}</span> ще не
-            підтверджено адміністратором. Після схвалення ви зможете користуватися системою.
+            підтверджено. Після схвалення ви зможете користуватися системою.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

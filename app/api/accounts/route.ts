@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { teamGuardResponse } from "@/lib/team-scope";
 import {
   ACCOUNT_DESKTOP_TYPE_VALUES,
   ACCOUNT_OPERATIONAL_STATUS_VALUES,
@@ -11,12 +12,16 @@ import {
   parseAccountOptionalDate,
 } from "@/lib/account-fields";
 
-export async function GET() {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+export async function GET(request: Request) {
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const accounts = await prisma.account.findMany({
-    where: user!.role === "ADMIN" ? {} : { ownerId: user!.id },
+    where: user!.role === "ADMIN" || user!.role === "SUPER_ADMIN"
+      ? { teamId: tg.teamId }
+      : { ownerId: user!.id, teamId: tg.teamId },
     include: {
       owner: {
         select: {
@@ -36,8 +41,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const body = await request.json();
   const { account, type, ownerId, profileLinks, description } = body;
@@ -76,15 +83,15 @@ export async function POST(request: Request) {
   }
 
   let resolvedOwnerId = user!.id;
-  if (user!.role === "ADMIN") {
+  if (user!.role === "ADMIN" || user!.role === "SUPER_ADMIN") {
     if (!ownerId) {
       return NextResponse.json({ error: "ownerId is required for admin" }, { status: 400 });
     }
     const owner = await prisma.user.findUnique({
       where: { id: ownerId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, teamId: true },
     });
-    if (!owner || owner.role !== "SALES") {
+    if (!owner || owner.role !== "SALES" || owner.teamId !== tg.teamId) {
       return NextResponse.json({ error: "Sales owner not found" }, { status: 404 });
     }
     resolvedOwnerId = owner.id;
@@ -94,6 +101,7 @@ export async function POST(request: Request) {
     data: {
       account,
       type,
+      teamId: tg.teamId,
       ownerId: resolvedOwnerId,
       profileLinks: Array.isArray(profileLinks) ? profileLinks.filter((l: string) => l.trim()) : [],
       ...(description !== undefined && { description }),

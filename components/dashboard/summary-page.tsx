@@ -69,8 +69,8 @@ function formatDuration(startedAt: string, endedAt: string | null | undefined) {
 
 export function SummaryPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const showTransfer = user?.role === "ADMIN" || user?.role === "SALES";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const showTransfer = isAdmin || user?.role === "SALES";
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const deleteMutation = useDeleteSummary();
   const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
