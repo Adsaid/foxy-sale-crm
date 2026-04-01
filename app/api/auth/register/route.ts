@@ -57,8 +57,9 @@ export async function POST(request: Request) {
       effectiveRole = invitation.role;
       accountStatus = "APPROVED";
     }
-    /** Адмін реєструється лише в dev (схема); одразу активний, без очікування схвалення. */
-    if (effectiveRole === "ADMIN") {
+    /** Адмін реєструється лише в dev (схема); одразу активний, без очікування схвалення.
+     * TS не виводить ADMIN у role після `getRegisterSchema(boolean)` і гілки запрошення — перевірка за фактичним enum. */
+    if ((effectiveRole as Role) === "ADMIN") {
       accountStatus = "APPROVED";
     }
     /** Відкрита реєстрація (не запрошення): SALES/DEV/DESIGNER — PENDING до схвалення адміном. */
