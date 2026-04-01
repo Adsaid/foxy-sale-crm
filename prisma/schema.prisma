@@ -215,6 +215,7 @@ model CallSummary {
   interviewerName  String
   callStartedAt    DateTime
   callEndedAt      DateTime?
+  status           CallStatus   @default(COMPLETED)
   outcome          CallOutcome
   devFeedback      String?
   movingToNextStage Boolean    @default(false)

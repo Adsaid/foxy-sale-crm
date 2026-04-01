@@ -258,6 +258,7 @@ export interface CallSummary {
   interviewerName: string;
   callStartedAt: string;
   callEndedAt?: string | null;
+  status?: CallStatus;
   outcome: CallOutcome;
   devFeedback?: string | null;
   movingToNextStage: boolean;

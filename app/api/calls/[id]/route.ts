@@ -251,6 +251,7 @@ export async function PATCH(
       interviewerName: updated.interviewerName,
       callStartedAt: updated.callStartedAt,
       callEndedAt: updated.callEndedAt,
+      status: updated.status,
       outcome: updated.outcome,
       devFeedback: updated.devFeedback,
       movingToNextStage: updated.movingToNextStage,
