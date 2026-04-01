@@ -18,6 +18,7 @@ import {
 import {
   ArrowDown,
   ArrowUp,
+  Ban,
   CalendarRange,
   ChartPie,
   ChevronsUpDown,
@@ -96,7 +97,13 @@ const PRESET_OPTIONS: { value: CallStatsPreset; label: string }[] = [
   { value: "custom", label: "Свій період" },
 ];
 
-type CallStatCardVariant = "total" | "completed" | "success" | "unsuccessful" | "pending";
+type CallStatCardVariant =
+  | "total"
+  | "completed"
+  | "success"
+  | "unsuccessful"
+  | "pending"
+  | "cancelled";
 
 type CallStatDelta = {
   text: string;
@@ -117,14 +124,9 @@ function buildCallStatDelta(
   const sign = pct > 0 ? "+" : "";
   const text = `${sign}${pct}%`;
   const direction: CallStatDelta["direction"] = raw > 0 ? "up" : "down";
+  const isNegativeMetric = variant === "unsuccessful" || variant === "cancelled";
   const sentiment: CallStatDelta["sentiment"] =
-    raw > 0
-      ? variant === "unsuccessful"
-        ? "negative"
-        : "positive"
-      : variant === "unsuccessful"
-        ? "positive"
-        : "negative";
+    raw > 0 ? (isNegativeMetric ? "negative" : "positive") : isNegativeMetric ? "positive" : "negative";
   return { text, sentiment, direction };
 }
 
@@ -168,6 +170,12 @@ const CALL_STATS_CARD_VARIANT_STYLES: Record<
       "bg-amber-400/15 text-amber-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-amber-400/12 dark:text-amber-200 dark:shadow-none dark:ring-white/10",
     iconHover: "group-hover:bg-amber-400/28 dark:group-hover:bg-amber-400/18",
   },
+  cancelled: {
+    icon: Ban,
+    iconWrap:
+      "bg-slate-500/12 text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-slate-500/14 dark:text-slate-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-slate-500/22 dark:group-hover:bg-slate-500/20",
+  },
 };
 
 const CALL_STATS_CARD_CONFIG = [
@@ -176,6 +184,7 @@ const CALL_STATS_CARD_CONFIG = [
   { label: "Успішні", variant: "success" as const },
   { label: "Неуспішні", variant: "unsuccessful" as const },
   { label: "Очікують", variant: "pending" as const },
+  { label: "Скасовані", variant: "cancelled" as const },
 ] as const;
 
 function StatCardCompact({
@@ -285,7 +294,6 @@ function CallStatsCardsSkeleton() {
   return (
     <div className="flex flex-wrap gap-2.5">
       {CALL_STATS_CARD_CONFIG.map(({ label, variant }) => {
-        const s = CALL_STATS_CARD_VARIANT_STYLES[variant];
         return (
           <div
             key={label}
@@ -341,47 +349,32 @@ const SERIES_META: { key: SeriesKey; label: string }[] = [
   { key: "unsuccessful", label: "Неуспішні" },
 ];
 
-/**
- * Кольори сегментів pie. Чотири неперетинні частини → сума = Всього дзвінків:
- * Очікують + Успішні + Неуспішні + Не вказано.
- * Картка «Завершені» = Успішні + Неуспішні + Не вказано (усі зі статусу COMPLETED).
- */
+/** Кольори сегментів pie за результатами: успіх, неуспіх, очікує, скасовано. */
 const CALL_STATS_PIE_COLORS = {
-  /** Завершені без outcome SUCCESS/UNSUCCESSFUL — результат не вказано */
-  completed: "#6366f1",
   success: "#22c55e",
   unsuccessful: "#ef4444",
   pending: "#eab308",
+  cancelled: "#64748b",
 } as const;
 
 /** Slug-ключі для ChartStyle / tooltip; підписи — лише в `label`. */
 const CALL_STATS_PIE_CONFIG = {
-  completed: { label: "Не вказано", color: CALL_STATS_PIE_COLORS.completed },
   success: { label: "Успішні", color: CALL_STATS_PIE_COLORS.success },
   unsuccessful: { label: "Неуспішні", color: CALL_STATS_PIE_COLORS.unsuccessful },
   pending: { label: "Очікують", color: CALL_STATS_PIE_COLORS.pending },
+  cancelled: { label: "Скасовані", color: CALL_STATS_PIE_COLORS.cancelled },
 } satisfies ChartConfig;
 
 /** Легенда під pie: сегменти діаграми (не серії лінійного графіка). */
 const PIE_LEGEND_META: { key: string; label: string; fill: string }[] = [
   { key: "unsuccessful", label: "Неуспішні", fill: CALL_STATS_PIE_COLORS.unsuccessful },
   { key: "success", label: "Успішні", fill: CALL_STATS_PIE_COLORS.success },
-  { key: "completed", label: "Не вказано", fill: CALL_STATS_PIE_COLORS.completed },
   { key: "pending", label: "Очікують", fill: CALL_STATS_PIE_COLORS.pending },
+  { key: "cancelled", label: "Скасовані", fill: CALL_STATS_PIE_COLORS.cancelled },
 ];
 
 function callStatsPieRows(stats: CallStatsData) {
-  const completedOther = Math.max(
-    0,
-    stats.completedCalls - stats.successCalls - stats.unsuccessfulCalls
-  );
   return [
-    {
-      key: "completed",
-      name: "completed",
-      value: completedOther,
-      fill: CALL_STATS_PIE_COLORS.completed,
-    },
     {
       key: "success",
       name: "success",
@@ -399,6 +392,12 @@ function callStatsPieRows(stats: CallStatsData) {
       name: "pending",
       value: stats.pendingCalls,
       fill: CALL_STATS_PIE_COLORS.pending,
+    },
+    {
+      key: "cancelled",
+      name: "cancelled",
+      value: stats.cancelledCalls,
+      fill: CALL_STATS_PIE_COLORS.cancelled,
     },
   ];
 }
@@ -439,6 +438,11 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
               )}
             >
               <PieChart>
+                <defs>
+                  <filter id="callStatsPieRingShadow" x="-35%" y="-35%" width="170%" height="170%">
+                    <feDropShadow dx="0" dy="4" stdDeviation="5" floodOpacity="0.22" />
+                  </filter>
+                </defs>
                 <RechartsTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Pie
                   data={pieData}
@@ -450,9 +454,16 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
                   outerRadius="74%"
                   paddingAngle={pieData.length > 1 ? 2.5 : 0}
                   strokeWidth={0}
+                  style={{ filter: "url(#callStatsPieRingShadow)" }}
                 >
                   {pieData.map((d) => (
-                    <Cell key={d.key} fill={d.fill} />
+                    <Cell
+                      key={d.key}
+                      fill={d.fill}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={1.5}
+                      style={{ filter: "drop-shadow(0 2px 4px rgba(15,23,42,0.16))" }}
+                    />
                   ))}
                   <Label
                     content={({ viewBox }) => {
@@ -741,6 +752,7 @@ function CallStatsCardsCompact({
     success: stats.successCalls,
     unsuccessful: stats.unsuccessfulCalls,
     pending: stats.pendingCalls,
+    cancelled: stats.cancelledCalls,
   };
   const prevValues: Record<CallStatCardVariant, number> | null =
     showCompareDelta && compareStats
@@ -750,6 +762,7 @@ function CallStatsCardsCompact({
           success: compareStats.successCalls,
           unsuccessful: compareStats.unsuccessfulCalls,
           pending: compareStats.pendingCalls,
+          cancelled: compareStats.cancelledCalls,
         }
       : null;
   return (
@@ -916,8 +929,17 @@ export function CallStatsCallsPanel({
         <Select
           value={preset}
           onValueChange={(v) => {
-            setPreset(v as CallStatsPreset);
-            if (v !== "custom") {
+            const nextPreset = v as CallStatsPreset;
+            setPreset(nextPreset);
+            if (nextPreset === "custom") {
+              const thisWeekRange = callStatsRangeFromPreset("this_week", new Date(), null);
+              if (thisWeekRange.from && thisWeekRange.to) {
+                setCustomRange({
+                  from: new Date(thisWeekRange.from),
+                  to: new Date(thisWeekRange.to),
+                });
+              }
+            } else {
               setCustomOpen(false);
             }
           }}
@@ -1165,7 +1187,7 @@ export function CallStatsCallsPanel({
                 <div className="shrink-0 border-b border-border/40 bg-muted/25 px-4 py-3">
                   <h3 className="text-sm font-semibold leading-none tracking-tight">Розподіл дзвінків</h3>
                   <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
-                    За статусами в обраному періоді
+                    За результатами в обраному періоді
                   </p>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col p-4">
