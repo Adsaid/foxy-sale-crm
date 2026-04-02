@@ -111,7 +111,8 @@ function registerSuperRefine(
 }
 
 /**
- * Схема реєстрації. Якщо `allowAdmin === false`, роль ADMIN недоступна (наприклад APP_ENV=PROD).
+ * Схема реєстрації. Якщо `allowAdmin === false`, роль ADMIN недоступна.
+ * Якщо `allowSuperAdmin === true`, додається SUPER_ADMIN (зазвичай лише APP_ENV=DEVELOP).
  */
 export function getRegisterSchema(allowAdmin: boolean, allowSuperAdmin = false) {
   const roleEnum = allowSuperAdmin

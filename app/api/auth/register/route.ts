@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { signToken, setAuthCookie } from "@/lib/auth";
-import { isSuperEnv } from "@/lib/app-env";
+import { isDevelopEnv } from "@/lib/app-env";
 import { getRegisterSchema } from "@/lib/validations/auth";
 import { normalizeEmail } from "@/lib/normalize-email";
 import { effectiveAccountStatus } from "@/lib/account-status";
@@ -12,8 +12,8 @@ import { effectiveTeamStatus } from "@/lib/team-status";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const allowAdminRegistration = isSuperEnv();
-    const allowSuperAdminRegistration = isSuperEnv();
+    const allowAdminRegistration = true;
+    const allowSuperAdminRegistration = isDevelopEnv();
     const parsed = getRegisterSchema(allowAdminRegistration, allowSuperAdminRegistration).safeParse(body);
 
     if (!parsed.success) {
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
     if ((effectiveRole as string) === "SUPER_ADMIN" && !allowSuperAdminRegistration) {
       return NextResponse.json(
-        { error: "Реєстрація Super Admin дозволена лише при APP_ENV=SUPER" },
+        { error: "Реєстрація Super Admin дозволена лише при APP_ENV=DEVELOP" },
         { status: 403 },
       );
     }
