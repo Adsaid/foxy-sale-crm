@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { ChevronsUpDown, Eye, EyeOff } from "lucide-react";
 import { getRegisterSchema, type RegisterInput } from "@/lib/validations/auth";
 import { useRegister } from "@/hooks/use-register";
 import {
@@ -40,6 +40,19 @@ import { cn } from "@/lib/utils";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { invitationPublicService } from "@/services/invitation-service";
 import { teamService } from "@/services/team-service";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const SALES_BADGE_PRESETS = [
   { bg: "#EEF2FF", text: "#3730A3" },
@@ -65,6 +78,7 @@ export function RegisterForm({
   const { mutate: register, isPending } = useRegister();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [teamSelectOpen, setTeamSelectOpen] = useState(false);
 
   const { data: inviteMeta, isLoading: inviteLoading, isError: inviteError } = useQuery({
     queryKey: ["invitation-validate", invitationCodeFromUrl],
@@ -405,24 +419,51 @@ export function RegisterForm({
                           readOnly
                         />
                       ) : (
-                        <Select
-                          value={field.value ?? ""}
-                          onValueChange={field.onChange}
-                          disabled={teams.length === 0}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue
-                              placeholder={teams.length ? "Оберіть команду" : "Немає доступних команд"}
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {teams.map((team) => (
-                              <SelectItem key={team.id} value={team.id}>
-                                {team.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Popover open={teamSelectOpen} onOpenChange={setTeamSelectOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={teamSelectOpen}
+                              disabled={teams.length === 0}
+                              className="w-full justify-between font-normal"
+                            >
+                              <span className="truncate">
+                                {field.value
+                                  ? teams.find((t) => t.id === field.value)?.name ??
+                                    "Оберіть команду"
+                                  : teams.length
+                                    ? "Оберіть команду"
+                                    : "Немає доступних команд"}
+                              </span>
+                              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Пошук команди..." />
+                              <CommandList>
+                                <CommandEmpty>Не знайдено</CommandEmpty>
+                                <CommandGroup>
+                                  {teams.map((team) => (
+                                    <CommandItem
+                                      key={team.id}
+                                      value={`${team.name} ${team.id}`}
+                                      data-checked={field.value === team.id}
+                                      onSelect={() => {
+                                        field.onChange(team.id);
+                                        setTeamSelectOpen(false);
+                                      }}
+                                    >
+                                      {team.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </FormControl>
                     <FormMessage />

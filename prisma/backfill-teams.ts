@@ -14,7 +14,7 @@ async function ensureDefaultTeam() {
   });
   if (existing) return existing;
   return prisma.team.create({
-    data: { name: DEFAULT_TEAM_NAME },
+    data: { name: DEFAULT_TEAM_NAME, status: "APPROVED" },
     select: { id: true, name: true },
   });
 }
