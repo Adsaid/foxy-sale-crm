@@ -523,7 +523,7 @@ export async function DELETE(
   }
 
   await prisma.callSummary.updateMany({
-    where: { callEventId: id, teamId: tg.teamId },
+    where: { callEventId: id },
     data: { callEventId: null },
   });
 

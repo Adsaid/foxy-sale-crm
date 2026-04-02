@@ -309,6 +309,7 @@ export interface CallStatsData {
   unsuccessfulCalls: number;
   pendingCalls: number;
   cancelledCalls: number;
+  nextStageAdvances: number;
 }
 
 /** Параметри GET /api/stats/calls та /api/stats/calls/timeseries (ISO-дати; salesId / callerId — лише для адміна). */

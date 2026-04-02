@@ -5,6 +5,47 @@ import { isCallAssigneeRole } from "@/lib/roles";
 
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 
+export function extractDateFilter(
+  callWhere: Prisma.CallEventWhereInput
+): Prisma.DateTimeFilter | null {
+  const callStartedAt = callWhere.callStartedAt;
+  if (
+    !callStartedAt ||
+    typeof callStartedAt !== "object" ||
+    Array.isArray(callStartedAt) ||
+    callStartedAt instanceof Date
+  ) return null;
+  const src = callStartedAt as Prisma.DateTimeFilter;
+  const out: Prisma.DateTimeFilter = {};
+  if ("gte" in src && src.gte instanceof Date) out.gte = src.gte;
+  if ("lte" in src && src.lte instanceof Date) out.lte = src.lte;
+  if ("gt" in src && src.gt instanceof Date) out.gt = src.gt;
+  if ("lt" in src && src.lt instanceof Date) out.lt = src.lt;
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export function buildSummaryWhereForStats(
+  callWhere: Prisma.CallEventWhereInput
+): Prisma.CallSummaryWhereInput {
+  const out: Prisma.CallSummaryWhereInput = {};
+  if (typeof callWhere.createdById === "string") out.createdById = callWhere.createdById;
+  if (typeof callWhere.callerId === "string") out.callerId = callWhere.callerId;
+  const df = extractDateFilter(callWhere);
+  if (df) out.callStartedAt = df;
+  return out;
+}
+
+export function buildAdvanceWhere(
+  callWhere: Prisma.CallEventWhereInput
+): Prisma.CallNextStageEventWhereInput {
+  const out: Prisma.CallNextStageEventWhereInput = {};
+  if (typeof callWhere.createdById === "string") out.createdById = callWhere.createdById;
+  if (typeof callWhere.callerId === "string") out.callerId = callWhere.callerId;
+  const df = extractDateFilter(callWhere);
+  if (df) out.occurredAt = df;
+  return out;
+}
+
 export function callWhereForRole(role: Role, userId: string): Prisma.CallEventWhereInput {
   if (role === "ADMIN" || role === "SUPER_ADMIN") return {};
   if (role === "SALES") return { createdById: userId };

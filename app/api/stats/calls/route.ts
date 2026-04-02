@@ -1,50 +1,12 @@
 import { NextResponse } from "next/server";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
-import { resolveCallStatsFilters } from "@/lib/stats-calls-request";
+import {
+  resolveCallStatsFilters,
+  buildSummaryWhereForStats,
+  buildAdvanceWhere,
+} from "@/lib/stats-calls-request";
 import { teamGuardResponse } from "@/lib/team-scope";
-
-function buildSummaryWhereForStats(
-  callWhere: Prisma.CallEventWhereInput
-): Prisma.CallSummaryWhereInput {
-  const out: Prisma.CallSummaryWhereInput = {};
-
-  if (typeof callWhere.createdById === "string") {
-    out.createdById = callWhere.createdById;
-  }
-  if (typeof callWhere.callerId === "string") {
-    out.callerId = callWhere.callerId;
-  }
-
-  const callStartedAt = callWhere.callStartedAt;
-  if (
-    callStartedAt &&
-    typeof callStartedAt === "object" &&
-    !Array.isArray(callStartedAt) &&
-    !(callStartedAt instanceof Date)
-  ) {
-    const callStartedAtFilter = callStartedAt as Prisma.DateTimeFilter;
-    const dateFilter: Prisma.DateTimeFilter = {};
-    if ("gte" in callStartedAtFilter && callStartedAtFilter.gte instanceof Date) {
-      dateFilter.gte = callStartedAtFilter.gte;
-    }
-    if ("lte" in callStartedAtFilter && callStartedAtFilter.lte instanceof Date) {
-      dateFilter.lte = callStartedAtFilter.lte;
-    }
-    if ("gt" in callStartedAtFilter && callStartedAtFilter.gt instanceof Date) {
-      dateFilter.gt = callStartedAtFilter.gt;
-    }
-    if ("lt" in callStartedAtFilter && callStartedAtFilter.lt instanceof Date) {
-      dateFilter.lt = callStartedAtFilter.lt;
-    }
-    if (Object.keys(dateFilter).length > 0) {
-      out.callStartedAt = dateFilter;
-    }
-  }
-
-  return out;
-}
 
 export async function GET(request: Request) {
   const { error, user } = await getApiUser(["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"], { request });
@@ -63,6 +25,7 @@ export async function GET(request: Request) {
   const { callWhere } = resolved;
   const scopedCallWhere = { ...callWhere, teamId: tg.teamId };
   const summaryWhere = { ...buildSummaryWhereForStats(callWhere), teamId: tg.teamId };
+  const advanceWhere = { ...buildAdvanceWhere(callWhere), teamId: tg.teamId };
 
   const [
     totalEventCalls,
@@ -72,6 +35,7 @@ export async function GET(request: Request) {
     pendingEventCalls,
     cancelledEventCalls,
     summaryRows,
+    nextStageAdvances,
   ] = await Promise.all([
     prisma.callEvent.count({ where: { ...scopedCallWhere, status: { in: ["COMPLETED", "SCHEDULED", "CANCELLED"] } } }),
     prisma.callEvent.count({ where: { ...scopedCallWhere, status: "COMPLETED" } }),
@@ -87,6 +51,7 @@ export async function GET(request: Request) {
         outcome: true,
       },
     }),
+    prisma.callNextStageEvent.count({ where: advanceWhere }),
   ]);
 
   const linkedSummaryCallEventIds = Array.from(
@@ -129,9 +94,9 @@ export async function GET(request: Request) {
     }
   }
 
-  const totalCalls = totalEventCalls + totalDedupedSummaryCalls;
-  const completedCalls = completedEventCalls + completedDedupedSummaryCalls;
-  const successCalls = successEventCalls + successDedupedSummaryCalls;
+  const totalCalls = totalEventCalls + totalDedupedSummaryCalls + nextStageAdvances;
+  const completedCalls = completedEventCalls + completedDedupedSummaryCalls + nextStageAdvances;
+  const successCalls = successEventCalls + successDedupedSummaryCalls + nextStageAdvances;
   const unsuccessfulCalls = unsuccessfulEventCalls + unsuccessfulDedupedSummaryCalls;
   const pendingCalls = pendingEventCalls + pendingDedupedSummaryCalls;
   const cancelledCalls = cancelledEventCalls + cancelledDedupedSummaryCalls;
@@ -143,5 +108,6 @@ export async function GET(request: Request) {
     unsuccessfulCalls,
     pendingCalls,
     cancelledCalls,
+    nextStageAdvances,
   });
 }
