@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
-import { buildCallTimeseriesPoints } from "@/lib/call-stats-timeseries";
+import {
+  buildCallTimeseriesPoints,
+  expandRangeWithAdvanceOccurredAt,
+  mergeAdvancesIntoPoints,
+} from "@/lib/call-stats-timeseries";
 import { sanitizeTimeZone } from "@/lib/stats-buckets-tz";
-import { resolveCallStatsFilters } from "@/lib/stats-calls-request";
+import { resolveCallStatsFilters, buildAdvanceWhere } from "@/lib/stats-calls-request";
 import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function GET(request: Request) {
@@ -22,18 +26,43 @@ export async function GET(request: Request) {
 
   const { callWhere, explicitDateFilter, rangeFrom, rangeTo } = resolved;
   const scopedCallWhere = { ...callWhere, teamId: tg.teamId };
+  const advanceWhere = { ...buildAdvanceWhere(callWhere), teamId: tg.teamId };
 
-  const rows = await prisma.callEvent.findMany({
-    where: scopedCallWhere,
-    select: { callStartedAt: true, outcome: true },
-  });
+  const [rows, advances] = await Promise.all([
+    prisma.callEvent.findMany({
+      where: scopedCallWhere,
+      select: { callStartedAt: true, outcome: true },
+    }),
+    prisma.callNextStageEvent.findMany({
+      where: advanceWhere,
+      select: { occurredAt: true },
+    }),
+  ]);
 
   const timeZone = sanitizeTimeZone(searchParams.get("timeZone"));
   const granularity = searchParams.get("granularity") === "hour" ? "hour" : "day";
 
-  const points = buildCallTimeseriesPoints(rows, rangeFrom, rangeTo, explicitDateFilter, {
+  const { rangeFrom: axisFrom, rangeTo: axisTo } = expandRangeWithAdvanceOccurredAt(
+    rangeFrom,
+    rangeTo,
+    advances,
+    explicitDateFilter
+  );
+
+  const points = buildCallTimeseriesPoints(rows, axisFrom, axisTo, explicitDateFilter, {
     timeZone,
     granularity,
   });
+
+  mergeAdvancesIntoPoints(
+    points,
+    advances,
+    timeZone,
+    granularity,
+    explicitDateFilter,
+    axisFrom,
+    axisTo
+  );
+
   return NextResponse.json({ points });
 }

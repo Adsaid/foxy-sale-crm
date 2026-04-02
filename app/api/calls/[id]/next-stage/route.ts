@@ -66,6 +66,8 @@ export async function POST(
     );
   }
 
+  const now = new Date();
+
   const newCall = await prisma.callEvent.create({
     data: {
       teamId: tg.teamId,
@@ -100,14 +102,28 @@ export async function POST(
     },
   });
 
+  /** Лише `callEventId`: у старих підсумків `teamId` міг бути null — умова `teamId: tg.teamId` тоді не знаходила рядок. */
   await prisma.callSummary.updateMany({
-    where: { callEventId: id, teamId: tg.teamId },
+    where: { callEventId: id },
     data: {
+      teamId: tg.teamId,
       callEventId: newCall.id,
       movingToNextStage: true,
       nextStep: callType as CallStage,
       nextStepDate: new Date(callStartedAt),
       callerId: existing.callerId,
+    },
+  });
+
+  await prisma.callNextStageEvent.create({
+    data: {
+      teamId: tg.teamId,
+      occurredAt: now,
+      createdById: existing.createdById,
+      callerId: existing.callerId,
+      fromCallId: id,
+      toCallId: newCall.id,
+      nextCallType: callType,
     },
   });
 

@@ -5,6 +5,7 @@ import {
   listCalendarDaysInRange,
   listHourBucketsInRange,
   hourKeyInTz,
+  hourLabelInTz,
   yearMonthKeyInTz,
 } from "@/lib/stats-buckets-tz";
 
@@ -171,6 +172,20 @@ function fallbackPoint(rangeFrom: Date, timeZone: string): CallTimeseriesPoint[]
   ];
 }
 
+/** Ключ як у `buildHourly` / `mergeAdvancesIntoPoints` при granularity=hour (не денний ключ). */
+function fallbackHourlyPoint(rangeFrom: Date, timeZone: string): CallTimeseriesPoint[] {
+  const key = hourKeyInTz(rangeFrom, timeZone);
+  return [
+    {
+      key,
+      label: hourLabelInTz(rangeFrom, timeZone),
+      total: 0,
+      success: 0,
+      unsuccessful: 0,
+    },
+  ];
+}
+
 /**
  * Розбивка: `granularity=hour` — по годинах (пресет «Сьогодні» або один день у «Свій період»).
  * Інакше: явний діапазон ≤120 днів — по днях; >120 — по тижнях.
@@ -188,7 +203,7 @@ export function buildCallTimeseriesPoints(
 
   if (granularity === "hour") {
     const points = buildHourly(rows, rangeFrom, rangeTo, timeZone);
-    return points.length > 0 ? points : fallbackPoint(rangeFrom, timeZone);
+    return points.length > 0 ? points : fallbackHourlyPoint(rangeFrom, timeZone);
   }
 
   const daySpan = Math.max(1, differenceInCalendarDays(rangeTo, rangeFrom) + 1);
@@ -206,4 +221,68 @@ export function buildCallTimeseriesPoints(
     return fallbackPoint(rangeFrom, timeZone);
   }
   return points;
+}
+
+/**
+ * Якщо період на осі будується з min/max дзвінків без явних from/to, події «наступний етап»
+ * можуть мати occurredAt поза цим діапазоном — тоді mergeAdvancesIntoPoints не знайде бакет.
+ * Розширюємо діапазон за датами подій, щоб сума стовпчиків узгоджувалась з агрегатом API.
+ */
+export function expandRangeWithAdvanceOccurredAt(
+  rangeFrom: Date,
+  rangeTo: Date,
+  advances: { occurredAt: Date }[],
+  explicitDateFilter: boolean
+): { rangeFrom: Date; rangeTo: Date } {
+  if (explicitDateFilter || advances.length === 0) {
+    return { rangeFrom, rangeTo };
+  }
+  let minMs = rangeFrom.getTime();
+  let maxMs = rangeTo.getTime();
+  for (const a of advances) {
+    const t = a.occurredAt.getTime();
+    if (t < minMs) minMs = t;
+    if (t > maxMs) maxMs = t;
+  }
+  return { rangeFrom: new Date(minMs), rangeTo: new Date(maxMs) };
+}
+
+function bucketKeyForDate(
+  d: Date,
+  timeZone: string,
+  granularity: "hour" | "day",
+  explicitDateFilter: boolean,
+  daySpan: number,
+): string {
+  if (granularity === "hour") return hourKeyInTz(d, timeZone);
+  if (!explicitDateFilter && daySpan > 120) return yearMonthKeyInTz(d, timeZone);
+  if (explicitDateFilter && daySpan > 120) {
+    const cal = calendarDateKeyInTz(d, timeZone);
+    const [y, mo, da] = cal.split("-").map(Number);
+    return isoWeekKey(new Date(Date.UTC(y, mo - 1, da, 12, 0, 0)));
+  }
+  return calendarDateKeyInTz(d, timeZone);
+}
+
+export function mergeAdvancesIntoPoints(
+  points: CallTimeseriesPoint[],
+  advances: { occurredAt: Date }[],
+  timeZone: string,
+  granularity: "hour" | "day",
+  explicitDateFilter: boolean,
+  rangeFrom: Date,
+  rangeTo: Date,
+): void {
+  if (advances.length === 0) return;
+  const daySpan = Math.max(1, differenceInCalendarDays(rangeTo, rangeFrom) + 1);
+  const index = new Map<string, CallTimeseriesPoint>();
+  for (const p of points) index.set(p.key, p);
+  for (const a of advances) {
+    const key = bucketKeyForDate(a.occurredAt, timeZone, granularity, explicitDateFilter, daySpan);
+    const p = index.get(key);
+    if (p) {
+      p.total += 1;
+      p.success += 1;
+    }
+  }
 }

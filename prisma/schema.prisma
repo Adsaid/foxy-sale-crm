@@ -288,6 +288,22 @@ model TelegramLinkToken {
   createdAt DateTime @default(now())
 }
 
+model CallNextStageEvent {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId       String?  @db.ObjectId
+  team         Team?    @relation(fields: [teamId], references: [id])
+  occurredAt   DateTime
+  createdById  String   @db.ObjectId
+  callerId     String?  @db.ObjectId
+  fromCallId   String?  @db.ObjectId
+  toCallId     String?  @db.ObjectId
+  nextCallType CallType
+
+  @@index([teamId, occurredAt])
+  @@index([teamId, createdById, occurredAt])
+  @@index([teamId, callerId, occurredAt])
+}
+
 model Team {
   id                  String              @id @default(auto()) @map("_id") @db.ObjectId
   name                String
@@ -301,6 +317,7 @@ model Team {
   accounts            Account[]
   calls               CallEvent[]
   summaries           CallSummary[]
+  nextStageEvents     CallNextStageEvent[]
   salesAccountReports SalesAccountReport[]
   invitations         Invitation[]
   notifications       Notification[]
