@@ -379,9 +379,13 @@ function TodayCallCard({
 
 export function CallsPage() {
   const { user } = useAuth();
-  const isSalesLike = user?.role === "SALES" || user?.role === "ADMIN";
+  const isSalesLike =
+    user?.role === "SALES" || user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const showCreatedByColumn =
-    user?.role === "DEV" || user?.role === "DESIGNER" || user?.role === "ADMIN";
+    user?.role === "DEV" ||
+    user?.role === "DESIGNER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "SUPER_ADMIN";
 
   const canManageCallRow = useCallback(
     (call: CallEvent) => !!(user && canMutateCall(user, call.createdById)),

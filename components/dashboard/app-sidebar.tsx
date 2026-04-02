@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
   Building2,
@@ -39,6 +40,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FOX_LOGO_SRC } from "@/components/auth/auth-fox-logo";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { teamService } from "@/services/team-service";
+import { useActiveTeamId } from "@/hooks/use-active-team";
 
 interface NavItem {
   title: string;
@@ -48,14 +52,15 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
-  { title: "Статистика", href: "/dashboard", icon: BarChart3, roles: ["SALES", "DEV", "DESIGNER", "ADMIN"] },
-  { title: "Акаунти", href: "/dashboard/accounts", icon: Building2, roles: ["SALES", "ADMIN"] },
-  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV", "DESIGNER", "ADMIN"] },
-  { title: "Підсумки", href: "/dashboard/summary", icon: ClipboardList, roles: ["SALES", "ADMIN"] },
-  { title: "Користувачі", href: "/dashboard/users", icon: Users, roles: ["ADMIN"] },
+  { title: "Статистика", href: "/dashboard", icon: BarChart3, roles: ["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"] },
+  { title: "Акаунти", href: "/dashboard/accounts", icon: Building2, roles: ["SALES", "ADMIN", "SUPER_ADMIN"] },
+  { title: "Дзвінки", href: "/dashboard/calls", icon: Phone, roles: ["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"] },
+  { title: "Підсумки", href: "/dashboard/summary", icon: ClipboardList, roles: ["SALES", "ADMIN", "SUPER_ADMIN"] },
+  { title: "Користувачі", href: "/dashboard/users", icon: Users, roles: ["ADMIN", "SUPER_ADMIN"] },
 ];
 
 const roleLabels: Record<string, string> = {
+  SUPER_ADMIN: "Супер адміністратор",
   ADMIN: "Адміністратор",
   DEV: "Розробник",
   DESIGNER: "Дизайнер",
@@ -69,8 +74,16 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { mutate: logout } = useLogout();
+  const queryClient = useQueryClient();
   const { isMobile, setOpenMobile } = useSidebar();
   const closeMobileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const role = user?.role ?? "SALES";
+  const { activeTeamId, setActiveTeamId } = useActiveTeamId();
+  const { data: teams = [] } = useQuery({
+    queryKey: ["teams-accessible"],
+    queryFn: () => teamService.listAccessible(),
+    enabled: role === "SUPER_ADMIN",
+  });
 
   useEffect(() => {
     return () => {
@@ -87,12 +100,19 @@ export function AppSidebar() {
     }, MOBILE_SIDEBAR_CLOSE_DELAY_MS);
   };
 
-  const role = user?.role ?? "SALES";
   const items = allNavItems.filter((item) => item.roles.includes(role));
 
   const initials = user
     ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
     : "?";
+
+  useEffect(() => {
+    if (role !== "SUPER_ADMIN") return;
+    if (!teams.length) return;
+    if (!activeTeamId || !teams.some((team) => team.id === activeTeamId)) {
+      setActiveTeamId(teams[0].id);
+    }
+  }, [activeTeamId, role, setActiveTeamId, teams]);
 
   return (
     <Sidebar collapsible="icon">
@@ -124,6 +144,28 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>{roleLabels[role] ?? role}</SidebarGroupLabel>
+          {role === "SUPER_ADMIN" && (
+            <div className="mb-3 px-2">
+              <Select
+                value={activeTeamId ?? ""}
+                onValueChange={(value) => {
+                  setActiveTeamId(value);
+                  queryClient.invalidateQueries();
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Оберіть команду" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <SidebarMenu>
             {items.map((item) => (
               <SidebarMenuItem key={item.href}>

@@ -14,6 +14,9 @@ function registerSuperRefine(
     technologyIds?: string[];
     badgeBgColor?: string;
     badgeTextColor?: string;
+    teamName?: string;
+    teamId?: string;
+    invitationCode?: string;
   },
   ctx: z.RefinementCtx,
 ) {
@@ -88,15 +91,34 @@ function registerSuperRefine(
       });
     }
   }
+
+  const hasInvite = typeof data.invitationCode === "string" && data.invitationCode.trim().length > 0;
+  if (data.role === "ADMIN") {
+    if (!data.teamName || data.teamName.trim().length < 2) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Для ролі Admin вкажіть назву команди",
+        path: ["teamName"],
+      });
+    }
+  } else if (data.role !== "SUPER_ADMIN" && !hasInvite && !data.teamId) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Оберіть команду",
+      path: ["teamId"],
+    });
+  }
 }
 
 /**
  * Схема реєстрації. Якщо `allowAdmin === false`, роль ADMIN недоступна (наприклад APP_ENV=PROD).
  */
-export function getRegisterSchema(allowAdmin: boolean) {
-  const roleEnum = allowAdmin
-    ? z.enum(["ADMIN", "DEV", "DESIGNER", "SALES"])
-    : z.enum(["DEV", "DESIGNER", "SALES"]);
+export function getRegisterSchema(allowAdmin: boolean, allowSuperAdmin = false) {
+  const roleEnum = allowSuperAdmin
+    ? z.enum(["SUPER_ADMIN", "ADMIN", "DEV", "DESIGNER", "SALES"])
+    : allowAdmin
+      ? z.enum(["ADMIN", "DEV", "DESIGNER", "SALES"])
+      : z.enum(["DEV", "DESIGNER", "SALES"]);
 
   return z
     .object({
@@ -110,6 +132,8 @@ export function getRegisterSchema(allowAdmin: boolean) {
       technologyIds: z.array(z.string()).optional(),
       badgeBgColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір фону").optional(),
       badgeTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Невірний колір тексту").optional(),
+      teamName: z.string().max(120, "Назва команди занадто довга").optional(),
+      teamId: z.string().optional(),
       /** Код із посилання запрошення; роль тоді задає сервер за запрошенням. */
       invitationCode: z.string().min(1).optional(),
     })
@@ -122,11 +146,13 @@ export type RegisterInput = {
   email: string;
   password: string;
   confirmPassword: string;
-  role: "ADMIN" | "DEV" | "DESIGNER" | "SALES";
+  role: "SUPER_ADMIN" | "ADMIN" | "DEV" | "DESIGNER" | "SALES";
   specialization?: "FRONTEND" | "BACKEND" | "FULLSTACK" | "UX_UI" | "UI" | "UX";
   technologyIds?: string[];
   badgeBgColor?: string;
   badgeTextColor?: string;
+  teamName?: string;
+  teamId?: string;
   invitationCode?: string;
 };
 

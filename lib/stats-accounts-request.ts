@@ -21,7 +21,7 @@ export async function resolveAccountStatsFilters(
   searchParams: URLSearchParams,
   user: Pick<User, "id" | "role">
 ): Promise<ResolvedAccountStatsFilters> {
-  if (user.role !== "ADMIN" && user.role !== "SALES") {
+  if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && user.role !== "SALES") {
     return {
       ok: false,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

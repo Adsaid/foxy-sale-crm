@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "backfill:teams": "tsx prisma/backfill-teams.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

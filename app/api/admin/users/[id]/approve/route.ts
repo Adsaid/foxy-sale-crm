@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error } = await getApiUser(["ADMIN"]);
+  const { error, user: actor } = await getApiUser(["ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(actor!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
 
-  const user = await prisma.user.findUnique({ where: { id } });
+  const user = await prisma.user.findFirst({ where: { id, teamId: tg.teamId } });
   if (!user) {
     return NextResponse.json({ error: "Не знайдено" }, { status: 404 });
   }

@@ -3,7 +3,7 @@ import { getApiUser } from "@/lib/api-auth";
 import { setTelegramWebhook } from "@/lib/telegram";
 
 export async function POST(request: Request) {
-  const { error } = await getApiUser(["ADMIN"]);
+  const { error } = await getApiUser(["ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
 
   const body = await request.json().catch(() => ({}));

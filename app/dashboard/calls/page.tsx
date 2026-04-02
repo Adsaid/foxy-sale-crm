@@ -2,6 +2,6 @@ import { requireUser } from "@/lib/server-auth";
 import { CallsPage } from "@/components/dashboard/calls-page";
 
 export default async function DashboardCallsPage() {
-  await requireUser(["SALES", "DEV", "DESIGNER", "ADMIN"]);
+  await requireUser(["SALES", "DEV", "DESIGNER", "ADMIN", "SUPER_ADMIN"]);
   return <CallsPage />;
 }

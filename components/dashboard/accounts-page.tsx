@@ -71,7 +71,7 @@ import { cn } from "@/lib/utils";
 
 export function AccountsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const isSales = user?.role === "SALES";
   const { data: accounts, isLoading } = useAccounts();
   const { data: salesUsers } = useAdminUsers("SALES", !!isAdmin);

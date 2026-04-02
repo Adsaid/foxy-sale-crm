@@ -91,3 +91,23 @@ export function useApproveUser() {
     onError: () => toast.error("Не вдалося підтвердити"),
   });
 }
+
+export function usePendingTeams(enabled = true) {
+  return useQuery({
+    queryKey: ["super-admin", "pending-teams"],
+    queryFn: () => userService.getPendingTeams(),
+    enabled,
+  });
+}
+
+export function useApproveTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => userService.approveTeam(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["super-admin", "pending-teams"] });
+      toast.success("Команду підтверджено");
+    },
+    onError: () => toast.error("Не вдалося підтвердити команду"),
+  });
+}

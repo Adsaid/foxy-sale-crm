@@ -132,11 +132,22 @@ export async function sendTelegramNotifications(
 export async function sendTelegramToAllAdmins(
   title: string,
   message: string,
-  options?: { actorName?: string | null }
+  options?: { actorName?: string | null; teamId?: string | null }
 ): Promise<void> {
   if (!BOT_TOKEN) return;
+  const teamId = options?.teamId ?? null;
+  const where =
+    teamId != null
+      ? {
+          telegramChatId: { not: null as string | null },
+          OR: [{ role: "ADMIN" as const, teamId }, { role: "SUPER_ADMIN" as const }],
+        }
+      : {
+          telegramChatId: { not: null as string | null },
+          OR: [{ role: "ADMIN" as const }, { role: "SUPER_ADMIN" as const }],
+        };
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN", telegramChatId: { not: null } },
+    where,
     select: { telegramChatId: true },
   });
   if (admins.length === 0) return;

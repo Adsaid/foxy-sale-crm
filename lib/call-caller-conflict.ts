@@ -32,16 +32,18 @@ export async function findCallerConflictWithOtherSales(
   prisma: PrismaClient,
   params: {
     callerId: string;
+    teamId: string;
     rangeStart: Date;
     rangeEnd: Date;
     actingCreatedById: string;
     excludeCallId?: string | null;
   },
 ): Promise<CallerConflictInfo | null> {
-  const { callerId, rangeStart, rangeEnd, actingCreatedById, excludeCallId } = params;
+  const { callerId, teamId, rangeStart, rangeEnd, actingCreatedById, excludeCallId } = params;
 
   const others = await prisma.callEvent.findMany({
     where: {
+      teamId,
       callerId,
       status: { not: "CANCELLED" },
       createdById: { not: actingCreatedById },

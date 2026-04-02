@@ -7,12 +7,15 @@ import type { Role } from "@prisma/client";
 
 const INVITE_ROLES: Role[] = ["SALES", "DEV", "DESIGNER"];
 
-export async function GET() {
-  const { error, user } = await getApiUser(["ADMIN"]);
+export async function GET(request: Request) {
+  const { error, user } = await getApiUser(["ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
-  void user;
+  if (!user?.activeTeamId) {
+    return NextResponse.json({ error: "Оберіть команду" }, { status: 400 });
+  }
 
   const invitations = await prisma.invitation.findMany({
+    where: { teamId: user.activeTeamId },
     orderBy: { createdAt: "desc" },
     include: {
       createdBy: {
@@ -30,9 +33,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { error, user } = await getApiUser(["ADMIN"]);
+  const { error, user } = await getApiUser(["ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
-  if (!user) return error;
+  if (!user || !user.activeTeamId) return NextResponse.json({ error: "Оберіть команду" }, { status: 400 });
 
   const body = await request.json();
   const emailRaw = typeof body.email === "string" ? body.email : "";
@@ -56,6 +59,7 @@ export async function POST(request: Request) {
       code,
       email,
       role,
+      teamId: user.activeTeamId,
       createdById: user.id,
     },
     include: {

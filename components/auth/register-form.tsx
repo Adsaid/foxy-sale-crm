@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { ChevronsUpDown, Eye, EyeOff } from "lucide-react";
 import { getRegisterSchema, type RegisterInput } from "@/lib/validations/auth";
 import { useRegister } from "@/hooks/use-register";
 import {
@@ -39,6 +39,20 @@ import { AuthFoxLogo } from "@/components/auth/auth-fox-logo";
 import { cn } from "@/lib/utils";
 import { ColorPickerPopover } from "@/components/ui/color-picker-popover";
 import { invitationPublicService } from "@/services/invitation-service";
+import { teamService } from "@/services/team-service";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const SALES_BADGE_PRESETS = [
   { bg: "#EEF2FF", text: "#3730A3" },
@@ -51,17 +65,20 @@ const SALES_BADGE_PRESETS = [
 
 type RegisterFormProps = {
   allowAdminRegistration?: boolean;
+  allowSuperAdminRegistration?: boolean;
   /** Код із query `?code=` — роль і email фіксуються запрошенням. */
   invitationCodeFromUrl?: string | null;
 };
 
 export function RegisterForm({
   allowAdminRegistration = false,
+  allowSuperAdminRegistration = false,
   invitationCodeFromUrl,
 }: RegisterFormProps) {
   const { mutate: register, isPending } = useRegister();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [teamSelectOpen, setTeamSelectOpen] = useState(false);
 
   const { data: inviteMeta, isLoading: inviteLoading, isError: inviteError } = useQuery({
     queryKey: ["invitation-validate", invitationCodeFromUrl],
@@ -69,10 +86,15 @@ export function RegisterForm({
     enabled: !!invitationCodeFromUrl,
     retry: false,
   });
+  const { data: teams = [] } = useQuery({
+    queryKey: ["teams-public-register"],
+    queryFn: () => teamService.listPublic(),
+    enabled: !invitationCodeFromUrl,
+  });
 
   const registerSchema = useMemo(
-    () => getRegisterSchema(allowAdminRegistration),
-    [allowAdminRegistration],
+    () => getRegisterSchema(allowAdminRegistration, allowSuperAdminRegistration),
+    [allowAdminRegistration, allowSuperAdminRegistration],
   );
 
   const form = useForm<RegisterInput>({
@@ -88,6 +110,8 @@ export function RegisterForm({
       technologyIds: [],
       badgeBgColor: "#EEF2FF",
       badgeTextColor: "#3730A3",
+      teamName: "",
+      teamId: "",
     },
   });
 
@@ -95,12 +119,16 @@ export function RegisterForm({
     if (!allowAdminRegistration && form.getValues("role") === "ADMIN") {
       form.setValue("role", "SALES");
     }
-  }, [allowAdminRegistration, form]);
+    if (!allowSuperAdminRegistration && form.getValues("role") === "SUPER_ADMIN") {
+      form.setValue("role", "SALES");
+    }
+  }, [allowAdminRegistration, allowSuperAdminRegistration, form]);
 
   useEffect(() => {
     if (inviteMeta) {
       form.setValue("email", inviteMeta.email);
       form.setValue("role", inviteMeta.role);
+      form.setValue("teamId", inviteMeta.teamId ?? "");
     }
   }, [inviteMeta, form]);
 
@@ -148,7 +176,7 @@ export function RegisterForm({
                 name="firstName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ім'я</FormLabel>
+                    <FormLabel>Ім&apos;я</FormLabel>
                     <FormControl>
                       <Input placeholder="Іван" {...field} />
                     </FormControl>
@@ -280,6 +308,12 @@ export function RegisterForm({
                           form.setValue("badgeBgColor", "#EEF2FF");
                           form.setValue("badgeTextColor", "#3730A3");
                         }
+                        if (val !== "ADMIN") {
+                          form.setValue("teamName", "");
+                        }
+                        if (val === "SUPER_ADMIN") {
+                          form.setValue("teamId", "");
+                        }
                       }}
                     >
                       <FormControl>
@@ -288,6 +322,9 @@ export function RegisterForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        {allowSuperAdminRegistration && (
+                          <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                        )}
                         {allowAdminRegistration && (
                           <SelectItem value="ADMIN">Admin</SelectItem>
                         )}
@@ -351,6 +388,89 @@ export function RegisterForm({
                 />
               )}
             </div>
+
+            {watchRole === "ADMIN" && (
+              <FormField
+                control={form.control}
+                name="teamName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Назва команди</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Наприклад: Foxy Sales Team A" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {watchRole !== "ADMIN" && watchRole !== "SUPER_ADMIN" && (
+              <FormField
+                control={form.control}
+                name="teamId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Команда</FormLabel>
+                    <FormControl>
+                      {inviteMeta?.teamId ? (
+                        <Input
+                          value={inviteMeta.teamName || "Команда з запрошення"}
+                          readOnly
+                        />
+                      ) : (
+                        <Popover open={teamSelectOpen} onOpenChange={setTeamSelectOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={teamSelectOpen}
+                              disabled={teams.length === 0}
+                              className="w-full justify-between font-normal"
+                            >
+                              <span className="truncate">
+                                {field.value
+                                  ? teams.find((t) => t.id === field.value)?.name ??
+                                    "Оберіть команду"
+                                  : teams.length
+                                    ? "Оберіть команду"
+                                    : "Немає доступних команд"}
+                              </span>
+                              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Пошук команди..." />
+                              <CommandList>
+                                <CommandEmpty>Не знайдено</CommandEmpty>
+                                <CommandGroup>
+                                  {teams.map((team) => (
+                                    <CommandItem
+                                      key={team.id}
+                                      value={`${team.name} ${team.id}`}
+                                      data-checked={field.value === team.id}
+                                      onSelect={() => {
+                                        field.onChange(team.id);
+                                        setTeamSelectOpen(false);
+                                      }}
+                                    >
+                                      {team.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {watchRole === "DEV" && (
               <FormField

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
+import { teamGuardResponse } from "@/lib/team-scope";
 import { createNotification } from "@/lib/notifications";
 import { accountTypeLabelUk, notifVerbPast } from "@/lib/notification-copy";
 import {
@@ -18,31 +19,33 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
   const body = await request.json();
 
-  const existing = await prisma.account.findUnique({ where: { id } });
+  const existing = await prisma.account.findFirst({ where: { id, teamId: tg.teamId } });
   if (
     !existing ||
-    (user!.role !== "ADMIN" && existing.ownerId !== user!.id)
+    (user!.role !== "ADMIN" && user!.role !== "SUPER_ADMIN" && existing.ownerId !== user!.id)
   ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (body.ownerId !== undefined && user!.role === "ADMIN") {
+  if (body.ownerId !== undefined && (user!.role === "ADMIN" || user!.role === "SUPER_ADMIN")) {
     const owner = await prisma.user.findUnique({
       where: { id: body.ownerId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, teamId: true },
     });
-    if (!owner || owner.role !== "SALES") {
+    if (!owner || owner.role !== "SALES" || owner.teamId !== tg.teamId) {
       return NextResponse.json({ error: "Sales owner not found" }, { status: 404 });
     }
   }
 
-  const adminIsEditing = user!.role === "ADMIN";
+  const adminIsEditing = user!.role === "ADMIN" || user!.role === "SUPER_ADMIN";
   const ownerWillChange =
     adminIsEditing && body.ownerId !== undefined && body.ownerId !== existing.ownerId;
 
@@ -59,7 +62,8 @@ export async function PATCH(
         : [],
     }),
     ...(body.description !== undefined && { description: body.description || null }),
-    ...(user!.role === "ADMIN" && body.ownerId !== undefined && { ownerId: body.ownerId }),
+    ...((user!.role === "ADMIN" || user!.role === "SUPER_ADMIN") &&
+      body.ownerId !== undefined && { ownerId: body.ownerId }),
   };
 
   if ("operationalStatus" in body) {
@@ -130,13 +134,18 @@ export async function PATCH(
   });
 
   const adminName =
-    user!.role === "ADMIN"
+    user!.role === "ADMIN" || user!.role === "SUPER_ADMIN"
       ? `${user!.firstName} ${user!.lastName}`.trim() || "Адміністратор"
       : "Адміністратор";
 
-  if (body.ownerId !== undefined && user!.role === "ADMIN" && body.ownerId !== existing.ownerId) {
+  if (
+    body.ownerId !== undefined &&
+    (user!.role === "ADMIN" || user!.role === "SUPER_ADMIN") &&
+    body.ownerId !== existing.ownerId
+  ) {
     await createNotification({
       userId: body.ownerId,
+      teamId: tg.teamId,
       type: "ACCOUNT_REASSIGNED",
       title: `Новий акаунт — ${updated.account}`,
       telegramActorName: adminName || undefined,
@@ -178,6 +187,7 @@ export async function PATCH(
     nameLines.push(`ID акаунта в CRM: ${updated.id}`);
     await createNotification({
       userId: existing.ownerId,
+      teamId: tg.teamId,
       type: "ACCOUNT_UPDATED_BY_ADMIN",
       title: `Акаунт оновлено — ${updated.account}`,
       telegramActorName: adminName || undefined,
@@ -198,18 +208,20 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
 
-  const existing = await prisma.account.findUnique({ where: { id } });
+  const existing = await prisma.account.findFirst({ where: { id, teamId: tg.teamId } });
   if (
     !existing ||
-    (user!.role !== "ADMIN" && existing.ownerId !== user!.id)
+    (user!.role !== "ADMIN" && user!.role !== "SUPER_ADMIN" && existing.ownerId !== user!.id)
   ) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

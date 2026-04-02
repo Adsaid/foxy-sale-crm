@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function StatsPage() {
   const { user, isLoading } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const showCallsAccountsTabs = user?.role === "ADMIN" || user?.role === "SALES";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const showCallsAccountsTabs = isAdmin || user?.role === "SALES";
   const [statsTab, setStatsTab] = useState<"calls" | "accounts">("calls");
 
   if (isLoading) return null;

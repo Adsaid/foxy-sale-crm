@@ -1,7 +1,7 @@
 import type { Role, Specialization } from "@prisma/client";
 
 export function isSalesLike(role: Role): boolean {
-  return role === "SALES" || role === "ADMIN";
+  return role === "SALES" || role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
 /** Ролі, яких можна призначити виконавцем дзвінка (DEV або DESIGNER). */
@@ -14,7 +14,7 @@ export function canMutateCall(
   user: { id: string; role: string },
   callCreatedById: string,
 ): boolean {
-  if (user.role === "ADMIN") return true;
+  if (user.role === "ADMIN" || user.role === "SUPER_ADMIN") return true;
   return user.role === "SALES" && callCreatedById === user.id;
 }
 
@@ -63,6 +63,7 @@ export const CALLER_COLUMN_LABEL = "Dev/Design";
 
 /** Підписи ролі для адмін-таблиці / фільтрів. */
 export const roleLabelUk: Record<string, string> = {
+  SUPER_ADMIN: "Супер адмін",
   ADMIN: "Адмін",
   DEV: "Розробник",
   DESIGNER: "Дизайнер",

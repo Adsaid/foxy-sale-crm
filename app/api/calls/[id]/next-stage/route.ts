@@ -8,13 +8,16 @@ import {
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { id } = await params;
   const body = await request.json();
@@ -27,7 +30,7 @@ export async function POST(
     return NextResponse.json({ error: "callType and callStartedAt required" }, { status: 400 });
   }
 
-  const existing = await prisma.callEvent.findUnique({ where: { id } });
+  const existing = await prisma.callEvent.findFirst({ where: { id, teamId: tg.teamId } });
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -50,6 +53,7 @@ export async function POST(
   const rangeEnd = new Date(rangeStart.getTime() + CALL_SLOT_MS);
   const callerConflict = await findCallerConflictWithOtherSales(prisma, {
     callerId: existing.callerId,
+    teamId: tg.teamId!,
     rangeStart,
     rangeEnd,
     actingCreatedById: existing.createdById,
@@ -64,6 +68,7 @@ export async function POST(
 
   const newCall = await prisma.callEvent.create({
     data: {
+      teamId: tg.teamId,
       accountId: existing.accountId,
       company: existing.company,
       interviewerName: existing.interviewerName,
@@ -96,7 +101,7 @@ export async function POST(
   });
 
   await prisma.callSummary.updateMany({
-    where: { callEventId: id },
+    where: { callEventId: id, teamId: tg.teamId },
     data: {
       callEventId: newCall.id,
       movingToNextStage: true,

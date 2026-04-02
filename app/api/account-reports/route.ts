@@ -10,6 +10,7 @@ import {
 } from "@/lib/sales-account-report";
 import { notifyAdminsSalesAccountReport } from "@/lib/notifications";
 import type { Account, SalesAccountReportListItem } from "@/types/crm";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 function serializeReport(r: {
   id: string;
@@ -33,15 +34,17 @@ function serializeReport(r: {
   };
 }
 
-export async function POST() {
-  const { error, user } = await getApiUser(["SALES"]);
+export async function POST(request: Request) {
+  const { error, user } = await getApiUser(["SALES"], { request });
   if (error) return error;
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const tg = teamGuardResponse(user);
+  if (tg.error) return tg.error;
 
   const accounts = await prisma.account.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: user.id, teamId: tg.teamId },
     select: accountReportSnapshotSelect,
     orderBy: { createdAt: "desc" },
   });
@@ -62,6 +65,7 @@ export async function POST() {
   const report = await prisma.salesAccountReport.create({
     data: {
       submittedById: user.id,
+      teamId: tg.teamId,
       weekYear,
       weekNumber,
       weekStart,
@@ -72,6 +76,7 @@ export async function POST() {
 
   await notifyAdminsSalesAccountReport({
     reportId: report.id,
+    teamId: tg.teamId!,
     salesFirstName: user.firstName,
     salesLastName: user.lastName,
     telegramBody: telegramText,
@@ -86,8 +91,10 @@ export async function POST() {
 }
 
 export async function GET(request: Request) {
-  const { error } = await getApiUser(["ADMIN"]);
+  const { error, user } = await getApiUser(["ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { searchParams } = new URL(request.url);
   const salesUserId = searchParams.get("salesUserId")?.trim() || undefined;
@@ -97,7 +104,7 @@ export async function GET(request: Request) {
   const page = Math.max(1, Number(searchParams.get("page") || "1") || 1);
   const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") || "30") || 30));
 
-  const where: Prisma.SalesAccountReportWhereInput = {};
+  const where: Prisma.SalesAccountReportWhereInput = { teamId: tg.teamId };
   if (salesUserId) where.submittedById = salesUserId;
 
   let weekFilterApplied = false;

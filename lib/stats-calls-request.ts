@@ -6,7 +6,7 @@ import { isCallAssigneeRole } from "@/lib/roles";
 const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 
 export function callWhereForRole(role: Role, userId: string): Prisma.CallEventWhereInput {
-  if (role === "ADMIN") return {};
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return {};
   if (role === "SALES") return { createdById: userId };
   if (isCallAssigneeRole(role)) return { callerId: userId };
   return {};
@@ -72,7 +72,7 @@ export async function resolveCallStatsFilters(
   }
 
   if (salesIdParam) {
-    if (user.role !== "ADMIN") {
+    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
       return {
         ok: false,
         response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
@@ -98,7 +98,7 @@ export async function resolveCallStatsFilters(
   }
 
   if (callerIdParam) {
-    if (user.role !== "ADMIN" && user.role !== "SALES") {
+    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN" && user.role !== "SALES") {
       return {
         ok: false,
         response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

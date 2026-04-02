@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import type { Prisma, Role } from "@prisma/client";
 import { notifVerbPast } from "@/lib/notification-copy";
 import {
   sendTelegramMessage,
@@ -10,6 +10,7 @@ import { chunkAccountReportTelegramHtmlParts } from "@/lib/sales-account-report"
 
 interface CreateNotificationInput {
   userId: string;
+  teamId?: string | null;
   type: string;
   title: string;
   message: string;
@@ -105,8 +106,17 @@ export async function createNotifications(inputs: CreateNotificationInput[]) {
 export async function notifyAllAdmins(
   input: Omit<CreateNotificationInput, "userId" | "dedupeKey">
 ): Promise<void> {
+  const teamScopedWhere =
+    input.teamId != null
+      ? {
+          OR: [
+            { role: "ADMIN" as const, teamId: input.teamId },
+            { role: "SUPER_ADMIN" as const },
+          ],
+        }
+      : { role: { in: ["ADMIN", "SUPER_ADMIN"] as Role[] } };
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: teamScopedWhere,
     select: { id: true },
   });
   if (admins.length === 0) return;
@@ -120,6 +130,7 @@ export async function notifyAllAdmins(
   );
   sendTelegramToAllAdmins(input.title, input.message, {
     actorName: input.telegramActorName,
+    teamId: input.teamId ?? null,
   }).catch((err) => console.error("[telegram] notifyAdmins", err));
 }
 
@@ -128,6 +139,7 @@ export const NOTIFICATION_TYPE_ACCOUNTS_REPORT_SUBMITTED = "ACCOUNTS_REPORT_SUBM
 /** CRM: коротке повідомлення; Telegram: HTML (<b>), кілька частин за потреби. */
 export async function notifyAdminsSalesAccountReport(opts: {
   reportId: string;
+  teamId: string;
   salesFirstName: string;
   salesLastName: string;
   telegramBody: string;
@@ -135,7 +147,12 @@ export async function notifyAdminsSalesAccountReport(opts: {
   salesBadgeTextColor?: string | null;
 }): Promise<void> {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: {
+      OR: [
+        { role: "ADMIN", teamId: opts.teamId },
+        { role: "SUPER_ADMIN" },
+      ],
+    },
     select: { id: true },
   });
   if (admins.length === 0) return;
@@ -151,6 +168,7 @@ export async function notifyAdminsSalesAccountReport(opts: {
       title,
       message,
       payload: { reportId: opts.reportId },
+      teamId: opts.teamId,
       skipTelegram: true,
       telegramActorName: name,
       telegramActorBadgeBgColor: opts.salesBadgeBgColor,
@@ -161,7 +179,13 @@ export async function notifyAdminsSalesAccountReport(opts: {
   const parts = chunkAccountReportTelegramHtmlParts(title, name, opts.telegramBody);
 
   const tgAdmins = await prisma.user.findMany({
-    where: { role: "ADMIN", telegramChatId: { not: null } },
+    where: {
+      telegramChatId: { not: null },
+      OR: [
+        { role: "ADMIN", teamId: opts.teamId },
+        { role: "SUPER_ADMIN" },
+      ],
+    },
     select: { telegramChatId: true },
   });
 

@@ -4,10 +4,13 @@ import { getApiUser } from "@/lib/api-auth";
 import { isSalesLike } from "@/lib/roles";
 import { normalizeInterviewerName } from "@/lib/interviewer-name";
 import type { CallType, CallStatus, CallOutcome } from "@prisma/client";
+import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function GET(request: Request) {
-  const { error, user } = await getApiUser(["SALES", "ADMIN"]);
+  const { error, user } = await getApiUser(["SALES", "ADMIN", "SUPER_ADMIN"], { request });
   if (error) return error;
+  const tg = teamGuardResponse(user!);
+  if (tg.error) return tg.error;
 
   const { searchParams } = new URL(request.url);
   const rawName = searchParams.get("name") ?? "";
@@ -17,7 +20,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ matches: [] });
   }
 
-  const scopeWhere = isSalesLike(user!.role) ? {} : { createdById: user!.id };
+  const scopeWhere = isSalesLike(user!.role)
+    ? { teamId: tg.teamId }
+    : { createdById: user!.id, teamId: tg.teamId };
 
   const [events, summaries] = await Promise.all([
     prisma.callEvent.findMany({

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdminUsers, useUpdateUser, useChangePassword } from "@/hooks/use-admin-users";
 import { useTable } from "@/hooks/use-table";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -50,14 +51,24 @@ const specLabels: Record<string, string> = {
 };
 
 export function UsersPage() {
+  const { user } = useAuth();
   const [roleFilter, setRoleFilter] = useState<string | undefined>();
   const { data: users, isLoading } = useAdminUsers(roleFilter);
+  const { data: teamAdmins, isLoading: teamAdminsLoading } = useAdminUsers(
+    "ADMIN",
+    user?.role === "SUPER_ADMIN",
+  );
   const updateMutation = useUpdateUser();
   const passwordMutation = useChangePassword();
 
   const table = useTable({
     data: users,
     searchableFields: ["firstName", "lastName", "email", "role", "specialization"],
+    defaultSort: { column: "createdAt", direction: "desc" },
+  });
+  const adminsTable = useTable({
+    data: teamAdmins,
+    searchableFields: ["firstName", "lastName", "email"],
     defaultSort: { column: "createdAt", direction: "desc" },
   });
 
@@ -209,6 +220,91 @@ export function UsersPage() {
             onPageChange={table.setPage}
             onPageSizeChange={table.setPageSize}
           />
+
+          {user?.role === "SUPER_ADMIN" && (
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold">Адміни команди</h3>
+              <TableToolbar
+                search={adminsTable.search}
+                onSearchChange={adminsTable.setSearch}
+                placeholder="Пошук адмінів..."
+              />
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <SortableHeader
+                        column="firstName"
+                        label="Ім'я"
+                        sort={adminsTable.sort}
+                        onSort={adminsTable.toggleSort}
+                      />
+                      <SortableHeader
+                        column="email"
+                        label="Email"
+                        sort={adminsTable.sort}
+                        onSort={adminsTable.toggleSort}
+                      />
+                      <SortableHeader
+                        column="createdAt"
+                        label="Створено"
+                        sort={adminsTable.sort}
+                        onSort={adminsTable.toggleSort}
+                      />
+                      <TableHead className="w-24" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teamAdminsLoading ? (
+                      <TableBodySkeleton colSpan={4} />
+                    ) : !adminsTable.rows.length ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          {adminsTable.isFiltered ? "Нічого не знайдено" : "Немає адмінів у цій команді"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      adminsTable.rows.map((u) => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-medium">
+                            {u.firstName} {u.lastName}
+                          </TableCell>
+                          <TableCell>{u.email}</TableCell>
+                          <TableCell>{formatDateKyiv(u.createdAt)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setEditUser(u)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => setPasswordUser(u)}
+                              >
+                                <KeyRound className="size-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <TablePagination
+                page={adminsTable.page}
+                totalPages={adminsTable.totalPages}
+                pageSize={adminsTable.pageSize}
+                totalItems={adminsTable.totalItems}
+                onPageChange={adminsTable.setPage}
+                onPageSizeChange={adminsTable.setPageSize}
+              />
+            </section>
+          )}
         </TabsContent>
 
         <TabsContent value="requests" className="mt-0 outline-none focus-visible:outline-none">

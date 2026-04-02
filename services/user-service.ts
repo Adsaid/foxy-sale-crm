@@ -1,5 +1,5 @@
 import api from "@/lib/api/client";
-import type { DevUser, AdminUser, AdminInvitation, UpdateUserInput } from "@/types/crm";
+import type { DevUser, AdminUser, AdminInvitation, UpdateUserInput, PendingTeam } from "@/types/crm";
 
 export const userService = {
   async getDevs(): Promise<DevUser[]> {
@@ -47,5 +47,14 @@ export const userService = {
   async approveUser(id: string): Promise<AdminUser> {
     const res = await api.post<AdminUser>(`/api/admin/users/${id}/approve`);
     return res.data;
+  },
+
+  async getPendingTeams(): Promise<PendingTeam[]> {
+    const res = await api.get<PendingTeam[]>("/api/super-admin/pending-teams");
+    return res.data;
+  },
+
+  async approveTeam(id: string): Promise<void> {
+    await api.post(`/api/super-admin/teams/${id}/approve`);
   },
 };
