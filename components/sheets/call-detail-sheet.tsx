@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Users, CalendarClock, Link2, FileText, StickyNote, MessageSquare } from "lucide-react";
+import { ExternalLink, Users, CalendarClock, Link2, FileText, Globe, StickyNote, MessageSquare } from "lucide-react";
 import type { CallEvent } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +24,7 @@ import { TextWithLinks } from "@/components/ui/text-with-links";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
 import { assigneeFieldLabelEn } from "@/lib/roles";
 import { ensureUrlProtocol } from "@/lib/normalize-call-link";
+import { AccountLocationValue } from "@/components/ui/account-location-value";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -259,6 +260,18 @@ export function CallDetailSheet({
                                 </ul>
                               </div>
                             ) : null}
+                            {call.account.location?.trim() ? (
+                              <div>
+                                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  <Globe className="size-3.5" />
+                                  Місцезнаходження
+                                </p>
+                                <AccountLocationValue
+                                  location={call.account.location}
+                                  className="text-sm text-foreground"
+                                />
+                              </div>
+                            ) : null}
                             {call.account.description?.trim() ? (
                               <div>
                                 <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -272,9 +285,10 @@ export function CallDetailSheet({
                               </div>
                             ) : null}
                             {!call.account.description?.trim() &&
-                            call.account.profileLinks.filter((l) => l.trim()).length === 0 ? (
+                            call.account.profileLinks.filter((l) => l.trim()).length === 0 &&
+                            !call.account.location?.trim() ? (
                               <p className="text-sm text-muted-foreground">
-                                Немає опису та посилань.
+                                Немає опису, посилань та місцезнаходження.
                               </p>
                             ) : null}
                           </div>

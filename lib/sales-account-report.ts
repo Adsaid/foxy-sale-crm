@@ -4,6 +4,8 @@ import { appendTelegramCrmLinkFooter, escapeHtml } from "@/lib/telegram";
 import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
+  accountLocationRegionalEmoji,
+  formatAccountLocationLabel,
 } from "@/lib/account-fields";
 
 export const ACCOUNT_REPORT_OWNER_SELECT = {
@@ -105,41 +107,53 @@ function sortByAccountName(a: Account, b: Account): number {
   return a.account.localeCompare(b.account, "uk", { sensitivity: "base" });
 }
 
+/** Префікс «🇺🇦 UA» для рядка звіту; порожньо, якщо локації немає або вона не відображається. */
+function accountReportLocationPrefix(stored: string | null | undefined): string {
+  if (!stored?.trim()) return "";
+  const label = formatAccountLocationLabel(stored);
+  if (!label) return "";
+  const flag = accountLocationRegionalEmoji(stored);
+  return flag ? `${flag} ${label}` : label;
+}
+
 function upworkLine(acc: Account): string {
-  const locationLabel = acc.location?.trim() || "—";
+  const loc = accountReportLocationPrefix(acc.location);
+  const head = loc ? `${loc} ` : "";
   const dot = statusDot(acc.operationalStatus);
   const name = acc.account.trim();
   const desk = acc.desktopType ? accountDesktopTypeLabelUk[acc.desktopType] : "—";
 
   if (acc.operationalStatus === "WARMING" && acc.warmUpStage) {
     const stage = accountWarmUpStageLabelUk[acc.warmUpStage];
-    return `${locationLabel} ${dot}${name} - ${desk}, ${stage.toLowerCase()}`;
+    return `${head}${dot}${name} - ${desk}, ${stage.toLowerCase()}`;
   }
 
   const views = acc.profileViewsCount;
   if (views != null) {
-    return `${locationLabel} ${dot}${name} - ${desk} - ${viewsPhrase(views)}`;
+    return `${head}${dot}${name} - ${desk} - ${viewsPhrase(views)}`;
   }
-  return `${locationLabel} ${dot}${name} - ${desk}`;
+  return `${head}${dot}${name} - ${desk}`;
 }
 
 function linkedInLine(acc: Account): string {
+  const loc = accountReportLocationPrefix(acc.location);
+  const head = loc ? `${loc} ` : "";
   const dot = statusDot(acc.operationalStatus);
   const name = acc.account.trim();
 
   if (acc.operationalStatus === "WARMING" && acc.warmUpStage) {
     const stage = accountWarmUpStageLabelUk[acc.warmUpStage].toLowerCase();
     if (acc.contactsCount == null && acc.profileViewsCount == null) {
-      return `${dot}${name} ${stage}`;
+      return `${head}${dot}${name} ${stage}`;
     }
   }
 
   if (acc.contactsCount != null || acc.profileViewsCount != null) {
     const c = acc.contactsCount ?? 0;
     const v = acc.profileViewsCount ?? 0;
-    return `${dot}${name} - ${contactsPhrase(c)}, ${viewsPhrase(v)}`;
+    return `${head}${dot}${name} - ${contactsPhrase(c)}, ${viewsPhrase(v)}`;
   }
-  return `${dot}${name}`;
+  return `${head}${dot}${name}`;
 }
 
 /** Plain text для Telegram (і збереження в telegramText). Заголовок і сейл додає notifyAdminsSalesAccountReport. */

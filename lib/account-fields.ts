@@ -1,3 +1,5 @@
+import { countries } from "country-data-list";
+
 export const ACCOUNT_OPERATIONAL_STATUS_VALUES = [
   "ACTIVE",
   "PAUSED",
@@ -91,6 +93,92 @@ export function parseAccountLocationField(val: unknown): ParsedLocationField {
   if (val === null) return { value: null };
   if (typeof val === "string") return { value: val.trim() || null };
   return "invalid";
+}
+
+const COUNTRY_LIST = countries.all as {
+  alpha2: string;
+  alpha3: string;
+  name: string;
+  status?: string;
+  ioc?: string;
+  emoji?: string;
+}[];
+
+function countryRowUsable(c: (typeof COUNTRY_LIST)[number]): boolean {
+  return Boolean(c.emoji) && c.status !== "deleted" && c.ioc !== "PRK";
+}
+
+/** Для дефолту CountryDropdown (alpha3) або порожньо, якщо не розпізнано. */
+export function resolveAccountLocationToAlpha3(
+  stored: string | null | undefined
+): string | undefined {
+  if (stored == null || typeof stored !== "string") return undefined;
+  const t = stored.trim();
+  if (!t) return undefined;
+  if (/^[A-Za-z]{2}$/.test(t)) {
+    const a2 = t.toUpperCase();
+    const c = COUNTRY_LIST.find(
+      (x) => x.alpha2.toUpperCase() === a2 && countryRowUsable(x)
+    );
+    if (c) return c.alpha3;
+  }
+  if (/^[A-Za-z]{3}$/.test(t)) {
+    const a3 = t.toUpperCase();
+    const c = COUNTRY_LIST.find((x) => x.alpha3 === a3 && countryRowUsable(x));
+    if (c) return c.alpha3;
+  }
+  const c = COUNTRY_LIST.find(
+    (x) => x.name.toLowerCase() === t.toLowerCase() && countryRowUsable(x)
+  );
+  return c?.alpha3;
+}
+
+/** Показ у UI / звітах: ISO alpha-2 (UA), якщо відомо з alpha-3 або назви; інакше як збережено. */
+export function formatAccountLocationLabel(stored: string | null | undefined): string {
+  if (stored == null || typeof stored !== "string") return "";
+  const t = stored.trim();
+  if (!t) return "";
+  if (/^[A-Za-z]{2}$/.test(t)) {
+    const a2 = t.toUpperCase();
+    const c = COUNTRY_LIST.find(
+      (x) => x.alpha2.toUpperCase() === a2 && countryRowUsable(x)
+    );
+    if (c) return c.alpha2.toUpperCase();
+  }
+  if (/^[A-Za-z]{3}$/.test(t)) {
+    const a3 = t.toUpperCase();
+    const c = COUNTRY_LIST.find((x) => x.alpha3 === a3 && countryRowUsable(x));
+    if (c?.alpha2) return c.alpha2.toUpperCase();
+  }
+  const c = COUNTRY_LIST.find(
+    (x) => x.name.toLowerCase() === t.toLowerCase() && countryRowUsable(x)
+  );
+  if (c?.alpha2) return c.alpha2.toUpperCase();
+  return t;
+}
+
+/** Lowercase alpha2 для `CircleFlag`; `null`, якщо країну не вдалося однозначно визначити. */
+export function resolveAccountLocationToAlpha2(
+  stored: string | null | undefined
+): string | null {
+  const a3 = resolveAccountLocationToAlpha3(stored);
+  if (!a3) return null;
+  const c = COUNTRY_LIST.find((x) => x.alpha3 === a3 && countryRowUsable(x));
+  return c ? c.alpha2.toLowerCase() : null;
+}
+
+/** Прапор-emoji з ISO alpha-2 (Telegram / plain text). Порожній рядок, якщо невідомо. */
+export function accountLocationRegionalEmoji(
+  stored: string | null | undefined
+): string {
+  const a2low = resolveAccountLocationToAlpha2(stored);
+  if (!a2low || a2low.length !== 2) return "";
+  const u = a2low.toUpperCase();
+  const base = 0x1f1e6;
+  const c0 = u.charCodeAt(0);
+  const c1 = u.charCodeAt(1);
+  if (c0 < 0x41 || c0 > 0x5a || c1 < 0x41 || c1 > 0x5a) return "";
+  return String.fromCodePoint(base + (c0 - 0x41), base + (c1 - 0x41));
 }
 
 /** Дата (календарний день) у форматі yyyy-MM-dd, зберігається як UTC midnight. */

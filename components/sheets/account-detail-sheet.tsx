@@ -19,6 +19,7 @@ import {
   accountDesktopTypeLabelUk,
   accountWarmUpStageLabelUk,
 } from "@/lib/account-fields";
+import { AccountLocationValue } from "@/components/ui/account-location-value";
 import { formatDateLongKyiv } from "@/lib/date-kyiv";
 
 interface AccountDetailSheetProps {
@@ -136,7 +137,7 @@ export function AccountDetailSheet({
             )}
 
             <DetailRow label="Місцезнаходження">
-              {account.location?.trim() ? account.location : "—"}
+              <AccountLocationValue location={account.location} />
             </DetailRow>
 
             <DetailRow label="Робоче оточення">

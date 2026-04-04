@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { CalendarIcon, ChevronsUpDown, Plus, X } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown, Plus, X as XIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -44,9 +44,14 @@ import {
   accountDesktopTypeLabelUk,
   accountOperationalStatusLabelUk,
   accountWarmUpStageLabelUk,
+  resolveAccountLocationToAlpha3,
 } from "@/lib/account-fields";
+import { CountryDropdown } from "@/components/ui/country-dropdown";
+import type { Country } from "@/components/ui/country-dropdown";
 
 const NONE = "__none__";
+
+type LocationFormMode = "inherit" | "set" | "clear";
 
 function parseIsoToCalendarDate(iso: string | null | undefined): Date | undefined {
   if (!iso) return undefined;
@@ -97,7 +102,44 @@ export function AccountForm({
   const [desktopType, setDesktopType] = useState<AccountDesktopType | null>(
     initial?.desktopType ?? null
   );
-  const [location, setLocation] = useState(initial?.location ?? "");
+  const resolvedInitialAlpha3 = useMemo(
+    () => resolveAccountLocationToAlpha3(initial?.location ?? null) ?? "",
+    [initial?.id, initial?.location]
+  );
+  const [locationMode, setLocationMode] = useState<LocationFormMode>("inherit");
+  const [locationAlpha3, setLocationAlpha3] = useState("");
+
+  useEffect(() => {
+    setLocationMode("inherit");
+    setLocationAlpha3("");
+  }, [initial?.id]);
+
+  const locationDropdownDefault =
+    locationMode === "clear"
+      ? undefined
+      : locationMode === "set"
+        ? locationAlpha3 || undefined
+        : resolvedInitialAlpha3 || undefined;
+
+  const locationDropdownKey = `${initial?.id ?? "new"}-${locationMode}-${locationAlpha3}-${resolvedInitialAlpha3}`;
+
+  function computeLocationSubmit(): string | null {
+    if (!initial) {
+      if (locationMode === "clear") return null;
+      if (locationMode === "set" && locationAlpha3.trim()) {
+        return locationAlpha3.trim().toUpperCase();
+      }
+      return null;
+    }
+    if (locationMode === "inherit") return initial.location?.trim() || null;
+    if (locationMode === "clear") return null;
+    return locationAlpha3.trim().toUpperCase() || null;
+  }
+
+  function handleCountryChange(country: Country) {
+    setLocationMode("set");
+    setLocationAlpha3(country.alpha3);
+  }
   const [contactsCount, setContactsCount] = useState(
     initial?.contactsCount != null ? String(initial.contactsCount) : ""
   );
@@ -214,7 +256,7 @@ export function AccountForm({
                 className="shrink-0"
                 onClick={() => setProfileLinks(profileLinks.filter((_, j) => j !== i))}
               >
-                <X className="size-4" />
+                <XIcon className="size-4" />
               </Button>
             )}
           </div>
@@ -282,11 +324,42 @@ export function AccountForm({
 
         <div className="space-y-2">
           <Label>Місцезнаходження</Label>
-          <Input
-            placeholder="Напр. Україна, UK, регіон / IP…"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              <CountryDropdown
+                key={locationDropdownKey}
+                defaultValue={locationDropdownDefault}
+                onChange={handleCountryChange}
+                placeholder="Оберіть країну"
+                searchPlaceholder="Пошук країни…"
+                className="w-full"
+              />
+            </div>
+            {((locationMode === "inherit" && Boolean(resolvedInitialAlpha3)) ||
+              (locationMode === "set" && Boolean(locationAlpha3.trim()))) && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0 text-muted-foreground hover:text-foreground"
+                aria-label="Прибрати країну"
+                onClick={() => {
+                  setLocationMode("clear");
+                  setLocationAlpha3("");
+                }}
+              >
+                <XIcon className="size-4" />
+              </Button>
+            )}
+          </div>
+          {initial?.location?.trim() &&
+            !resolvedInitialAlpha3 &&
+            locationMode === "inherit" && (
+              <p className="text-xs text-muted-foreground">
+                У базі збережено довільний текст: «{initial.location.trim()}». Оберіть країну зі списку, щоб
+                замінити на стандартне позначення, або залиште без змін.
+              </p>
+            )}
         </div>
 
         <div className="space-y-2">
@@ -397,7 +470,7 @@ export function AccountForm({
             operationalStatus,
             warmUpStage: operationalStatus === "WARMING" ? warmUpStage : null,
             desktopType,
-            location: location.trim() || null,
+            location: computeLocationSubmit(),
             contactsCount: type === "UPWORK" ? null : toCount(contactsCount),
             profileViewsCount: toCount(profileViewsCount),
             accountCreatedAt: accountCreatedDate

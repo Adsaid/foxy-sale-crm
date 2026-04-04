@@ -7,7 +7,12 @@ import type { DateRange } from "react-day-picker";
 import { useAccountReports } from "@/hooks/use-account-reports";
 import { useAdminUsers } from "@/hooks/use-admin-users";
 import { formatWeekRangeLabelFromStart, isoWeeksCsvFromDateRange } from "@/lib/report-week";
-import { accountDesktopTypeLabelUk, accountWarmUpStageLabelUk } from "@/lib/account-fields";
+import {
+  accountDesktopTypeLabelUk,
+  accountWarmUpStageLabelUk,
+  formatAccountLocationLabel,
+} from "@/lib/account-fields";
+import { AccountLocationValue } from "@/components/ui/account-location-value";
 import { formatCallTableDateTime, formatDateKyiv } from "@/lib/date-kyiv";
 import {
   Accordion,
@@ -103,7 +108,7 @@ const SNAPSHOT_SORT_DEFAULT: SortState = { column: "type", direction: "asc" };
 function snapshotSortValue(acc: Account, column: string): string | number {
   switch (column) {
     case "location":
-      return (acc.location?.trim() || "").toLowerCase();
+      return formatAccountLocationLabel(acc.location).toLowerCase();
     case "operationalStatus":
       return acc.operationalStatus ?? "";
     case "warmUpStage":
@@ -474,7 +479,7 @@ function ReportAccordionItem({
                     onClick={() => onRowClick(acc)}
                   >
                     <TableCell className="min-w-0 whitespace-normal break-words text-left align-middle">
-                      {acc.location?.trim() || "—"}
+                      <AccountLocationValue location={acc.location} />
                     </TableCell>
                     <TableCell className="text-left align-middle">
                       {acc.operationalStatus ? (
