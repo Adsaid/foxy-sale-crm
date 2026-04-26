@@ -2,6 +2,11 @@ import { z } from "zod";
 
 const recurrenceTypeSchema = z.enum(["NONE", "WEEKLY"]);
 
+/** TZDate.toISOString() emits `+03:00` style offsets; Zod's default datetime only allows `Z`. */
+function isoDateTimeString(message: string) {
+  return z.string().datetime({ offset: true, message });
+}
+
 function optionalTrimmedString(maxLen: number) {
   return z
     .union([z.string(), z.null(), z.undefined()])
@@ -14,11 +19,11 @@ export const createDevDailyCallSchema = z
   .object({
     title: z.string().trim().min(1, "Назва обов'язкова").max(200, "Назва занадто довга"),
     description: optionalTrimmedString(2000),
-    callStartedAt: z.string().datetime("Некоректний час початку"),
-    callEndedAt: z.string().datetime("Некоректний час завершення").optional(),
+    callStartedAt: isoDateTimeString("Некоректний час початку"),
+    callEndedAt: isoDateTimeString("Некоректний час завершення").optional(),
     callLink: optionalTrimmedString(1000),
     recurrenceType: recurrenceTypeSchema.default("NONE"),
-    recurrenceEndDate: z.string().datetime("Некоректний час завершення повтору").optional(),
+    recurrenceEndDate: isoDateTimeString("Некоректний час завершення повтору").optional(),
   })
   .superRefine((data, ctx) => {
     const startedAt = new Date(data.callStartedAt);
@@ -58,11 +63,21 @@ export const updateDevDailyCallSchema = z
   .object({
     title: z.string().trim().min(1, "Назва обов'язкова").max(200).optional(),
     description: optionalTrimmedString(2000),
-    callStartedAt: z.string().datetime("Некоректний час початку").optional(),
-    callEndedAt: z.union([z.string().datetime("Некоректний час завершення"), z.null()]).optional(),
+    callStartedAt: isoDateTimeString("Некоректний час початку").optional(),
+    callEndedAt: z
+      .union([
+        isoDateTimeString("Некоректний час завершення"),
+        z.null(),
+      ])
+      .optional(),
     callLink: optionalTrimmedString(1000),
     recurrenceType: recurrenceTypeSchema.optional(),
-    recurrenceEndDate: z.union([z.string().datetime("Некоректний час завершення повтору"), z.null()]).optional(),
+    recurrenceEndDate: z
+      .union([
+        isoDateTimeString("Некоректний час завершення повтору"),
+        z.null(),
+      ])
+      .optional(),
     isActive: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
