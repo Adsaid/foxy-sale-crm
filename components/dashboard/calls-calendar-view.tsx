@@ -15,6 +15,7 @@ import type {
 import { CRM_TIMEZONE } from "@/lib/date-kyiv";
 import { kyivIntlTimezonePlugin } from "@/lib/fullcalendar-named-timezone";
 import type { CallEvent } from "@/types/crm";
+import type { ExpandedDailyEvent } from "@/lib/dev-daily-call-expand-client";
 import { assigneeFieldLabelEn } from "@/lib/roles";
 
 const DEFAULT_DURATION_MS = 60 * 60 * 1000;
@@ -108,6 +109,32 @@ function toEvent(call: CallEvent): EventInput {
   };
 }
 
+const DAILY_EVENT_BG = "#059669";
+
+function dailyEventToEvent(de: ExpandedDailyEvent): EventInput {
+  const start = new Date(de.callStartedAt);
+  const end = de.callEndedAt
+    ? new Date(de.callEndedAt)
+    : new Date(start.getTime() + DEFAULT_DURATION_MS);
+
+  const devLabel = de.caller
+    ? `${de.caller.firstName} ${de.caller.lastName?.charAt(0) ?? ""}.`
+    : "";
+  const parts = [de.title];
+  if (devLabel) parts.push(devLabel);
+  if (de.recurrenceType === "WEEKLY") parts.push("(щотижня)");
+
+  return {
+    id: de.id,
+    title: parts.join(" · "),
+    start,
+    end: end > start ? end : new Date(start.getTime() + DEFAULT_DURATION_MS),
+    backgroundColor: DAILY_EVENT_BG,
+    borderColor: "transparent",
+    extendedProps: { dailyEvent: de },
+  };
+}
+
 function eventClassNames(arg: EventContentArg): string[] {
   const call = arg.event.extendedProps.call as CallEvent | undefined;
   if (!call) return [];
@@ -162,19 +189,40 @@ function buildSalesLegend(calls: CallEvent[]): SalesLegendItem[] {
 
 interface CallsCalendarViewProps {
   calls: CallEvent[];
+  dailyEvents?: ExpandedDailyEvent[];
   onEventClick: (call: CallEvent) => void;
+  onDailyEventClick?: (dailyEvent: ExpandedDailyEvent) => void;
 }
 
-export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProps) {
-  const events = useMemo(() => calls.map(toEvent), [calls]);
+export function CallsCalendarView({
+  calls,
+  dailyEvents,
+  onEventClick,
+  onDailyEventClick,
+}: CallsCalendarViewProps) {
+  const callEvents = useMemo(() => calls.map(toEvent), [calls]);
+  const dailyEventInputs = useMemo(
+    () => (dailyEvents ?? []).map(dailyEventToEvent),
+    [dailyEvents],
+  );
+  const events = useMemo(
+    () => [...callEvents, ...dailyEventInputs],
+    [callEvents, dailyEventInputs],
+  );
   const legend = useMemo(() => buildSalesLegend(calls), [calls]);
+  const hasDailyEvents = dailyEventInputs.length > 0;
 
   const handleEventClick = useCallback(
     (info: EventClickArg) => {
+      const dailyEvent = info.event.extendedProps.dailyEvent as ExpandedDailyEvent | undefined;
+      if (dailyEvent) {
+        onDailyEventClick?.(dailyEvent);
+        return;
+      }
       const call = info.event.extendedProps.call as CallEvent;
       if (call) onEventClick(call);
     },
-    [onEventClick],
+    [onDailyEventClick, onEventClick],
   );
 
   const handleEventDidMount = useCallback((info: EventMountArg) => {
@@ -232,7 +280,7 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
 
   return (
     <div className="space-y-3">
-      {legend.length > 0 && (
+      {(legend.length > 0 || hasDailyEvents) && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Сейл:</span>
           {legend.map((item) => (
@@ -246,6 +294,19 @@ export function CallsCalendarView({ calls, onEventClick }: CallsCalendarViewProp
               <span className="text-foreground">{item.name}</span>
             </span>
           ))}
+          {hasDailyEvents && (
+            <>
+              <span className="font-medium text-foreground">|</span>
+              <span className="inline-flex items-center gap-1.5">
+                <span
+                  className="size-3 shrink-0 rounded-sm ring-1 ring-border/60"
+                  style={{ backgroundColor: DAILY_EVENT_BG }}
+                  aria-hidden
+                />
+                <span className="text-foreground">Дейлік</span>
+              </span>
+            </>
+          )}
         </div>
       )}
 

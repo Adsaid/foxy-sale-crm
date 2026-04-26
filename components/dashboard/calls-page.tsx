@@ -11,6 +11,12 @@ import {
   useCompleteCall,
 } from "@/hooks/use-calls";
 import { useDevs } from "@/hooks/use-devs";
+import {
+  useDevDailyCalls,
+  useCreateDevDailyCall,
+  useUpdateDevDailyCall,
+  useDeleteDevDailyCall,
+} from "@/hooks/use-dev-daily-calls";
 import { useTable } from "@/hooks/use-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,12 +52,14 @@ import {
   LayoutList,
   CalendarRange,
   ChevronsUpDown,
+  Repeat,
 } from "lucide-react";
 import { CallCreateDialog } from "@/components/dialogs/call-create-dialog";
 import { CallEditDialog } from "@/components/dialogs/call-edit-dialog";
 import { CallCompleteDialog } from "@/components/dialogs/call-complete-dialog";
 import { CallNextStageDialog } from "@/components/dialogs/call-next-stage-dialog";
 import { CallDetailSheet } from "@/components/sheets/call-detail-sheet";
+import { DevDailyCallDetailSheet } from "@/components/sheets/dev-daily-call-detail-sheet";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import {
@@ -66,9 +74,14 @@ import {
   TablePagination,
   SortableHeader,
 } from "@/components/ui/data-table-controls";
-import type { CallEvent } from "@/types/crm";
+import type { CallEvent, DevDailyCall } from "@/types/crm";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CallsCalendarView } from "@/components/dashboard/calls-calendar-view";
+import { DevDailyCallCreateDialog } from "@/components/dialogs/dev-daily-call-create-dialog";
+import { DevDailyCallEditDialog } from "@/components/dialogs/dev-daily-call-edit-dialog";
+import {
+  expandDailyCallsForView,
+} from "@/lib/dev-daily-call-expand-client";
 import {
   formatCallTableDateTime,
   formatCallTimeKyiv,
@@ -401,6 +414,21 @@ export function CallsPage() {
   const advanceStageMutation = useAdvanceCallStage();
   const completeMutation = useCompleteCall();
 
+  const { data: dailyCalls } = useDevDailyCalls();
+  const createDailyMutation = useCreateDevDailyCall();
+  const updateDailyMutation = useUpdateDevDailyCall();
+  const deleteDailyMutation = useDeleteDevDailyCall();
+  const [dailyCreateOpen, setDailyCreateOpen] = useState(false);
+  const [editDailyCall, setEditDailyCall] = useState<DevDailyCall | null>(null);
+  const [deleteDailyId, setDeleteDailyId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editCall, setEditCall] = useState<CallEvent | null>(null);
+  const [completeId, setCompleteId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [nextStageCall, setNextStageCall] = useState<CallEvent | null>(null);
+  const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
+  const [dailySheetCall, setDailySheetCall] = useState<DevDailyCall | null>(null);
+
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -420,6 +448,33 @@ export function CallsPage() {
       })
       .sort((a, b) => new Date(a.callStartedAt).getTime() - new Date(b.callStartedAt).getTime());
   }, [calls, user?.role, user?.id, nowMs]);
+
+  const expandedDailyCalls = useMemo(() => {
+    if (!dailyCalls?.length) return [];
+    const viewStart = new Date(nowMs - 30 * 24 * 3600000);
+    const viewEnd = new Date(nowMs + 90 * 24 * 3600000);
+    return expandDailyCallsForView(dailyCalls, viewStart, viewEnd);
+  }, [dailyCalls, nowMs]);
+
+  const todayDailyCalls = useMemo(() => {
+    if (!expandedDailyCalls.length) return [];
+    return expandedDailyCalls.filter((dc) =>
+      isKyivCalendarToday(dc.callStartedAt, nowMs),
+    );
+  }, [expandedDailyCalls, nowMs]);
+
+  const dailyCallsById = useMemo(
+    () => new Map((dailyCalls ?? []).map((c) => [c.id, c] as const)),
+    [dailyCalls],
+  );
+
+  const openDailySheetById = useCallback(
+    (dailyCallId: string) => {
+      const base = dailyCallsById.get(dailyCallId);
+      if (base) setDailySheetCall(base);
+    },
+    [dailyCallsById],
+  );
 
   const [salesFilterId, setSalesFilterId] = useState<string>(() =>
     user?.role === "SALES" ? SALES_FILTER_MINE : SALES_FILTER_ALL
@@ -514,16 +569,20 @@ export function CallsPage() {
     filtersActive: tableFiltersActive,
   });
 
+  const dailyTableRows = useMemo(() => {
+    if (isSalesLike) return [] as DevDailyCall[];
+    const q = table.search.trim().toLowerCase();
+    const rows = dailyCalls ?? [];
+    if (!q) return rows;
+    return rows.filter((dc) => {
+      const hay = `${dc.title} ${dc.description ?? ""}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [dailyCalls, isSalesLike, table.search]);
+
   useEffect(() => {
     table.setPage(1);
   }, [salesFilterId, devFilterId, table.setPage]);
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editCall, setEditCall] = useState<CallEvent | null>(null);
-  const [completeId, setCompleteId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [nextStageCall, setNextStageCall] = useState<CallEvent | null>(null);
-  const [sheetCall, setSheetCall] = useState<CallEvent | null>(null);
 
   function canComplete(callStartedAt: string, callEndedAt: string | null | undefined) {
     if (callEndedAt) return false;
@@ -540,12 +599,20 @@ export function CallsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Дзвінки</h2>
-        {isSalesLike && (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-2 size-4" />
-            Створити
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {!isSalesLike && (
+            <Button variant="outline" onClick={() => setDailyCreateOpen(true)}>
+              <Repeat className="mr-2 size-4" />
+              Дейлік
+            </Button>
+          )}
+          {isSalesLike && (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              Створити
+            </Button>
+          )}
+        </div>
       </div>
 
       {isSalesLike && (
@@ -586,18 +653,42 @@ export function CallsPage() {
       )}
 
       {!isSalesLike && (
-        <CallCompleteDialog
-          open={!!completeId}
-          onOpenChange={(o) => !o && setCompleteId(null)}
-          isPending={completeMutation.isPending}
-          onSubmit={(devFeedback) => {
-            if (!completeId) return;
-            completeMutation.mutate(
-              { id: completeId, data: { devFeedback } },
-              { onSuccess: () => setCompleteId(null) }
-            );
-          }}
-        />
+        <>
+          <CallCompleteDialog
+            open={!!completeId}
+            onOpenChange={(o) => !o && setCompleteId(null)}
+            isPending={completeMutation.isPending}
+            onSubmit={(devFeedback) => {
+              if (!completeId) return;
+              completeMutation.mutate(
+                { id: completeId, data: { devFeedback } },
+                { onSuccess: () => setCompleteId(null) }
+              );
+            }}
+          />
+          <DevDailyCallCreateDialog
+            open={dailyCreateOpen}
+            onOpenChange={setDailyCreateOpen}
+            isPending={createDailyMutation.isPending}
+            onSubmit={(data) => {
+              createDailyMutation.mutate(data, {
+                onSuccess: () => setDailyCreateOpen(false),
+              });
+            }}
+          />
+          <DevDailyCallEditDialog
+            call={editDailyCall}
+            onClose={() => setEditDailyCall(null)}
+            isPending={updateDailyMutation.isPending}
+            onSubmit={(data) => {
+              if (!editDailyCall) return;
+              updateDailyMutation.mutate(
+                { id: editDailyCall.id, data },
+                { onSuccess: () => setEditDailyCall(null) },
+              );
+            }}
+          />
+        </>
       )}
 
       {/* Today's calls */}
@@ -646,6 +737,110 @@ export function CallsPage() {
               </CarouselContent>
             </div>
             {todayCalls.length > 1 && (
+              <CarouselNext
+                hideWhenDisabled
+                variant="outline"
+                size="icon-sm"
+                className="static z-10 shrink-0 translate-y-0 bg-background shadow-sm"
+              />
+            )}
+          </div>
+        </Carousel>
+      )}
+
+      {/* Today's daily calls for DEV */}
+      {!isSalesLike && todayDailyCalls.length > 0 && (
+        <Carousel
+          opts={{ align: "start", loop: false }}
+          className="w-full"
+        >
+          <div className="flex items-center gap-2">
+            <Repeat className="size-4 shrink-0 text-emerald-600" />
+            <h3 className="text-sm font-semibold">
+              Дейліки сьогодні
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                ({todayDailyCalls.length})
+              </span>
+            </h3>
+          </div>
+          <div className="mt-3 flex items-center gap-3 sm:gap-4">
+            {todayDailyCalls.length > 1 && (
+              <CarouselPrevious
+                hideWhenDisabled
+                variant="outline"
+                size="icon-sm"
+                className="static z-10 shrink-0 translate-y-0 bg-background shadow-sm"
+              />
+            )}
+            <div className="min-w-0 min-h-0 flex-1 max-md:pl-1 max-md:pr-3">
+              <CarouselContent>
+                {todayDailyCalls.map((dc) => (
+                  <CarouselItem key={dc.id} className={TODAY_CALLS_CAROUSEL_ITEM_CLASS}>
+                    <div className="flex h-full w-full min-w-0 flex-col">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          openDailySheetById(dc.dailyCallId);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openDailySheetById(dc.dailyCallId);
+                          }
+                        }}
+                        className="flex h-full min-h-0 flex-col rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 transition-[box-shadow,transform] hover:shadow-sm active:scale-[0.99] dark:border-emerald-800 dark:bg-emerald-950/30"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="size-3.5 text-muted-foreground" />
+                            <span className="text-lg font-bold tabular-nums leading-none">
+                              {formatTime(dc.callStartedAt)}
+                            </span>
+                            {dc.recurrenceType === "WEEKLY" && (
+                              <Badge variant="outline" className="ml-1 text-[10px]">
+                                Щотижня
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteDailyId(dc.dailyCallId);
+                            }}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <p className="mt-1 font-medium">{dc.title}</p>
+                        {dc.description && (
+                          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                            {dc.description}
+                          </p>
+                        )}
+                        {dc.callLink?.trim() && (
+                          <div className="mt-1 flex justify-end">
+                            <a
+                              href={ensureUrlProtocol(dc.callLink.trim())}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Video className="size-3.5" />
+                              Відкрити дзвінок
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </div>
+            {todayDailyCalls.length > 1 && (
               <CarouselNext
                 hideWhenDisabled
                 variant="outline"
@@ -852,14 +1047,66 @@ export function CallsPage() {
                 <TableBody>
                   {isLoading ? (
                     <TableBodySkeleton colSpan={colSpan} />
-                  ) : !table.rows.length ? (
+                  ) : !table.rows.length && (isSalesLike || !dailyTableRows.length) ? (
                     <TableRow>
                       <TableCell colSpan={colSpan} className="text-center text-muted-foreground">
                         {table.isFiltered ? "Нічого не знайдено" : "Немає дзвінків"}
                       </TableCell>
                     </TableRow>
                   ) : (
-                    table.rows.map((call) => (
+                    <>
+                    {!isSalesLike && dailyTableRows.map((dc) => (
+                      <TableRow
+                        key={dc.id}
+                        className="cursor-pointer"
+                        onClick={() => setDailySheetCall(dc)}
+                      >
+                        <TableCell className="font-medium">{dc.title}</TableCell>
+                        <TableCell>Дейлік</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {dc.recurrenceType === "WEEKLY" ? "Weekly" : "One-time"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>—</TableCell>
+                        {showCreatedByColumn && <TableCell>—</TableCell>}
+                        <TableCell>{formatCallTableDateTime(dc.callStartedAt)}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {dc.isActive ? "Заплановано" : "Неактивний"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">Очікує</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-48 truncate">{dc.description || "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditDailyCall(dc);
+                              }}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteDailyId(dc.id);
+                              }}
+                            >
+                              <Trash2 className="size-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {table.rows.map((call) => (
                       <TableRow
                         key={call.id}
                         className="cursor-pointer"
@@ -985,7 +1232,8 @@ export function CallsPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))
+                    ))}
+                    </>
                   )}
                 </TableBody>
               </Table>
@@ -1009,7 +1257,11 @@ export function CallsPage() {
             ) : (
               <CallsCalendarView
                 calls={table.rows}
+                dailyEvents={expandedDailyCalls}
                 onEventClick={setSheetCall}
+                onDailyEventClick={(dailyEvent) => {
+                  openDailySheetById(dailyEvent.dailyCallId);
+                }}
               />
             )}
           </TabsContent>
@@ -1043,10 +1295,42 @@ export function CallsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Delete daily call confirmation */}
+      <AlertDialog open={!!deleteDailyId} onOpenChange={(o) => !o && setDeleteDailyId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Видалити дейлік?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Дейлік та всі його повторювані події буде видалено.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!deleteDailyId) return;
+                deleteDailyMutation.mutate(deleteDailyId, {
+                  onSuccess: () => setDeleteDailyId(null),
+                });
+              }}
+              disabled={deleteDailyMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteDailyMutation.isPending ? "Видалення..." : "Видалити"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <CallDetailSheet
         call={sheetCall}
         open={!!sheetCall}
         onOpenChange={(o) => !o && setSheetCall(null)}
+      />
+      <DevDailyCallDetailSheet
+        call={dailySheetCall}
+        open={!!dailySheetCall}
+        onOpenChange={(o) => !o && setDailySheetCall(null)}
       />
     </div>
   );

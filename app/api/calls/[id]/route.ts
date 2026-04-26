@@ -22,6 +22,8 @@ import {
   CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
+  findDevDailyCallConflict,
+  formatDailyCallConflictMessageUk,
 } from "@/lib/call-caller-conflict";
 import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
 import { teamGuardResponse } from "@/lib/team-scope";
@@ -175,6 +177,19 @@ export async function PATCH(
     if (callerConflict) {
       return NextResponse.json(
         { error: formatCallerConflictMessageUk(callerConflict) },
+        { status: 409 },
+      );
+    }
+
+    const dailyConflict = await findDevDailyCallConflict(prisma, {
+      callerId: effectiveCallerId,
+      teamId: tg.teamId!,
+      rangeStart: effectiveStart,
+      rangeEnd,
+    });
+    if (dailyConflict) {
+      return NextResponse.json(
+        { error: formatDailyCallConflictMessageUk(dailyConflict) },
         { status: 409 },
       );
     }

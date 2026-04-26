@@ -15,6 +15,7 @@ export type AccountDesktopType =
   | "DOLPHIN"
   | "MODEM";
 export type CallType = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
+export type RecurrenceType = "NONE" | "WEEKLY";
 export type CallStage = "HR" | "TECH" | "CLIENT" | "PM" | "CLIENT_TECH";
 export type CallStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
 export type CallOutcome = "SUCCESS" | "UNSUCCESSFUL" | "PENDING" | "CANCELLED";
@@ -420,6 +421,49 @@ export interface UpdateUserInput {
   technologyIds?: string[];
   badgeBgColor?: string | null;
   badgeTextColor?: string | null;
+}
+
+export interface DevDailyCall {
+  id: string;
+  callerId: string;
+  caller?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role?: "DEV" | "DESIGNER";
+  };
+  title: string;
+  description?: string | null;
+  callStartedAt: string;
+  callEndedAt?: string | null;
+  callLink?: string | null;
+  recurrenceType: RecurrenceType;
+  recurrenceEndDate?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDevDailyCallInput {
+  title: string;
+  description?: string;
+  callStartedAt: string;
+  callEndedAt?: string;
+  callLink?: string;
+  recurrenceType: RecurrenceType;
+  recurrenceEndDate?: string;
+}
+
+export interface UpdateDevDailyCallInput {
+  title?: string;
+  description?: string | null;
+  callStartedAt?: string;
+  callEndedAt?: string | null;
+  callLink?: string | null;
+  recurrenceType?: RecurrenceType;
+  recurrenceEndDate?: string | null;
+  isActive?: boolean;
 }
 
 export interface PendingTeam {

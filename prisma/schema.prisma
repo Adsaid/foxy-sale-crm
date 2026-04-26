@@ -66,6 +66,11 @@ enum CallType {
   CLIENT_TECH
 }
 
+enum RecurrenceType {
+  NONE
+  WEEKLY
+}
+
 enum CallStage {
   HR
   TECH
@@ -118,6 +123,7 @@ model User {
   accounts        Account[]
   callsAsdev      CallEvent[]     @relation("CallerDev")
   createdCalls           CallEvent[]           @relation("CreatedBySales")
+  devDailyCalls          DevDailyCall[]        @relation("DevDailyCaller")
   salesAccountReports    SalesAccountReport[]  @relation("SalesSubmittedReports")
   invitationsCreated     Invitation[]         @relation("InvitationCreatedBy")
 
@@ -321,4 +327,25 @@ model Team {
   salesAccountReports SalesAccountReport[]
   invitations         Invitation[]
   notifications       Notification[]
+  devDailyCalls       DevDailyCall[]
+}
+
+model DevDailyCall {
+  id                String         @id @default(auto()) @map("_id") @db.ObjectId
+  teamId            String?        @db.ObjectId
+  team              Team?          @relation(fields: [teamId], references: [id])
+  callerId          String         @db.ObjectId
+  caller            User           @relation("DevDailyCaller", fields: [callerId], references: [id])
+  title             String
+  description       String?
+  callStartedAt     DateTime
+  callEndedAt       DateTime?
+  callLink          String?
+  recurrenceType    RecurrenceType @default(NONE)
+  recurrenceEndDate DateTime?
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([teamId, callerId])
 }
