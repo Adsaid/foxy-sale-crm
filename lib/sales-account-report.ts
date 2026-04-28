@@ -93,11 +93,13 @@ function statusDot(
     case "ACTIVE":
       return "🟢";
     case "PAUSED":
-      return "🔴";
+      return "🟠";
     case "SETUP":
       return "🟡";
     case "WARMING":
       return "🟢";
+    case "LIMITED":
+      return "🔴";
     default:
       return "⚪";
   }

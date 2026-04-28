@@ -14,6 +14,8 @@ const STATUS_CLASS: Record<AccountOperationalStatus, string> = {
   SETUP:
     "border-chart-3/48 bg-chart-3/10 text-foreground dark:border-chart-3/40 dark:bg-chart-3/16 dark:text-foreground",
   PAUSED:
+    "border-orange-400/55 bg-orange-100/80 text-orange-800 dark:border-orange-500/40 dark:bg-orange-950/45 dark:text-orange-200",
+  LIMITED:
     "border-border bg-muted/80 text-muted-foreground dark:border-border dark:bg-muted/60 dark:text-muted-foreground",
 };
 

@@ -28,6 +28,7 @@ export async function GET(request: Request) {
     paused,
     setup,
     warming,
+    limited,
     noOperationalStatus,
   ] = await Promise.all([
     prisma.account.count({ where: scopedWhere }),
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     prisma.account.count({ where: { ...scopedWhere, operationalStatus: "PAUSED" } }),
     prisma.account.count({ where: { ...scopedWhere, operationalStatus: "SETUP" } }),
     prisma.account.count({ where: { ...scopedWhere, operationalStatus: "WARMING" } }),
+    prisma.account.count({ where: { ...scopedWhere, operationalStatus: "LIMITED" } }),
     prisma.account.count({ where: { ...scopedWhere, operationalStatus: null } }),
   ]);
 
@@ -48,6 +50,7 @@ export async function GET(request: Request) {
     paused,
     setup,
     warming,
+    limited,
     noOperationalStatus,
   });
 }

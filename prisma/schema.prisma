@@ -39,6 +39,7 @@ enum AccountOperationalStatus {
   PAUSED
   SETUP
   WARMING
+  LIMITED
 }
 
 enum AccountWarmUpStage {

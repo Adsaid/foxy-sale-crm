@@ -1020,7 +1020,6 @@ export function CallsPage() {
                   <TableRow>
                     <SortableHeader column="company" label="Компанія" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader column="interviewerName" label="Інтерв'юер" sort={table.sort} onSort={table.toggleSort} />
-                    <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader
                       column="account.account"
                       label="Акаунт"
@@ -1037,6 +1036,7 @@ export function CallsPage() {
                     )}
                     {isSalesLike && <TableHead>{CALLER_COLUMN_LABEL}</TableHead>}
                     <SortableHeader column="callStartedAt" label="Дата" sort={table.sort} onSort={table.toggleSort} />
+                    <SortableHeader column="callType" label="Тип" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader column="status" label="Статус" sort={table.sort} onSort={table.toggleSort} />
                     <SortableHeader column="outcome" label="Результат" sort={table.sort} onSort={table.toggleSort} />
                     <TableHead>Нотатки</TableHead>
@@ -1063,14 +1063,14 @@ export function CallsPage() {
                       >
                         <TableCell className="font-medium">{dc.title}</TableCell>
                         <TableCell>Дейлік</TableCell>
+                        <TableCell>—</TableCell>
+                        {showCreatedByColumn && <TableCell>—</TableCell>}
+                        <TableCell>{formatCallTableDateTime(dc.callStartedAt)}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {dc.recurrenceType === "WEEKLY" ? "Weekly" : "One-time"}
                           </Badge>
                         </TableCell>
-                        <TableCell>—</TableCell>
-                        {showCreatedByColumn && <TableCell>—</TableCell>}
-                        <TableCell>{formatCallTableDateTime(dc.callStartedAt)}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">
                             {dc.isActive ? "Заплановано" : "Неактивний"}
@@ -1115,9 +1115,6 @@ export function CallsPage() {
                         <TableCell className="font-medium">{call.company}</TableCell>
                         <TableCell>{call.interviewerName}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
-                        </TableCell>
-                        <TableCell>
                           {call.account ? (
                             <span className="inline-flex flex-wrap items-center gap-1.5">
                               <span className="font-medium">{call.account.account}</span>
@@ -1160,6 +1157,9 @@ export function CallsPage() {
                         )}
                         <TableCell>
                           {formatCallTableDateTime(call.callStartedAt)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary">{statusLabels[call.status]}</Badge>

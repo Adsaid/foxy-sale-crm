@@ -5,6 +5,7 @@ export const ACCOUNT_OPERATIONAL_STATUS_VALUES = [
   "PAUSED",
   "SETUP",
   "WARMING",
+  "LIMITED",
 ] as const;
 
 export const ACCOUNT_WARM_UP_STAGE_VALUES = [
@@ -33,6 +34,7 @@ export const accountOperationalStatusLabelUk: Record<AccountOperationalStatus, s
   PAUSED: "На паузі",
   SETUP: "Налаштування",
   WARMING: "Прогрів",
+  LIMITED: "Обмежений",
 };
 
 export const accountWarmUpStageLabelUk: Record<AccountWarmUpStage, string> = {

@@ -1,6 +1,6 @@
 export type AccountType = "UPWORK" | "LINKEDIN";
 
-export type AccountOperationalStatus = "ACTIVE" | "PAUSED" | "SETUP" | "WARMING";
+export type AccountOperationalStatus = "ACTIVE" | "PAUSED" | "SETUP" | "WARMING" | "LIMITED";
 export type AccountWarmUpStage =
   | "PROFILE_FILLING"
   | "EMAIL_WARMING"
@@ -345,6 +345,7 @@ export interface AccountStatsData {
   paused: number;
   setup: number;
   warming: number;
+  limited: number;
   noOperationalStatus: number;
 }
 
@@ -368,6 +369,7 @@ export interface AccountStatsTimeseriesPoint {
   paused: number;
   setup: number;
   warming: number;
+  limited: number;
   noOperationalStatus: number;
 }
 

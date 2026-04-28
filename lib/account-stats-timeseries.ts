@@ -25,6 +25,7 @@ export interface AccountTimeseriesPoint {
   paused: number;
   setup: number;
   warming: number;
+  limited: number;
   noOperationalStatus: number;
 }
 
@@ -41,6 +42,7 @@ type Bucket = {
   paused: number;
   setup: number;
   warming: number;
+  limited: number;
   noStatus: number;
 };
 
@@ -53,6 +55,7 @@ function emptyBucket(): Bucket {
     paused: 0,
     setup: 0,
     warming: 0,
+    limited: 0,
     noStatus: 0,
   };
 }
@@ -70,6 +73,7 @@ function ingestStatus(b: Bucket, status: AccountOperationalStatus | null) {
   else if (status === "PAUSED") b.paused += 1;
   else if (status === "SETUP") b.setup += 1;
   else if (status === "WARMING") b.warming += 1;
+  else if (status === "LIMITED") b.limited += 1;
   else b.noStatus += 1;
 }
 
@@ -93,6 +97,7 @@ function bucketToPoint(key: string, label: string, v: Bucket): AccountTimeseries
     paused: v.paused,
     setup: v.setup,
     warming: v.warming,
+    limited: v.limited,
     noOperationalStatus: v.noStatus,
   };
 }

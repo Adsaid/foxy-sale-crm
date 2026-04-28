@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Briefcase,
@@ -103,6 +104,7 @@ type AccountStatCardVariant =
   | "paused"
   | "setup"
   | "warming"
+  | "limited"
   | "noStatus";
 
 type AccountStatDelta = {
@@ -124,7 +126,7 @@ function buildAccountStatDelta(
   const sign = pct > 0 ? "+" : "";
   const text = `${sign}${pct}%`;
   const direction: AccountStatDelta["direction"] = raw > 0 ? "up" : "down";
-  const inverted = variant === "paused" || variant === "noStatus";
+  const inverted = variant === "paused" || variant === "limited" || variant === "noStatus";
   const sentiment: AccountStatDelta["sentiment"] =
     raw > 0 ? (inverted ? "negative" : "positive") : inverted ? "positive" : "negative";
   return { text, sentiment, direction };
@@ -182,6 +184,12 @@ const ACCOUNT_CARD_STYLES: Record<
       "bg-rose-500/12 text-rose-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-rose-500/10 dark:text-rose-300 dark:shadow-none dark:ring-white/10",
     iconHover: "group-hover:bg-rose-500/22 dark:group-hover:bg-rose-500/18",
   },
+  limited: {
+    icon: AlertTriangle,
+    iconWrap:
+      "bg-slate-500/12 text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] ring-1 ring-inset ring-black/[0.05] dark:bg-slate-500/10 dark:text-slate-300 dark:shadow-none dark:ring-white/10",
+    iconHover: "group-hover:bg-slate-500/22 dark:group-hover:bg-slate-500/18",
+  },
   noStatus: {
     icon: HelpCircle,
     iconWrap:
@@ -201,6 +209,7 @@ const ACCOUNT_STATUS_CARD_CONFIG: { label: string; variant: AccountStatCardVaria
   { label: "На паузі", variant: "paused" },
   { label: "Налаштування", variant: "setup" },
   { label: "Прогрів", variant: "warming" },
+  { label: "Обмежені", variant: "limited" },
   { label: "Без операційного статусу", variant: "noStatus" },
 ];
 
@@ -395,7 +404,8 @@ const ACCOUNT_PIE_COLORS = {
   paused: "#f97316",
   setup: "#8b5cf6",
   warming: "#f43f5e",
-  noStatus: "#64748b",
+  limited: "#64748b",
+  noStatus: "#94a3b8",
 } as const;
 
 const ACCOUNT_PIE_CONFIG = {
@@ -403,6 +413,7 @@ const ACCOUNT_PIE_CONFIG = {
   paused: { label: "На паузі", color: ACCOUNT_PIE_COLORS.paused },
   setup: { label: "Налаштування", color: ACCOUNT_PIE_COLORS.setup },
   warming: { label: "Прогрів", color: ACCOUNT_PIE_COLORS.warming },
+  limited: { label: "Обмежені", color: ACCOUNT_PIE_COLORS.limited },
   noStatus: { label: "Без статусу", color: ACCOUNT_PIE_COLORS.noStatus },
 } satisfies ChartConfig;
 
@@ -411,6 +422,7 @@ const ACCOUNT_PIE_LEGEND_META: { key: string; label: string; fill: string }[] = 
   { key: "paused", label: "На паузі", fill: ACCOUNT_PIE_COLORS.paused },
   { key: "setup", label: "Налаштування", fill: ACCOUNT_PIE_COLORS.setup },
   { key: "warming", label: "Прогрів", fill: ACCOUNT_PIE_COLORS.warming },
+  { key: "limited", label: "Обмежені", fill: ACCOUNT_PIE_COLORS.limited },
   { key: "noStatus", label: "Без статусу", fill: ACCOUNT_PIE_COLORS.noStatus },
 ];
 
@@ -419,6 +431,7 @@ const ACCOUNT_STATUS_CHART_COLORS = {
   paused: ACCOUNT_PIE_COLORS.paused,
   setup: ACCOUNT_PIE_COLORS.setup,
   warming: ACCOUNT_PIE_COLORS.warming,
+  limited: ACCOUNT_PIE_COLORS.limited,
   noOperationalStatus: ACCOUNT_PIE_COLORS.noStatus,
 } as const;
 
@@ -427,6 +440,7 @@ const ACCOUNT_STATUS_CHART_CONFIG = {
   paused: { label: "На паузі", color: ACCOUNT_STATUS_CHART_COLORS.paused },
   setup: { label: "Налаштування", color: ACCOUNT_STATUS_CHART_COLORS.setup },
   warming: { label: "Прогрів", color: ACCOUNT_STATUS_CHART_COLORS.warming },
+  limited: { label: "Обмежені", color: ACCOUNT_STATUS_CHART_COLORS.limited },
   noOperationalStatus: { label: "Без статусу", color: ACCOUNT_STATUS_CHART_COLORS.noOperationalStatus },
 } satisfies ChartConfig;
 
@@ -437,6 +451,7 @@ const ACCOUNT_STATUS_GRADIENT_IDS: Record<AccountStatusSeriesKey, string> = {
   paused: "accountStatusFillPaused",
   setup: "accountStatusFillSetup",
   warming: "accountStatusFillWarming",
+  limited: "accountStatusFillLimited",
   noOperationalStatus: "accountStatusFillNoStatus",
 };
 
@@ -445,6 +460,7 @@ const ACCOUNT_STATUS_SERIES_META: { key: AccountStatusSeriesKey; label: string }
   { key: "paused", label: "На паузі" },
   { key: "setup", label: "Налаштування" },
   { key: "warming", label: "Прогрів" },
+  { key: "limited", label: "Обмежені" },
   { key: "noOperationalStatus", label: "Без статусу" },
 ];
 
@@ -490,6 +506,12 @@ function accountStatsStatusPieRows(stats: AccountStatsData) {
       name: "warming",
       value: stats.warming,
       fill: ACCOUNT_PIE_COLORS.warming,
+    },
+    {
+      key: "limited",
+      name: "limited",
+      value: stats.limited,
+      fill: ACCOUNT_PIE_COLORS.limited,
     },
     {
       key: "noStatus",
@@ -953,6 +975,7 @@ function AccountStatusAreaChart({
     paused: true,
     setup: true,
     warming: true,
+    limited: true,
     noOperationalStatus: true,
   });
 
@@ -964,6 +987,7 @@ function AccountStatusAreaChart({
         paused: p.paused ?? 0,
         setup: p.setup ?? 0,
         warming: p.warming ?? 0,
+        limited: p.limited ?? 0,
         noOperationalStatus: p.noOperationalStatus ?? 0,
       })),
     [points]
@@ -1063,6 +1087,18 @@ function AccountStatusAreaChart({
                   activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--background)" }}
                 />
               )}
+              {visible.limited && (
+                <Area
+                  type="monotone"
+                  dataKey="limited"
+                  name="limited"
+                  stroke={ACCOUNT_STATUS_CHART_COLORS.limited}
+                  fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.limited})`}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--background)" }}
+                />
+              )}
               {visible.noOperationalStatus && (
                 <Area
                   type="monotone"
@@ -1142,6 +1178,8 @@ function valueForVariant(stats: AccountStatsData, variant: AccountStatCardVarian
       return stats.setup;
     case "warming":
       return stats.warming;
+    case "limited":
+      return stats.limited;
     case "noStatus":
       return stats.noOperationalStatus;
   }
@@ -1172,6 +1210,7 @@ function AccountMetricCardsSection({
           paused: compareStats.paused,
           setup: compareStats.setup,
           warming: compareStats.warming,
+          limited: compareStats.limited,
           noStatus: compareStats.noOperationalStatus,
         }
       : null;
@@ -1466,10 +1505,10 @@ export function AccountStatsPanel({
           <AccountStatusCardsSectionSkeleton />
           <div className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-12 lg:items-stretch">
             <div className="flex min-h-0 w-full min-w-0 lg:col-span-7">
-              <AccountDynamicsCardSkeleton legendCount={5} />
+              <AccountDynamicsCardSkeleton legendCount={6} />
             </div>
             <div className="flex min-h-0 min-w-0 lg:col-span-5">
-              <AccountPieCardSkeleton legendCount={5} />
+              <AccountPieCardSkeleton legendCount={6} />
             </div>
           </div>
         </div>
@@ -1545,7 +1584,7 @@ export function AccountStatsPanel({
               <div className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-12 lg:items-stretch">
                 <div className="flex min-h-0 w-full min-w-0 lg:col-span-7">
                   {seriesQuery.isLoading ? (
-                    <AccountDynamicsCardSkeleton legendCount={5} />
+                    <AccountDynamicsCardSkeleton legendCount={6} />
                   ) : seriesQuery.data ? (
                     <AccountStatusAreaChart
                       points={seriesQuery.data.points}
