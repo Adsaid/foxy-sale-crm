@@ -543,6 +543,11 @@ export function CallsPage() {
     [salesFilterPredicate, devFilterId],
   );
 
+  const calendarDailyEvents = useMemo(() => {
+    if (devFilterId === DEV_FILTER_ALL) return expandedDailyCalls;
+    return expandedDailyCalls.filter((e) => e.callerId === devFilterId);
+  }, [expandedDailyCalls, devFilterId]);
+
   const tableFiltersActive =
     salesFilterId !== SALES_FILTER_ALL || devFilterId !== DEV_FILTER_ALL;
 
@@ -1257,7 +1262,7 @@ export function CallsPage() {
             ) : (
               <CallsCalendarView
                 calls={table.rows}
-                dailyEvents={expandedDailyCalls}
+                dailyEvents={calendarDailyEvents}
                 onEventClick={setSheetCall}
                 onDailyEventClick={(dailyEvent) => {
                   openDailySheetById(dailyEvent.dailyCallId);
