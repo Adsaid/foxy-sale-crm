@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextareaField } from "@/components/ui/emoji-textarea-field";
 
 interface CallCompleteFormProps {
   isPending: boolean;
@@ -14,10 +14,12 @@ export function CallCompleteForm({ isPending, onSubmit }: CallCompleteFormProps)
 
   return (
     <div className="grid gap-3 py-4">
-      <Textarea
+      <EmojiTextareaField
+        label={null}
         placeholder="Ваш фідбек (необов'язково)"
         value={feedback}
-        onChange={(e) => setFeedback(e.target.value)}
+        onChange={setFeedback}
+        rows={3}
       />
       <Button onClick={() => onSubmit(feedback)} disabled={isPending}>
         Завершити

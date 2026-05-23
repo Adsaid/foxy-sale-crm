@@ -6,7 +6,7 @@ import { uk } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextareaField } from "@/components/ui/emoji-textarea-field";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
@@ -410,15 +410,12 @@ export function AccountForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Опис</Label>
-        <Textarea
-          placeholder="Опис акаунту..."
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-        />
-      </div>
+      <EmojiTextareaField
+        placeholder="Опис акаунту..."
+        value={description}
+        onChange={setDescription}
+        rows={3}
+      />
 
       {isAdmin && (
         <Popover open={ownerOpen} onOpenChange={setOwnerOpen}>

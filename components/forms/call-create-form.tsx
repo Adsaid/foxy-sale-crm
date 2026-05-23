@@ -7,6 +7,7 @@ import { callService } from "@/services/call-service";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextareaField } from "@/components/ui/emoji-textarea-field";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
@@ -87,7 +88,6 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const [specFilter, setSpecFilter] = useState<string>("");
-
   const [duplicateWarning, setDuplicateWarning] = useState<InterviewerDuplicateMatch[] | null>(
     null
   );
@@ -377,16 +377,13 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
         onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
       />
 
-      <div className="min-w-0 space-y-2">
-        <Label>Опис</Label>
-        <Textarea
-          placeholder="Опис дзвінка..."
-          value={form.description ?? ""}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          rows={3}
-          className="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
-        />
-      </div>
+      <EmojiTextareaField
+        placeholder="Опис дзвінка..."
+        value={form.description ?? ""}
+        onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+        rows={3}
+        textareaClassName="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
+      />
 
       {(!duplicateWarning || duplicateWarning.length === 0) && (
         <Button

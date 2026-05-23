@@ -1,0 +1,6 @@
+/* Кругле кільце фокусу на вкладках категорій emoji-picker-react */
+.foxy-emoji-picker .epr-cat-btn:focus::before,
+.foxy-emoji-picker .epr-cat-btn:focus-visible::before {
+  display: none !important;
+  content: none !important;
+}

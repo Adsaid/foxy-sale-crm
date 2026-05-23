@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, type ReactNode } from "react";
+import { plainTextToEmojiHtml } from "@/lib/twemoji";
 
 /** http(s) URL до першого пробілу. */
 const URL_RE = /(https?:\/\/[^\s<>"'`()[\]{}]+)/gi;
@@ -23,6 +24,16 @@ function hrefFromRaw(raw: string): { href: string; suffix: string } {
   return { href: raw, suffix: "" };
 }
 
+function renderTextWithEmojis(text: string, keyPrefix: string): ReactNode {
+  return (
+    <span
+      key={keyPrefix}
+      className="[&_img.emoji]:mx-0.5 [&_img.emoji]:inline-block [&_img.emoji]:h-[1.125em] [&_img.emoji]:w-[1.125em] [&_img.emoji]:align-[-0.15em]"
+      dangerouslySetInnerHTML={{ __html: plainTextToEmojiHtml(text) }}
+    />
+  );
+}
+
 export function TextWithLinks({
   text,
   className,
@@ -36,14 +47,14 @@ export function TextWithLinks({
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) {
-      parts.push(text.slice(last, m.index));
+      parts.push(renderTextWithEmojis(text.slice(last, m.index), `t-${last}`));
     }
     const raw = m[1];
     const { href, suffix } = hrefFromRaw(raw);
     try {
       const u = new URL(href);
       if (u.protocol !== "http:" && u.protocol !== "https:") {
-        parts.push(raw);
+        parts.push(renderTextWithEmojis(raw, `u-${m.index}`));
       } else {
         parts.push(
           <a
@@ -56,15 +67,15 @@ export function TextWithLinks({
             {href}
           </a>
         );
-        if (suffix) parts.push(suffix);
+        if (suffix) parts.push(renderTextWithEmojis(suffix, `s-${m.index}`));
       }
     } catch {
-      parts.push(raw);
+      parts.push(renderTextWithEmojis(raw, `e-${m.index}`));
     }
     last = m.index + raw.length;
   }
   if (last < text.length) {
-    parts.push(text.slice(last));
+    parts.push(renderTextWithEmojis(text.slice(last), `t-${last}`));
   }
 
   return (

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextareaField } from "@/components/ui/emoji-textarea-field";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -178,18 +179,13 @@ export function DevDailyCallForm({
         onChange={(e) => setForm((f) => ({ ...f, callLink: e.target.value }))}
       />
 
-      <div className="min-w-0 space-y-2">
-        <Label>Опис</Label>
-        <Textarea
-          placeholder="Нотатки по дзвінку..."
-          value={form.description ?? ""}
-          onChange={(e) =>
-            setForm((f) => ({ ...f, description: e.target.value }))
-          }
-          rows={3}
-          className="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
-        />
-      </div>
+      <EmojiTextareaField
+        placeholder="Нотатки по дзвінку..."
+        value={form.description ?? ""}
+        onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+        rows={3}
+        textareaClassName="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
+      />
 
       <Button
         onClick={handleSubmit}

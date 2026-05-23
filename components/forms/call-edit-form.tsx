@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { EmojiTextareaField } from "@/components/ui/emoji-textarea-field";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
@@ -264,15 +264,13 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       )}
 
       {markTransferred && (
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Причина переносу (опційно)</label>
-          <Textarea
-            placeholder="Наприклад: клієнт попросив перенести час..."
-            value={transferredReason}
-            onChange={(e) => setTransferredReason(e.target.value)}
-            rows={3}
-          />
-        </div>
+        <EmojiTextareaField
+          label="Причина переносу (опційно)"
+          placeholder="Наприклад: клієнт попросив перенести час..."
+          value={transferredReason}
+          onChange={setTransferredReason}
+          rows={3}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3">
@@ -379,15 +377,13 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         </div>
       )}
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium">Нотатки</label>
-        <Textarea
-          placeholder="Додайте нотатки..."
-          value={form.notes}
-          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          rows={3}
-        />
-      </div>
+      <EmojiTextareaField
+        label="Нотатки"
+        placeholder="Додайте нотатки..."
+        value={form.notes}
+        onChange={(v) => setForm((f) => ({ ...f, notes: v }))}
+        rows={3}
+      />
 
       <div className="space-y-2">
         <Label>Зарплата ($)</Label>
@@ -423,16 +419,13 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         />
       </div>
 
-      <div className="min-w-0 space-y-2">
-        <Label>Опис</Label>
-        <Textarea
-          placeholder="Опис дзвінка..."
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          rows={3}
-          className="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
-        />
-      </div>
+      <EmojiTextareaField
+        placeholder="Опис дзвінка..."
+        value={form.description}
+        onChange={(v) => setForm((f) => ({ ...f, description: v }))}
+        rows={3}
+        textareaClassName="max-h-[min(50vh,22rem)] min-h-20 overflow-y-auto overflow-x-hidden no-scrollbar"
+      />
 
       <Separator />
 
