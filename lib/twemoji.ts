@@ -18,7 +18,11 @@ export function escapeHtml(text: string): string {
 
 /** Unicode → HTML з <img class="emoji"> для коректного відображення прапорів на Windows. */
 export function plainTextToEmojiHtml(text: string): string {
-  return twemoji.parse(escapeHtml(text), twemojiOptions);
+  // twemoji.parse не зберігає \n — розбиваємо рядки і з'єднуємо через <br>.
+  return text
+    .split("\n")
+    .map((line) => twemoji.parse(escapeHtml(line), twemojiOptions))
+    .join("<br>");
 }
 
 /** Зчитує plain text з DOM після twemoji (img.alt зберігає оригінальний emoji). */
@@ -41,8 +45,16 @@ export function extractPlainTextFromEmojiHtml(root: HTMLElement): string {
       result += "\n";
       return;
     }
-    if (el.tagName === "DIV" && result.length > 0 && !result.endsWith("\n")) {
-      result += "\n";
+    if (el.tagName === "DIV") {
+      if (result.length > 0 && !result.endsWith("\n")) {
+        result += "\n";
+      }
+      if (el.childNodes.length === 0) {
+        result += "\n";
+        return;
+      }
+      el.childNodes.forEach(walk);
+      return;
     }
     el.childNodes.forEach(walk);
   };
