@@ -70,6 +70,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  if (account.operationalStatus !== "ACTIVE") {
+    return NextResponse.json(
+      { error: "Для дзвінка можна обрати лише активний акаунт" },
+      { status: 400 }
+    );
+  }
+
   const callerUser = await prisma.user.findUnique({
     where: { id: callerId },
     select: { id: true, role: true, teamId: true },

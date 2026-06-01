@@ -1,9 +1,16 @@
 import api from "@/lib/api/client";
 import type { Account, CreateAccountInput, UpdateAccountInput } from "@/types/crm";
+import type { AccountOperationalStatus } from "@/lib/account-fields";
+
+export interface GetAccountsParams {
+  operationalStatus?: AccountOperationalStatus;
+}
 
 export const accountService = {
-  async getAll(): Promise<Account[]> {
-    const res = await api.get<Account[]>("/api/accounts");
+  async getAll(params?: GetAccountsParams): Promise<Account[]> {
+    const res = await api.get<Account[]>("/api/accounts", {
+      params: params?.operationalStatus ? { operationalStatus: params.operationalStatus } : undefined,
+    });
     return res.data;
   },
 

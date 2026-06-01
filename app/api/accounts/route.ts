@@ -18,10 +18,21 @@ export async function GET(request: Request) {
   const tg = teamGuardResponse(user!);
   if (tg.error) return tg.error;
 
-  const accounts = await prisma.account.findMany({
-    where: user!.role === "ADMIN" || user!.role === "SUPER_ADMIN"
+  const { searchParams } = new URL(request.url);
+  const statusParam = searchParams.get("operationalStatus");
+  if (statusParam !== null && !(ACCOUNT_OPERATIONAL_STATUS_VALUES as readonly string[]).includes(statusParam)) {
+    return NextResponse.json({ error: "Invalid operationalStatus filter" }, { status: 400 });
+  }
+
+  const where = {
+    ...(user!.role === "ADMIN" || user!.role === "SUPER_ADMIN"
       ? { teamId: tg.teamId }
-      : { ownerId: user!.id, teamId: tg.teamId },
+      : { ownerId: user!.id, teamId: tg.teamId }),
+    ...(statusParam !== null && { operationalStatus: statusParam as (typeof ACCOUNT_OPERATIONAL_STATUS_VALUES)[number] }),
+  };
+
+  const accounts = await prisma.account.findMany({
+    where,
     include: {
       owner: {
         select: {

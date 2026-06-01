@@ -69,7 +69,7 @@ function formatCallWhen(iso: string) {
 }
 
 export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
-  const { data: accounts, isLoading: accountsLoading } = useAccounts();
+  const { data: accounts, isLoading: accountsLoading } = useAccounts({ operationalStatus: "ACTIVE" });
   const { data: devs, isLoading: devsLoading } = useDevs();
 
   const [form, setForm] = useState<CreateCallInput>({

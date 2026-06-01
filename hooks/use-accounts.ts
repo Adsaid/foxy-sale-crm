@@ -2,13 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { accountService } from "@/services/account-service";
+import { accountService, type GetAccountsParams } from "@/services/account-service";
 import type { CreateAccountInput, UpdateAccountInput } from "@/types/crm";
 
-export function useAccounts() {
+export function useAccounts(params?: GetAccountsParams) {
   return useQuery({
-    queryKey: ["accounts"],
-    queryFn: accountService.getAll,
+    queryKey: ["accounts", params?.operationalStatus ?? "all"],
+    queryFn: () => accountService.getAll(params),
   });
 }
 
