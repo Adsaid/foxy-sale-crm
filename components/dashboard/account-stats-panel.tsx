@@ -55,6 +55,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
+import { useAccountChartPalettes } from "@/lib/chart-theme";
 import {
   Command,
   CommandEmpty,
@@ -362,19 +363,7 @@ function AccountStatusCardsSectionSkeleton() {
   );
 }
 
-const ACCOUNT_CHART_COLORS = {
-  total: "#eab308",
-  upwork: "#0ea5e9",
-  linkedin: "#6366f1",
-} as const;
-
-const ACCOUNT_CHART_CONFIG = {
-  total: { label: "Усі нові", color: ACCOUNT_CHART_COLORS.total },
-  upwork: { label: "Upwork", color: ACCOUNT_CHART_COLORS.upwork },
-  linkedin: { label: "LinkedIn", color: ACCOUNT_CHART_COLORS.linkedin },
-} satisfies ChartConfig;
-
-type AccountSeriesKey = keyof typeof ACCOUNT_CHART_COLORS;
+type AccountSeriesKey = "total" | "upwork" | "linkedin";
 
 const ACCOUNT_GRADIENT_IDS: Record<AccountSeriesKey, string> = {
   total: "accountStatsFillTotal",
@@ -388,63 +377,13 @@ const ACCOUNT_SERIES_META: { key: AccountSeriesKey; label: string }[] = [
   { key: "linkedin", label: "LinkedIn" },
 ];
 
-/** Розподіл за типом (pie): ті самі кольори, що й на лінійному графіку. */
-const ACCOUNT_TYPE_PIE_CONFIG = {
-  upwork: { label: "Upwork", color: ACCOUNT_CHART_COLORS.upwork },
-  linkedin: { label: "LinkedIn", color: ACCOUNT_CHART_COLORS.linkedin },
-} satisfies ChartConfig;
-
-const ACCOUNT_TYPE_PIE_LEGEND_META: { key: string; label: string; fill: string }[] = [
-  { key: "upwork", label: "Upwork", fill: ACCOUNT_CHART_COLORS.upwork },
-  { key: "linkedin", label: "LinkedIn", fill: ACCOUNT_CHART_COLORS.linkedin },
-];
-
-const ACCOUNT_PIE_COLORS = {
-  active: "#22c55e",
-  paused: "#f97316",
-  setup: "#8b5cf6",
-  warming: "#f43f5e",
-  limited: "#64748b",
-  noStatus: "#94a3b8",
-} as const;
-
-const ACCOUNT_PIE_CONFIG = {
-  active: { label: "Активні", color: ACCOUNT_PIE_COLORS.active },
-  paused: { label: "На паузі", color: ACCOUNT_PIE_COLORS.paused },
-  setup: { label: "Налаштування", color: ACCOUNT_PIE_COLORS.setup },
-  warming: { label: "Прогрів", color: ACCOUNT_PIE_COLORS.warming },
-  limited: { label: "Обмежені", color: ACCOUNT_PIE_COLORS.limited },
-  noStatus: { label: "Без статусу", color: ACCOUNT_PIE_COLORS.noStatus },
-} satisfies ChartConfig;
-
-const ACCOUNT_PIE_LEGEND_META: { key: string; label: string; fill: string }[] = [
-  { key: "active", label: "Активні", fill: ACCOUNT_PIE_COLORS.active },
-  { key: "paused", label: "На паузі", fill: ACCOUNT_PIE_COLORS.paused },
-  { key: "setup", label: "Налаштування", fill: ACCOUNT_PIE_COLORS.setup },
-  { key: "warming", label: "Прогрів", fill: ACCOUNT_PIE_COLORS.warming },
-  { key: "limited", label: "Обмежені", fill: ACCOUNT_PIE_COLORS.limited },
-  { key: "noStatus", label: "Без статусу", fill: ACCOUNT_PIE_COLORS.noStatus },
-];
-
-const ACCOUNT_STATUS_CHART_COLORS = {
-  active: ACCOUNT_PIE_COLORS.active,
-  paused: ACCOUNT_PIE_COLORS.paused,
-  setup: ACCOUNT_PIE_COLORS.setup,
-  warming: ACCOUNT_PIE_COLORS.warming,
-  limited: ACCOUNT_PIE_COLORS.limited,
-  noOperationalStatus: ACCOUNT_PIE_COLORS.noStatus,
-} as const;
-
-const ACCOUNT_STATUS_CHART_CONFIG = {
-  active: { label: "Активні", color: ACCOUNT_STATUS_CHART_COLORS.active },
-  paused: { label: "На паузі", color: ACCOUNT_STATUS_CHART_COLORS.paused },
-  setup: { label: "Налаштування", color: ACCOUNT_STATUS_CHART_COLORS.setup },
-  warming: { label: "Прогрів", color: ACCOUNT_STATUS_CHART_COLORS.warming },
-  limited: { label: "Обмежені", color: ACCOUNT_STATUS_CHART_COLORS.limited },
-  noOperationalStatus: { label: "Без статусу", color: ACCOUNT_STATUS_CHART_COLORS.noOperationalStatus },
-} satisfies ChartConfig;
-
-type AccountStatusSeriesKey = keyof typeof ACCOUNT_STATUS_CHART_COLORS;
+type AccountStatusSeriesKey =
+  | "active"
+  | "paused"
+  | "setup"
+  | "warming"
+  | "limited"
+  | "noOperationalStatus";
 
 const ACCOUNT_STATUS_GRADIENT_IDS: Record<AccountStatusSeriesKey, string> = {
   active: "accountStatusFillActive",
@@ -464,69 +403,110 @@ const ACCOUNT_STATUS_SERIES_META: { key: AccountStatusSeriesKey; label: string }
   { key: "noOperationalStatus", label: "Без статусу" },
 ];
 
-function accountStatsTypePieRows(stats: AccountStatsData) {
+function buildAccountLineChartConfig(
+  line: ReturnType<typeof import("@/lib/chart-theme").getAccountLineColors>,
+): ChartConfig {
+  return {
+    total: { label: "Усі нові", color: line.total },
+    upwork: { label: "Upwork", color: line.upwork },
+    linkedin: { label: "LinkedIn", color: line.linkedin },
+  };
+}
+
+function buildAccountTypePieConfig(
+  line: ReturnType<typeof import("@/lib/chart-theme").getAccountLineColors>,
+): ChartConfig {
+  return {
+    upwork: { label: "Upwork", color: line.upwork },
+    linkedin: { label: "LinkedIn", color: line.linkedin },
+  };
+}
+
+function buildAccountStatusPieConfig(
+  statusPie: ReturnType<typeof import("@/lib/chart-theme").getAccountStatusPieColors>,
+): ChartConfig {
+  return {
+    active: { label: "Активні", color: statusPie.active },
+    paused: { label: "На паузі", color: statusPie.paused },
+    setup: { label: "Налаштування", color: statusPie.setup },
+    warming: { label: "Прогрів", color: statusPie.warming },
+    limited: { label: "Обмежені", color: statusPie.limited },
+    noStatus: { label: "Без статусу", color: statusPie.noStatus },
+  };
+}
+
+function accountStatusSeriesColors(
+  statusPie: ReturnType<typeof import("@/lib/chart-theme").getAccountStatusPieColors>,
+) {
+  return {
+    active: statusPie.active,
+    paused: statusPie.paused,
+    setup: statusPie.setup,
+    warming: statusPie.warming,
+    limited: statusPie.limited,
+    noOperationalStatus: statusPie.noStatus,
+  };
+}
+
+function accountTypePieLegendMeta(
+  line: ReturnType<typeof import("@/lib/chart-theme").getAccountLineColors>,
+) {
   return [
-    {
-      key: "upwork",
-      name: "upwork",
-      value: stats.upwork,
-      fill: ACCOUNT_CHART_COLORS.upwork,
-    },
-    {
-      key: "linkedin",
-      name: "linkedin",
-      value: stats.linkedin,
-      fill: ACCOUNT_CHART_COLORS.linkedin,
-    },
+    { key: "upwork", label: "Upwork", fill: line.upwork },
+    { key: "linkedin", label: "LinkedIn", fill: line.linkedin },
   ];
 }
 
-function accountStatsStatusPieRows(stats: AccountStatsData) {
+function accountStatusPieLegendMeta(
+  statusPie: ReturnType<typeof import("@/lib/chart-theme").getAccountStatusPieColors>,
+) {
   return [
-    {
-      key: "active",
-      name: "active",
-      value: stats.active,
-      fill: ACCOUNT_PIE_COLORS.active,
-    },
-    {
-      key: "paused",
-      name: "paused",
-      value: stats.paused,
-      fill: ACCOUNT_PIE_COLORS.paused,
-    },
-    {
-      key: "setup",
-      name: "setup",
-      value: stats.setup,
-      fill: ACCOUNT_PIE_COLORS.setup,
-    },
-    {
-      key: "warming",
-      name: "warming",
-      value: stats.warming,
-      fill: ACCOUNT_PIE_COLORS.warming,
-    },
-    {
-      key: "limited",
-      name: "limited",
-      value: stats.limited,
-      fill: ACCOUNT_PIE_COLORS.limited,
-    },
+    { key: "active", label: "Активні", fill: statusPie.active },
+    { key: "paused", label: "На паузі", fill: statusPie.paused },
+    { key: "setup", label: "Налаштування", fill: statusPie.setup },
+    { key: "warming", label: "Прогрів", fill: statusPie.warming },
+    { key: "limited", label: "Обмежені", fill: statusPie.limited },
+    { key: "noStatus", label: "Без статусу", fill: statusPie.noStatus },
+  ];
+}
+
+function accountStatsTypePieRows(
+  stats: AccountStatsData,
+  line: ReturnType<typeof import("@/lib/chart-theme").getAccountLineColors>,
+) {
+  return [
+    { key: "upwork", name: "upwork", value: stats.upwork, fill: line.upwork },
+    { key: "linkedin", name: "linkedin", value: stats.linkedin, fill: line.linkedin },
+  ];
+}
+
+function accountStatsStatusPieRows(
+  stats: AccountStatsData,
+  statusPie: ReturnType<typeof import("@/lib/chart-theme").getAccountStatusPieColors>,
+) {
+  return [
+    { key: "active", name: "active", value: stats.active, fill: statusPie.active },
+    { key: "paused", name: "paused", value: stats.paused, fill: statusPie.paused },
+    { key: "setup", name: "setup", value: stats.setup, fill: statusPie.setup },
+    { key: "warming", name: "warming", value: stats.warming, fill: statusPie.warming },
+    { key: "limited", name: "limited", value: stats.limited, fill: statusPie.limited },
     {
       key: "noStatus",
       name: "noStatus",
       value: stats.noOperationalStatus,
-      fill: ACCOUNT_PIE_COLORS.noStatus,
+      fill: statusPie.noStatus,
     },
   ];
 }
 
 function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
+  const { line } = useAccountChartPalettes();
+  const typePieConfig = useMemo(() => buildAccountTypePieConfig(line), [line]);
+  const typeLegendMeta = useMemo(() => accountTypePieLegendMeta(line), [line]);
   const pieData = useMemo(() => {
-    const rows = accountStatsTypePieRows(stats);
+    const rows = accountStatsTypePieRows(stats, line);
     return rows.filter((r) => r.value > 0).map((r) => ({ ...r }));
-  }, [stats]);
+  }, [stats, line]);
 
   const pieSizeClass = "h-[min(100vw-2rem,220px)] w-[min(100vw-2rem,220px)]";
 
@@ -546,7 +526,7 @@ function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
             </div>
           ) : (
             <ChartContainer
-              config={ACCOUNT_TYPE_PIE_CONFIG}
+              config={typePieConfig}
               className={cn(
                 "mx-auto aspect-square max-w-full [&_.recharts-pie-label-line]:hidden",
                 pieSizeClass
@@ -606,7 +586,7 @@ function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
         role="group"
         aria-label="Типи акаунтів"
       >
-        {ACCOUNT_TYPE_PIE_LEGEND_META.map(({ key, label, fill }) => (
+        {typeLegendMeta.map(({ key, label, fill }) => (
           <div
             key={key}
             className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
@@ -625,10 +605,13 @@ function AccountTypeDistributionPie({ stats }: { stats: AccountStatsData }) {
 }
 
 function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
+  const { statusPie } = useAccountChartPalettes();
+  const statusPieConfig = useMemo(() => buildAccountStatusPieConfig(statusPie), [statusPie]);
+  const statusLegendMeta = useMemo(() => accountStatusPieLegendMeta(statusPie), [statusPie]);
   const pieData = useMemo(() => {
-    const rows = accountStatsStatusPieRows(stats);
+    const rows = accountStatsStatusPieRows(stats, statusPie);
     return rows.filter((r) => r.value > 0).map((r) => ({ ...r }));
-  }, [stats]);
+  }, [stats, statusPie]);
 
   const pieSizeClass = "h-[min(100vw-2rem,240px)] w-[min(100vw-2rem,240px)]";
 
@@ -653,7 +636,7 @@ function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
             </div>
           ) : (
             <ChartContainer
-              config={ACCOUNT_PIE_CONFIG}
+              config={statusPieConfig}
               className={cn(
                 "mx-auto aspect-square max-w-full [&_.recharts-pie-label-line]:hidden",
                 pieSizeClass
@@ -713,7 +696,7 @@ function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
         role="group"
         aria-label="Сегменти діаграми за операційним статусом"
       >
-        {ACCOUNT_PIE_LEGEND_META.map(({ key, label, fill }) => (
+        {statusLegendMeta.map(({ key, label, fill }) => (
           <div
             key={key}
             className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
@@ -731,11 +714,15 @@ function AccountStatusDistributionPie({ stats }: { stats: AccountStatsData }) {
   );
 }
 
-function AccountAreaGradients() {
+function AccountAreaGradients({
+  line,
+}: {
+  line: ReturnType<typeof import("@/lib/chart-theme").getAccountLineColors>;
+}) {
   return (
     <defs>
-      {(Object.keys(ACCOUNT_CHART_COLORS) as AccountSeriesKey[]).map((key) => {
-        const c = ACCOUNT_CHART_COLORS[key];
+      {(Object.keys(line) as AccountSeriesKey[]).map((key) => {
+        const c = line[key];
         const gid = ACCOUNT_GRADIENT_IDS[key];
         return (
           <linearGradient key={gid} id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -749,11 +736,15 @@ function AccountAreaGradients() {
   );
 }
 
-function AccountStatusAreaGradients() {
+function AccountStatusAreaGradients({
+  statusColors,
+}: {
+  statusColors: ReturnType<typeof accountStatusSeriesColors>;
+}) {
   return (
     <defs>
-      {(Object.keys(ACCOUNT_STATUS_CHART_COLORS) as AccountStatusSeriesKey[]).map((key) => {
-        const c = ACCOUNT_STATUS_CHART_COLORS[key];
+      {(Object.keys(statusColors) as AccountStatusSeriesKey[]).map((key) => {
+        const c = statusColors[key];
         const gid = ACCOUNT_STATUS_GRADIENT_IDS[key];
         return (
           <linearGradient key={gid} id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -825,6 +816,9 @@ function AccountAreaChart({
     linkedin: true,
   });
 
+  const { line } = useAccountChartPalettes();
+  const chartConfig = useMemo(() => buildAccountLineChartConfig(line), [line]);
+
   const data = useMemo(
     () =>
       points.map((p) => ({
@@ -849,11 +843,11 @@ function AccountAreaChart({
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         <div className="flex min-h-[220px] flex-1 flex-col rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:min-h-[240px] sm:p-2.5">
           <ChartContainer
-            config={ACCOUNT_CHART_CONFIG}
+            config={chartConfig}
             className="aspect-auto h-full min-h-[200px] w-full sm:min-h-[220px]"
           >
             <AreaChart data={data} margin={{ left: 4, right: 6, top: 10, bottom: 4 }}>
-              <AccountAreaGradients />
+              <AccountAreaGradients line={line} />
               <CartesianGrid
                 vertical={false}
                 stroke="var(--border)"
@@ -887,7 +881,7 @@ function AccountAreaChart({
                   type="monotone"
                   dataKey="total"
                   name="total"
-                  stroke={ACCOUNT_CHART_COLORS.total}
+                  stroke={line.total}
                   fill={`url(#${ACCOUNT_GRADIENT_IDS.total})`}
                   strokeWidth={2}
                   dot={false}
@@ -899,7 +893,7 @@ function AccountAreaChart({
                   type="monotone"
                   dataKey="upwork"
                   name="upwork"
-                  stroke={ACCOUNT_CHART_COLORS.upwork}
+                  stroke={line.upwork}
                   fill={`url(#${ACCOUNT_GRADIENT_IDS.upwork})`}
                   strokeWidth={2}
                   dot={false}
@@ -911,7 +905,7 @@ function AccountAreaChart({
                   type="monotone"
                   dataKey="linkedin"
                   name="linkedin"
-                  stroke={ACCOUNT_CHART_COLORS.linkedin}
+                  stroke={line.linkedin}
                   fill={`url(#${ACCOUNT_GRADIENT_IDS.linkedin})`}
                   strokeWidth={2}
                   dot={false}
@@ -948,7 +942,7 @@ function AccountAreaChart({
                 <span
                   className="h-0.5 w-4 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: ACCOUNT_CHART_COLORS[key],
+                    backgroundColor: line[key],
                     opacity: on ? 1 : 0.35,
                   }}
                   aria-hidden
@@ -979,6 +973,20 @@ function AccountStatusAreaChart({
     noOperationalStatus: true,
   });
 
+  const { statusPie } = useAccountChartPalettes();
+  const statusColors = useMemo(() => accountStatusSeriesColors(statusPie), [statusPie]);
+  const statusChartConfig = useMemo(
+    () => ({
+      active: { label: "Активні", color: statusColors.active },
+      paused: { label: "На паузі", color: statusColors.paused },
+      setup: { label: "Налаштування", color: statusColors.setup },
+      warming: { label: "Прогрів", color: statusColors.warming },
+      limited: { label: "Обмежені", color: statusColors.limited },
+      noOperationalStatus: { label: "Без статусу", color: statusColors.noOperationalStatus },
+    }),
+    [statusColors],
+  );
+
   const data = useMemo(
     () =>
       points.map((p) => ({
@@ -1006,11 +1014,11 @@ function AccountStatusAreaChart({
       <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
         <div className="flex min-h-[220px] flex-1 flex-col rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:min-h-[240px] sm:p-2.5">
           <ChartContainer
-            config={ACCOUNT_STATUS_CHART_CONFIG}
+            config={statusChartConfig}
             className="aspect-auto h-full min-h-[200px] w-full sm:min-h-[220px]"
           >
             <AreaChart data={data} margin={{ left: 4, right: 6, top: 10, bottom: 4 }}>
-              <AccountStatusAreaGradients />
+              <AccountStatusAreaGradients statusColors={statusColors} />
               <CartesianGrid
                 vertical={false}
                 stroke="var(--border)"
@@ -1044,7 +1052,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="active"
                   name="active"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.active}
+                  stroke={statusColors.active}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.active})`}
                   strokeWidth={2}
                   dot={false}
@@ -1056,7 +1064,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="paused"
                   name="paused"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.paused}
+                  stroke={statusColors.paused}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.paused})`}
                   strokeWidth={2}
                   dot={false}
@@ -1068,7 +1076,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="setup"
                   name="setup"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.setup}
+                  stroke={statusColors.setup}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.setup})`}
                   strokeWidth={2}
                   dot={false}
@@ -1080,7 +1088,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="warming"
                   name="warming"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.warming}
+                  stroke={statusColors.warming}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.warming})`}
                   strokeWidth={2}
                   dot={false}
@@ -1092,7 +1100,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="limited"
                   name="limited"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.limited}
+                  stroke={statusColors.limited}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.limited})`}
                   strokeWidth={2}
                   dot={false}
@@ -1104,7 +1112,7 @@ function AccountStatusAreaChart({
                   type="monotone"
                   dataKey="noOperationalStatus"
                   name="noOperationalStatus"
-                  stroke={ACCOUNT_STATUS_CHART_COLORS.noOperationalStatus}
+                  stroke={statusColors.noOperationalStatus}
                   fill={`url(#${ACCOUNT_STATUS_GRADIENT_IDS.noOperationalStatus})`}
                   strokeWidth={2}
                   dot={false}
@@ -1141,7 +1149,7 @@ function AccountStatusAreaChart({
                 <span
                   className="h-0.5 w-4 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: ACCOUNT_STATUS_CHART_COLORS[key],
+                    backgroundColor: statusColors[key],
                     opacity: on ? 1 : 0.35,
                   }}
                   aria-hidden

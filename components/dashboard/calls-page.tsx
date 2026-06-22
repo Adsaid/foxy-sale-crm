@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "next-themes";
+import { resolveChartTheme } from "@/lib/chart-theme";
+import { resolveSalesBadgeColors, salesBadgeCardBackground } from "@/lib/badge-colors";
 import {
   useCalls,
   useCreateCall,
@@ -19,6 +21,7 @@ import {
   useDeleteDevDailyCall,
 } from "@/hooks/use-dev-daily-calls";
 import { useTable } from "@/hooks/use-table";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -161,6 +164,10 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function rgbaFromHex(hex: string, alpha: number) {
+  return hexToRgba(hex, alpha) ?? hex;
+}
+
 /** Мінімальна «цільова» ширина картки; фактична = min(контейнер каруселі, це значення) — скільки влізе в ряд, стільки й видно. */
 const TODAY_CALLS_SLIDE_CLASS = "basis-[min(100%,32rem)]";
 
@@ -198,18 +205,23 @@ function TodayCallCard({
   const { user: todayUser } = useAuth();
   const canManageThisCall =
     !!todayUser && canMutateCall(todayUser, call.createdById);
+  const { resolvedTheme } = useTheme();
+  const chartTheme = resolveChartTheme(resolvedTheme);
   const timeUntil = getTimeUntil(call.callStartedAt, nowMs);
   const isPast = new Date(call.callStartedAt) <= new Date();
   const isCompleted = call.status === "COMPLETED";
   const isCancelled = call.status === "CANCELLED";
   const isActive = !isCompleted && !isCancelled;
-  const accentBg = call.createdBy?.badgeBgColor ?? "#EEF2FF";
-  const accentText = call.createdBy?.badgeTextColor ?? "#3730A3";
+  const { background: accentBg, text: accentText } = resolveSalesBadgeColors(
+    call.createdBy?.badgeBgColor,
+    call.createdBy?.badgeTextColor,
+    chartTheme,
+  );
   const cardStyle =
     !isCompleted && !isCancelled && call.createdBy && showCreatedBy
       ? {
-          backgroundColor: hexToRgba(accentBg, 0.4) ?? accentBg,
-          borderColor: hexToRgba(accentText, 0.7) ?? accentText,
+          backgroundColor: salesBadgeCardBackground(accentBg, chartTheme, 0.4),
+          borderColor: rgbaFromHex(accentText, chartTheme === "dark" ? 0.55 : 0.7),
         }
       : undefined;
 
@@ -451,7 +463,7 @@ export function CallsPage() {
         return true;
       })
       .sort((a, b) => new Date(a.callStartedAt).getTime() - new Date(b.callStartedAt).getTime());
-  }, [calls, user?.role, user?.id, nowMs]);
+  }, [calls, user, nowMs]);
 
   const expandedDailyCalls = useMemo(() => {
     if (!dailyCalls?.length) return [];
@@ -766,7 +778,7 @@ export function CallsPage() {
           className="w-full"
         >
           <div className="flex items-center gap-2">
-            <Repeat className="size-4 shrink-0 text-emerald-600" />
+            <Repeat className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-semibold">
               Дейліки сьогодні
               <span className="ml-1.5 font-normal text-muted-foreground">

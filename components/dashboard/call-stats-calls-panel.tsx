@@ -54,6 +54,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
+import { useCallStatsChartPalettes } from "@/lib/chart-theme";
 import {
   Command,
   CommandEmpty,
@@ -321,20 +322,7 @@ function CallStatsCardsSkeleton() {
   );
 }
 
-/** Кольори серій графіка: усі — жовтий, успішні — зелені, неуспішні — червоні. */
-const CALL_STATS_COLORS = {
-  total: "#eab308",
-  success: "#22c55e",
-  unsuccessful: "#ef4444",
-} as const;
-
-const CALL_STATS_CHART_CONFIG = {
-  total: { label: "Усі дзвінки", color: CALL_STATS_COLORS.total },
-  success: { label: "Успішні", color: CALL_STATS_COLORS.success },
-  unsuccessful: { label: "Неуспішні", color: CALL_STATS_COLORS.unsuccessful },
-} satisfies ChartConfig;
-
-type SeriesKey = keyof typeof CALL_STATS_COLORS;
+type SeriesKey = "total" | "success" | "unsuccessful";
 
 const GRADIENT_IDS: Record<SeriesKey, string> = {
   total: "callStatsFillTotal",
@@ -349,64 +337,61 @@ const SERIES_META: { key: SeriesKey; label: string }[] = [
   { key: "unsuccessful", label: "Неуспішні" },
 ];
 
-/** Кольори сегментів pie за результатами: успіх, неуспіх, очікує, скасовано. */
-const CALL_STATS_PIE_COLORS = {
-  success: "#22c55e",
-  unsuccessful: "#ef4444",
-  pending: "#eab308",
-  cancelled: "#64748b",
-} as const;
+function buildCallStatsChartConfig(
+  line: ReturnType<typeof import("@/lib/chart-theme").getCallStatsLineColors>,
+): ChartConfig {
+  return {
+    total: { label: "Усі дзвінки", color: line.total },
+    success: { label: "Успішні", color: line.success },
+    unsuccessful: { label: "Неуспішні", color: line.unsuccessful },
+  };
+}
 
-/** Slug-ключі для ChartStyle / tooltip; підписи — лише в `label`. */
-const CALL_STATS_PIE_CONFIG = {
-  success: { label: "Успішні", color: CALL_STATS_PIE_COLORS.success },
-  unsuccessful: { label: "Неуспішні", color: CALL_STATS_PIE_COLORS.unsuccessful },
-  pending: { label: "Очікують", color: CALL_STATS_PIE_COLORS.pending },
-  cancelled: { label: "Скасовані", color: CALL_STATS_PIE_COLORS.cancelled },
-} satisfies ChartConfig;
+function buildCallStatsPieConfig(
+  pie: ReturnType<typeof import("@/lib/chart-theme").getCallStatsPieColors>,
+): ChartConfig {
+  return {
+    success: { label: "Успішні", color: pie.success },
+    unsuccessful: { label: "Неуспішні", color: pie.unsuccessful },
+    pending: { label: "Очікують", color: pie.pending },
+    cancelled: { label: "Скасовані", color: pie.cancelled },
+  };
+}
 
-/** Легенда під pie: сегменти діаграми (не серії лінійного графіка). */
-const PIE_LEGEND_META: { key: string; label: string; fill: string }[] = [
-  { key: "unsuccessful", label: "Неуспішні", fill: CALL_STATS_PIE_COLORS.unsuccessful },
-  { key: "success", label: "Успішні", fill: CALL_STATS_PIE_COLORS.success },
-  { key: "pending", label: "Очікують", fill: CALL_STATS_PIE_COLORS.pending },
-  { key: "cancelled", label: "Скасовані", fill: CALL_STATS_PIE_COLORS.cancelled },
-];
-
-function callStatsPieRows(stats: CallStatsData) {
+function pieLegendMeta(pie: ReturnType<typeof import("@/lib/chart-theme").getCallStatsPieColors>) {
   return [
-    {
-      key: "success",
-      name: "success",
-      value: stats.successCalls,
-      fill: CALL_STATS_PIE_COLORS.success,
-    },
+    { key: "unsuccessful", label: "Неуспішні", fill: pie.unsuccessful },
+    { key: "success", label: "Успішні", fill: pie.success },
+    { key: "pending", label: "Очікують", fill: pie.pending },
+    { key: "cancelled", label: "Скасовані", fill: pie.cancelled },
+  ];
+}
+
+function callStatsPieRows(
+  stats: CallStatsData,
+  pie: ReturnType<typeof import("@/lib/chart-theme").getCallStatsPieColors>,
+) {
+  return [
+    { key: "success", name: "success", value: stats.successCalls, fill: pie.success },
     {
       key: "unsuccessful",
       name: "unsuccessful",
       value: stats.unsuccessfulCalls,
-      fill: CALL_STATS_PIE_COLORS.unsuccessful,
+      fill: pie.unsuccessful,
     },
-    {
-      key: "pending",
-      name: "pending",
-      value: stats.pendingCalls,
-      fill: CALL_STATS_PIE_COLORS.pending,
-    },
-    {
-      key: "cancelled",
-      name: "cancelled",
-      value: stats.cancelledCalls,
-      fill: CALL_STATS_PIE_COLORS.cancelled,
-    },
+    { key: "pending", name: "pending", value: stats.pendingCalls, fill: pie.pending },
+    { key: "cancelled", name: "cancelled", value: stats.cancelledCalls, fill: pie.cancelled },
   ];
 }
 
 function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
+  const { pie } = useCallStatsChartPalettes();
+  const pieConfig = useMemo(() => buildCallStatsPieConfig(pie), [pie]);
+  const legendMeta = useMemo(() => pieLegendMeta(pie), [pie]);
   const pieData = useMemo(() => {
-    const rows = callStatsPieRows(stats);
+    const rows = callStatsPieRows(stats, pie);
     return rows.filter((r) => r.value > 0).map((r) => ({ ...r }));
-  }, [stats]);
+  }, [stats, pie]);
 
   const pieSizeClass = "h-[min(100vw-2rem,320px)] w-[min(100vw-2rem,320px)]";
 
@@ -431,7 +416,7 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
             </div>
           ) : (
             <ChartContainer
-              config={CALL_STATS_PIE_CONFIG}
+              config={pieConfig}
               className={cn(
                 "mx-auto aspect-square max-w-full [&_.recharts-pie-label-line]:hidden",
                 pieSizeClass
@@ -491,7 +476,7 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
         role="group"
         aria-label="Сегменти кругової діаграми"
       >
-        {PIE_LEGEND_META.map(({ key, label, fill }) => (
+        {legendMeta.map(({ key, label, fill }) => (
           <div
             key={key}
             className="inline-flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
@@ -509,11 +494,15 @@ function CallStatsDistributionPie({ stats }: { stats: CallStatsData }) {
   );
 }
 
-function CallStatsAreaGradients() {
+function CallStatsAreaGradients({
+  line,
+}: {
+  line: ReturnType<typeof import("@/lib/chart-theme").getCallStatsLineColors>;
+}) {
   return (
     <defs>
-      {(Object.keys(CALL_STATS_COLORS) as SeriesKey[]).map((key) => {
-        const c = CALL_STATS_COLORS[key];
+      {(Object.keys(line) as SeriesKey[]).map((key) => {
+        const c = line[key];
         const gid = GRADIENT_IDS[key];
         return (
           <linearGradient key={gid} id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -590,6 +579,9 @@ function CallStatsAreaChart({
     unsuccessful: true,
   });
 
+  const { line } = useCallStatsChartPalettes();
+  const chartConfig = useMemo(() => buildCallStatsChartConfig(line), [line]);
+
   const data = useMemo(
     () =>
       points.map((p) => ({
@@ -614,11 +606,11 @@ function CallStatsAreaChart({
       <div className="flex min-h-0 flex-1 flex-col p-4">
         <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-border/35 bg-gradient-to-b from-muted/20 to-transparent p-2 shadow-inner sm:p-3">
           <ChartContainer
-            config={CALL_STATS_CHART_CONFIG}
+            config={chartConfig}
             className="aspect-auto h-full min-h-[260px] w-full sm:min-h-[300px]"
           >
             <AreaChart data={data} margin={{ left: 4, right: 6, top: 10, bottom: 4 }}>
-              <CallStatsAreaGradients />
+              <CallStatsAreaGradients line={line} />
               <CartesianGrid
                 vertical={false}
                 stroke="var(--border)"
@@ -652,7 +644,7 @@ function CallStatsAreaChart({
                   type="monotone"
                   dataKey="total"
                   name="total"
-                  stroke={CALL_STATS_COLORS.total}
+                  stroke={line.total}
                   fill={`url(#${GRADIENT_IDS.total})`}
                   strokeWidth={2}
                   dot={false}
@@ -664,7 +656,7 @@ function CallStatsAreaChart({
                   type="monotone"
                   dataKey="success"
                   name="success"
-                  stroke={CALL_STATS_COLORS.success}
+                  stroke={line.success}
                   fill={`url(#${GRADIENT_IDS.success})`}
                   strokeWidth={2}
                   dot={false}
@@ -676,7 +668,7 @@ function CallStatsAreaChart({
                   type="monotone"
                   dataKey="unsuccessful"
                   name="unsuccessful"
-                  stroke={CALL_STATS_COLORS.unsuccessful}
+                  stroke={line.unsuccessful}
                   fill={`url(#${GRADIENT_IDS.unsuccessful})`}
                   strokeWidth={2}
                   dot={false}
@@ -713,7 +705,7 @@ function CallStatsAreaChart({
                 <span
                   className="h-0.5 w-4 shrink-0 rounded-full"
                   style={{
-                    backgroundColor: CALL_STATS_COLORS[key],
+                    backgroundColor: line[key],
                     opacity: on ? 1 : 0.35,
                   }}
                   aria-hidden

@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { requireApprovedUser } from "@/lib/server-auth";
 
 export default async function DashboardLayout({
@@ -26,6 +27,7 @@ export default async function DashboardLayout({
             <span className="truncate text-sm font-medium">Foxy Sale CRM</span>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationsBell />
           </div>
         </header>

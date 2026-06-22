@@ -146,7 +146,7 @@
   --fc-page-bg-color: var(--background);
   --fc-neutral-bg-color: var(--muted);
   --fc-event-border-color: transparent;
-  --fc-event-text-color: var(--foreground);
+  --fc-event-text-color: #171717;
   --fc-small-font-size: 0.8rem;
   font-family: var(--font-sans);
 }
@@ -390,19 +390,21 @@
 }
 
 /*
- * Текст подій — один колір теми; !important щоб перебити інлайн FullCalendar
- * (місяць / тиждень / день рендеряться по-різному).
+ * Текст подій — завжди темний на кольоровому фоні картки (навіть у dark theme).
+ * !important щоб перебити інлайн FullCalendar (місяць / тиждень / день рендеряться по-різному).
  */
 .fc-crm-wrapper .fc .fc-event,
 .fc-crm-wrapper .fc .fc-event .fc-event-main,
 .fc-crm-wrapper .fc .fc-event .fc-event-main-frame,
+.fc-crm-wrapper .fc .fc-event .fc-event-time,
 .fc-crm-wrapper .fc .fc-daygrid-block-event .fc-event-title,
 .fc-crm-wrapper .fc .fc-daygrid-dot-event,
 .fc-crm-wrapper .fc .fc-daygrid-dot-event .fc-event-title,
 .fc-crm-wrapper .fc .fc-timegrid-event .fc-event-main,
+.fc-crm-wrapper .fc .fc-timegrid-event .fc-event-time,
 .fc-crm-wrapper .fc .fc-timegrid-event .fc-event-title,
 .fc-crm-wrapper .fc .fc-timegrid-more-link {
-  color: var(--foreground) !important;
+  color: #171717 !important;
   text-shadow: none !important;
 }
 

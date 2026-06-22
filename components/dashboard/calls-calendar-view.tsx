@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
+import { useTheme } from "next-themes";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -19,6 +20,12 @@ import type { ExpandedDailyEvent } from "@/lib/dev-daily-call-expand-client";
 import { assigneeFieldLabelEn } from "@/lib/roles";
 
 import { plannedDurationMsForCallType } from "@/lib/call-planned-end";
+import {
+  adjustEventColorForTheme,
+  getDailyEventBackground,
+  getSalesFallbackPalette,
+  resolveChartTheme,
+} from "@/lib/chart-theme";
 
 const DEFAULT_DAILY_DURATION_MS = 30 * 60 * 1000;
 
@@ -31,37 +38,17 @@ const callTypeShort: Record<string, string> = {
 };
 
 /** Стабільна палітра фону для сейлів без бейдж-кольору в CRM. */
-const SALES_FALLBACK_BG: ReadonlyArray<string> = [
-  "#2563eb",
-  "#16a34a",
-  "#c026d3",
-  "#ea580c",
-  "#0891b2",
-  "#ca8a04",
-  "#4f46e5",
-  "#be123c",
-  "#0d9488",
-  "#9333ea",
-  "#b45309",
-  "#1d4ed8",
-];
-
-function hashId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
-  return Math.abs(h);
-}
-
-function salesBackgroundFallback(createdById: string): string {
-  const i = hashId(createdById) % SALES_FALLBACK_BG.length;
-  return SALES_FALLBACK_BG[i]!;
+function salesBackgroundFallback(createdById: string, theme: ReturnType<typeof resolveChartTheme>): string {
+  const palette = getSalesFallbackPalette(theme);
+  const i = hashId(createdById) % palette.length;
+  return palette[i]!;
 }
 
 /** Колір фону події за сейлом; колір тексту задається в CSS і не залежить від сейла. */
-function getSalesBackgroundColor(call: CallEvent): string {
+function getSalesBackgroundColor(call: CallEvent, theme: ReturnType<typeof resolveChartTheme>): string {
   const bg = call.createdBy?.badgeBgColor?.trim();
-  if (bg) return bg;
-  if (call.createdById) return salesBackgroundFallback(call.createdById);
+  if (bg) return adjustEventColorForTheme(bg, theme);
+  if (call.createdById) return salesBackgroundFallback(call.createdById, theme);
   return "var(--muted-foreground)";
 }
 
@@ -94,7 +81,13 @@ function buildEventTitle(call: CallEvent): string {
   return parts.join(" · ");
 }
 
-function toEvent(call: CallEvent): EventInput {
+function hashId(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = Math.imul(31, h) + s.charCodeAt(i) | 0;
+  return Math.abs(h);
+}
+
+function toEvent(call: CallEvent, theme: ReturnType<typeof resolveChartTheme>): EventInput {
   const start = new Date(call.callStartedAt);
   const fallbackDurationMs = plannedDurationMsForCallType(call.callType);
   const end = call.callEndedAt
@@ -106,15 +99,17 @@ function toEvent(call: CallEvent): EventInput {
     title: buildEventTitle(call),
     start,
     end: end > start ? end : new Date(start.getTime() + fallbackDurationMs),
-    backgroundColor: getSalesBackgroundColor(call),
+    backgroundColor: getSalesBackgroundColor(call, theme),
     borderColor: "transparent",
+    textColor: "#171717",
     extendedProps: { call },
   };
 }
 
-const DAILY_EVENT_BG = "#059669";
-
-function dailyEventToEvent(de: ExpandedDailyEvent): EventInput {
+function dailyEventToEvent(
+  de: ExpandedDailyEvent,
+  theme: ReturnType<typeof resolveChartTheme>,
+): EventInput {
   const start = new Date(de.callStartedAt);
   const end = de.callEndedAt
     ? new Date(de.callEndedAt)
@@ -132,8 +127,9 @@ function dailyEventToEvent(de: ExpandedDailyEvent): EventInput {
     title: parts.join(" · "),
     start,
     end: end > start ? end : new Date(start.getTime() + DEFAULT_DAILY_DURATION_MS),
-    backgroundColor: DAILY_EVENT_BG,
+    backgroundColor: getDailyEventBackground(theme),
     borderColor: "transparent",
+    textColor: "#171717",
     extendedProps: { dailyEvent: de },
   };
 }
@@ -173,7 +169,10 @@ interface SalesLegendItem {
   swatch: string;
 }
 
-function buildSalesLegend(calls: CallEvent[]): SalesLegendItem[] {
+function buildSalesLegend(
+  calls: CallEvent[],
+  theme: ReturnType<typeof resolveChartTheme>,
+): SalesLegendItem[] {
   const map = new Map<string, SalesLegendItem>();
   for (const call of calls) {
     const id = call.createdById ?? "__none__";
@@ -184,7 +183,7 @@ function buildSalesLegend(calls: CallEvent[]): SalesLegendItem[] {
     map.set(id, {
       key: id,
       name: name || "Без сейла",
-      swatch: getSalesBackgroundColor(call),
+      swatch: getSalesBackgroundColor(call, theme),
     });
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "uk"));
@@ -203,16 +202,18 @@ export function CallsCalendarView({
   onEventClick,
   onDailyEventClick,
 }: CallsCalendarViewProps) {
-  const callEvents = useMemo(() => calls.map(toEvent), [calls]);
+  const { resolvedTheme } = useTheme();
+  const chartTheme = resolveChartTheme(resolvedTheme);
+  const callEvents = useMemo(() => calls.map((c) => toEvent(c, chartTheme)), [calls, chartTheme]);
   const dailyEventInputs = useMemo(
-    () => (dailyEvents ?? []).map(dailyEventToEvent),
-    [dailyEvents],
+    () => (dailyEvents ?? []).map((de) => dailyEventToEvent(de, chartTheme)),
+    [dailyEvents, chartTheme],
   );
   const events = useMemo(
     () => [...callEvents, ...dailyEventInputs],
     [callEvents, dailyEventInputs],
   );
-  const legend = useMemo(() => buildSalesLegend(calls), [calls]);
+  const legend = useMemo(() => buildSalesLegend(calls, chartTheme), [calls, chartTheme]);
   const hasDailyEvents = dailyEventInputs.length > 0;
 
   const handleEventClick = useCallback(
@@ -303,7 +304,7 @@ export function CallsCalendarView({
               <span className="inline-flex items-center gap-1.5">
                 <span
                   className="size-3 shrink-0 rounded-sm ring-1 ring-border/60"
-                  style={{ backgroundColor: DAILY_EVENT_BG }}
+                  style={{ backgroundColor: getDailyEventBackground(chartTheme) }}
                   aria-hidden
                 />
                 <span className="text-foreground">Дейлік</span>
