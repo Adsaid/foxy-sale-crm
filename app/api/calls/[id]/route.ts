@@ -168,6 +168,8 @@ export async function PATCH(
   const startChanged =
     body.callStartedAt !== undefined &&
     effectiveStart.getTime() !== existing.callStartedAt.getTime();
+  const typeChanged =
+    body.callType !== undefined && body.callType !== existing.callType;
 
   if (
     body.callEndedAt !== undefined &&
@@ -187,7 +189,7 @@ export async function PATCH(
   if (existing.status === "SCHEDULED") {
     if (body.callEndedAt !== undefined) {
       effectivePlannedEnd = resolvePlannedEnd(effectiveStart, body.callEndedAt, effectiveCallType);
-    } else if (startChanged) {
+    } else if (startChanged || typeChanged) {
       effectivePlannedEnd = shiftPlannedEndByStartChange(
         existing.callStartedAt,
         effectiveStart,
@@ -201,6 +203,7 @@ export async function PATCH(
     existing.status === "SCHEDULED" &&
     (body.callEndedAt !== undefined ||
       startChanged ||
+      typeChanged ||
       effectivePlannedEnd.getTime() !== (existing.callEndedAt?.getTime() ?? 0));
 
   if (plannedEndChanged && !validatePlannedEnd(effectiveStart, effectivePlannedEnd)) {
@@ -278,6 +281,7 @@ export async function PATCH(
     where: { id },
     data: {
       ...(body.status !== undefined && { status: body.status }),
+      ...(body.callType !== undefined && { callType: body.callType }),
       ...(forceCancelledOutcome
         ? { outcome: "CANCELLED" as const }
         : body.outcome !== undefined && { outcome: body.outcome }),

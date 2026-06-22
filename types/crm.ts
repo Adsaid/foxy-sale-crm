@@ -207,6 +207,7 @@ export interface CreateCallInput {
 export interface UpdateCallInput {
   status?: CallStatus;
   outcome?: CallOutcome;
+  callType?: CallType;
   callStartedAt?: string;
   callEndedAt?: string;
   movingToNextStage?: boolean;

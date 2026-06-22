@@ -30,7 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Building2, User, Clock, MessageSquare, ChevronsUpDown } from "lucide-react";
-import type { CallEvent, CallStatus, CallOutcome, UpdateCallInput } from "@/types/crm";
+import type { CallEvent, CallStatus, CallOutcome, CallType, UpdateCallInput } from "@/types/crm";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDevs } from "@/hooks/use-devs";
@@ -80,6 +80,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
   const [form, setForm] = useState({
     status: call.status,
     outcome: call.outcome,
+    callType: call.callType,
     callStartedAt: call.callStartedAt,
     callEndedAt: initialEndManuallySet ? (call.callEndedAt ?? "") : "",
     expectedFeedbackDate: call.expectedFeedbackDate ?? "",
@@ -142,13 +143,14 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     onSubmit({
       status: form.status,
       outcome: form.outcome,
+      ...(form.callType !== call.callType ? { callType: form.callType } : {}),
       callStartedAt: form.callStartedAt,
       ...(isScheduled && form.callStartedAt
         ? {
             callEndedAt: resolveFormPlannedEndIso(
               form.callStartedAt,
               form.callEndedAt,
-              call.callType,
+              form.callType,
               endManuallySetRef.current,
             ),
           }
@@ -170,9 +172,21 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
   return (
     <div className="min-w-0 space-y-4 py-2">
       <div className="rounded-lg bg-muted/50 p-3 space-y-1.5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-base font-semibold">{call.company}</span>
-          <Badge variant="outline">{callTypeLabels[call.callType]}</Badge>
+          <Select
+            value={form.callType}
+            onValueChange={(v) => setForm((f) => ({ ...f, callType: v as CallType }))}
+          >
+            <SelectTrigger className="h-8 w-[8.5rem]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(callTypeLabels).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
@@ -285,7 +299,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
                     new Date(f.callStartedAt),
                     new Date(v),
                     new Date(f.callEndedAt),
-                    call.callType,
+                    next.callType,
                   ).toISOString();
                 } else if (!endManuallySetRef.current) {
                   next.callEndedAt = "";
@@ -306,7 +320,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
               endManuallySetRef.current = true;
               setForm((f) => ({ ...f, callEndedAt: v }));
             }}
-            placeholder={`За замовчуванням ${defaultPlannedDurationLabelUk(call.callType)}`}
+            placeholder={`За замовчуванням ${defaultPlannedDurationLabelUk(form.callType)}`}
           />
           {hasEndBeforeStart && (
             <p className="mt-1 text-xs text-destructive">
