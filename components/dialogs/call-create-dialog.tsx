@@ -7,12 +7,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CallCreateForm } from "@/components/forms/call-create-form";
-import type { CreateCallInput } from "@/types/crm";
+import type { AdminUser, CreateCallInput } from "@/types/crm";
 
 interface CallCreateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isPending: boolean;
+  isAdmin?: boolean;
+  salesUsers?: AdminUser[];
   onSubmit: (data: CreateCallInput) => void;
 }
 
@@ -20,6 +22,8 @@ export function CallCreateDialog({
   open,
   onOpenChange,
   isPending,
+  isAdmin,
+  salesUsers,
   onSubmit,
 }: CallCreateDialogProps) {
   return (
@@ -29,7 +33,12 @@ export function CallCreateDialog({
           <DialogTitle>Новий дзвінок</DialogTitle>
         </DialogHeader>
         {open ? (
-          <CallCreateForm isPending={isPending} onSubmit={onSubmit} />
+          <CallCreateForm
+            isPending={isPending}
+            isAdmin={isAdmin}
+            salesUsers={salesUsers}
+            onSubmit={onSubmit}
+          />
         ) : null}
       </DialogContent>
     </Dialog>

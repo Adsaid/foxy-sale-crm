@@ -332,6 +332,18 @@ export function CallDetailSheet({
                 {formatDateTime(call.callStartedAt)}
               </DetailRow>
 
+              {call.status === "SCHEDULED" && call.callEndedAt && (
+                <DetailRow label="Орієнтовне завершення">
+                  {formatDateTime(call.callEndedAt)}
+                </DetailRow>
+              )}
+
+              {call.status === "COMPLETED" && call.callEndedAt && (
+                <DetailRow label="Завершено о">
+                  {formatDateTime(call.callEndedAt)}
+                </DetailRow>
+              )}
+
               {call.transferInfo?.isTransferred &&
                 call.transferInfo.transfers.length > 0 && (
                   <>

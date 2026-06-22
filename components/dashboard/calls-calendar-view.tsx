@@ -18,7 +18,9 @@ import type { CallEvent } from "@/types/crm";
 import type { ExpandedDailyEvent } from "@/lib/dev-daily-call-expand-client";
 import { assigneeFieldLabelEn } from "@/lib/roles";
 
-const DEFAULT_DURATION_MS = 60 * 60 * 1000;
+import { DEFAULT_PLANNED_DURATION_MS } from "@/lib/call-planned-end";
+
+const DEFAULT_DURATION_MS = DEFAULT_PLANNED_DURATION_MS;
 
 const callTypeShort: Record<string, string> = {
   HR: "HR",

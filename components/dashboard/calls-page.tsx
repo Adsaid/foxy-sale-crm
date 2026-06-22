@@ -11,6 +11,7 @@ import {
   useCompleteCall,
 } from "@/hooks/use-calls";
 import { useDevs } from "@/hooks/use-devs";
+import { useAdminUsers } from "@/hooks/use-admin-users";
 import {
   useDevDailyCalls,
   useCreateDevDailyCall,
@@ -264,7 +265,7 @@ function TodayCallCard({
                 {timeUntil}
               </span>
             )}
-            {isActive && isPast && !call.callEndedAt && (
+            {isActive && isPast && call.status === "SCHEDULED" && (
               <span className="rounded-md bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 ring-1 ring-orange-200/80 dark:bg-orange-950/50 dark:text-orange-300 dark:ring-orange-900/50">
                 Йде зараз
               </span>
@@ -405,9 +406,12 @@ export function CallsPage() {
     [user],
   );
 
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+
   const { data: calls, isLoading } = useCalls();
   /** /api/users/devs лише для SALES/ADMIN; інакше 403 → редірект на /login (axios). */
   const { data: devs, isLoading: devsLoading } = useDevs({ enabled: isSalesLike });
+  const { data: salesUsers } = useAdminUsers("SALES", isAdmin);
   const createMutation = useCreateCall();
   const updateMutation = useUpdateCall();
   const deleteMutation = useDeleteCall();
@@ -589,8 +593,8 @@ export function CallsPage() {
     table.setPage(1);
   }, [salesFilterId, devFilterId, table.setPage]);
 
-  function canComplete(callStartedAt: string, callEndedAt: string | null | undefined) {
-    if (callEndedAt) return false;
+  function canComplete(callStartedAt: string, status: CallEvent["status"]) {
+    if (status === "COMPLETED" || status === "CANCELLED") return false;
     return new Date() >= new Date(callStartedAt);
   }
 
@@ -626,6 +630,8 @@ export function CallsPage() {
             open={createOpen}
             onOpenChange={setCreateOpen}
             isPending={createMutation.isPending}
+            isAdmin={isAdmin}
+            salesUsers={salesUsers}
             onSubmit={(data) => {
               createMutation.mutate(data, { onSuccess: () => setCreateOpen(false) });
             }}
@@ -733,7 +739,7 @@ export function CallsPage() {
                         nowMs={nowMs}
                         onEdit={setEditCall}
                         onComplete={setCompleteId}
-                        canComplete={canComplete(call.callStartedAt, call.callEndedAt)}
+                        canComplete={canComplete(call.callStartedAt, call.status)}
                         onOpenDetails={() => setSheetCall(call)}
                       />
                     </div>
@@ -1224,7 +1230,7 @@ export function CallsPage() {
                               </>
                               ) : null
                             ) : (
-                              canComplete(call.callStartedAt, call.callEndedAt) && (
+                              canComplete(call.callStartedAt, call.status) && (
                                 <Button
                                   variant="ghost"
                                   size="icon-sm"

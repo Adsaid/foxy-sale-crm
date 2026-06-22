@@ -1,9 +1,9 @@
 import { CRM_TIMEZONE } from "@/lib/date-kyiv";
+import { defaultPlannedEnd } from "@/lib/call-planned-end";
 
 /**
  * Дзвінок «заднім числом»: дата початку в календарі Києва раніше за сьогодні.
- * Тоді час завершення не беремо як «зараз», а як початок + 1 год, щоб не було
- * штучної тривалості в кілька днів.
+ * Тоді час завершення не беремо як «зараз», а як орієнтовний кінець (або дефолт +30 хв).
  */
 export function isCallStartedBeforeTodayKyiv(start: Date): boolean {
   const fmt = new Intl.DateTimeFormat("en-CA", {
@@ -15,6 +15,12 @@ export function isCallStartedBeforeTodayKyiv(start: Date): boolean {
   return fmt.format(start) < fmt.format(new Date());
 }
 
-export function callEndedAtOneHourAfterStart(start: Date): Date {
-  return new Date(start.getTime() + 60 * 60 * 1000);
+export function resolveBackdatedCallEndedAt(
+  start: Date,
+  plannedEnd: Date | null,
+): Date {
+  if (plannedEnd && plannedEnd.getTime() > start.getTime()) {
+    return plannedEnd;
+  }
+  return defaultPlannedEnd(start);
 }

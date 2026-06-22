@@ -194,17 +194,21 @@ export interface CreateCallInput {
   interviewerName: string;
   callType: CallType;
   callStartedAt: string;
+  callEndedAt?: string;
   callerId: string;
   salaryFrom: number;
   salaryTo?: number;
   callLink?: string;
   description?: string;
+  /** Лише для ADMIN / SUPER_ADMIN: сейл, від імені якого створюється дзвінок. */
+  createdById?: string;
 }
 
 export interface UpdateCallInput {
   status?: CallStatus;
   outcome?: CallOutcome;
   callStartedAt?: string;
+  callEndedAt?: string;
   movingToNextStage?: boolean;
   nextStep?: CallStage | null;
   nextStepDate?: string | null;

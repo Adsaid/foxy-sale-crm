@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useEffect, useMemo, useState } from "react";
 import { useDevs } from "@/hooks/use-devs";
 import { assigneeSpecLabelsUk } from "@/lib/roles";
+import { DEFAULT_PLANNED_DURATION_MS, normalizeEndByStart } from "@/lib/call-planned-end";
 import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 
 const callTypeLabels: Record<string, string> = {
@@ -69,6 +70,13 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     status: call.status,
     outcome: call.outcome,
     callStartedAt: call.callStartedAt,
+    callEndedAt:
+      call.callEndedAt ??
+      (call.callStartedAt
+        ? new Date(
+            new Date(call.callStartedAt).getTime() + DEFAULT_PLANNED_DURATION_MS,
+          ).toISOString()
+        : ""),
     expectedFeedbackDate: call.expectedFeedbackDate ?? "",
     notes: call.notes ?? "",
     salaryFrom: call.salaryFrom ?? 0,
@@ -108,6 +116,11 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
   const isCancelled = form.status === "CANCELLED";
   const isScheduled = form.status === "SCHEDULED";
 
+  const hasEndBeforeStart = useMemo(() => {
+    if (!isScheduled || !form.callStartedAt || !form.callEndedAt) return false;
+    return new Date(form.callEndedAt).getTime() <= new Date(form.callStartedAt).getTime();
+  }, [form.callEndedAt, form.callStartedAt, isScheduled]);
+
   const selectedDev = devs?.find((d) => d.id === callerId);
   const filteredDevs = devs?.filter((d) => {
     if (specFilter && d.specialization !== specFilter) return false;
@@ -119,10 +132,16 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
     : call.caller ?? null;
 
   function handleSubmit() {
+    if (hasEndBeforeStart) return;
     onSubmit({
       status: form.status,
       outcome: form.outcome,
       callStartedAt: form.callStartedAt,
+      ...(isScheduled && form.callEndedAt
+        ? {
+            callEndedAt: normalizeEndByStart(form.callStartedAt, form.callEndedAt),
+          }
+        : {}),
       expectedFeedbackDate: form.expectedFeedbackDate || null,
       notes: form.notes || null,
       salaryFrom: form.salaryFrom || undefined,
@@ -246,9 +265,38 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         <label className="mb-1.5 block text-sm font-medium">Дата та час дзвінка</label>
         <DateTimePicker
           value={form.callStartedAt}
-          onChange={(v) => setForm((f) => ({ ...f, callStartedAt: v }))}
+          onChange={(v) =>
+            setForm((f) => {
+              const next = { ...f, callStartedAt: v };
+              if (isScheduled && v && next.callEndedAt) {
+                next.callEndedAt = normalizeEndByStart(v, next.callEndedAt);
+              }
+              return next;
+            })
+          }
         />
       </div>
+
+      {isScheduled && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Орієнтовне завершення</label>
+          <DateTimePicker
+            value={form.callEndedAt}
+            onChange={(v) =>
+              setForm((f) => ({
+                ...f,
+                callEndedAt: f.callStartedAt ? normalizeEndByStart(f.callStartedAt, v) : v,
+              }))
+            }
+            placeholder="За замовчуванням +30 хвилин"
+          />
+          {hasEndBeforeStart && (
+            <p className="mt-1 text-xs text-destructive">
+              Час завершення має бути пізніше за час початку.
+            </p>
+          )}
+        </div>
+      )}
 
       {isRescheduled && (
         <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
@@ -429,7 +477,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
 
       <Separator />
 
-      <Button onClick={handleSubmit} disabled={isPending} className="w-full">
+      <Button onClick={handleSubmit} disabled={isPending || hasEndBeforeStart} className="w-full">
         Зберегти
       </Button>
     </div>

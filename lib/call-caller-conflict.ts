@@ -1,13 +1,14 @@
 import type { PrismaClient } from "@prisma/client";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
+import { DEFAULT_PLANNED_DURATION_MS } from "@/lib/call-planned-end";
 import {
   hasOccurrenceOverlap,
   findFirstOverlappingOccurrence,
   type DevDailyCallRecord,
 } from "@/lib/dev-daily-call-recurrence";
 
-/** Тривалість «слоту» дзвінка для перевірки зайнятості (як у календарі). */
-export const CALL_SLOT_MS = 60 * 60 * 1000;
+/** Тривалість «слоту» дзвінка для перевірки зайнятості (fallback, як у календарі). */
+export const CALL_SLOT_MS = DEFAULT_PLANNED_DURATION_MS;
 
 export function getCallOccupiedEnd(start: Date, callEndedAt: Date | null): Date {
   if (callEndedAt) return callEndedAt;

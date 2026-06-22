@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useDevs } from "@/hooks/use-devs";
 import { callService } from "@/services/call-service";
@@ -32,12 +32,14 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
+import { DEFAULT_PLANNED_DURATION_MS, normalizeEndByStart } from "@/lib/call-planned-end";
 import { assigneeSpecLabelsUk } from "@/lib/roles";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 import { ChevronsUpDown, AlertTriangle } from "lucide-react";
-import type { CallType, CreateCallInput, InterviewerDuplicateMatch } from "@/types/crm";
+import { ManagerBadge } from "@/components/ui/manager-badge";
+import type { AdminUser, CallType, CreateCallInput, InterviewerDuplicateMatch } from "@/types/crm";
 
 const callTypeLabels: Record<string, string> = {
   HR: "HR",
@@ -61,6 +63,8 @@ const outcomeLabels: Record<string, string> = {
 
 interface CallCreateFormProps {
   isPending: boolean;
+  isAdmin?: boolean;
+  salesUsers?: AdminUser[];
   onSubmit: (data: CreateCallInput) => void;
 }
 
@@ -68,7 +72,7 @@ function formatCallWhen(iso: string) {
   return formatCallTableDateTime(iso);
 }
 
-export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
+export function CallCreateForm({ isPending, isAdmin = false, salesUsers, onSubmit }: CallCreateFormProps) {
   const { data: accounts, isLoading: accountsLoading } = useAccounts({ operationalStatus: "ACTIVE" });
   const { data: devs, isLoading: devsLoading } = useDevs();
 
@@ -78,6 +82,7 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     interviewerName: "",
     callType: "HR",
     callStartedAt: "",
+    callEndedAt: "",
     callerId: "",
     salaryFrom: 0,
     salaryTo: undefined,
@@ -85,6 +90,8 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     description: "",
   });
 
+  const [salesId, setSalesId] = useState("");
+  const [salesOpen, setSalesOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   const [specFilter, setSpecFilter] = useState<string>("");
@@ -92,6 +99,22 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     null
   );
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+
+  const selectedSales = salesUsers?.find((s) => s.id === salesId);
+
+  const sortedSalesUsers = useMemo(() => {
+    if (!salesUsers?.length) return [];
+    return [...salesUsers].sort((a, b) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`, "uk"),
+    );
+  }, [salesUsers]);
+
+  const visibleAccounts = useMemo(() => {
+    if (!accounts) return [];
+    if (!isAdmin) return accounts;
+    if (!salesId) return [];
+    return accounts.filter((a) => a.ownerId === salesId);
+  }, [accounts, isAdmin, salesId]);
 
   const selectedAccount = accounts?.find((a) => a.id === form.accountId);
   const selectedDev = devs?.find((d) => d.id === form.callerId);
@@ -101,13 +124,30 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
     return true;
   });
 
+  const hasEndBeforeStart = useMemo(() => {
+    if (!form.callStartedAt || !form.callEndedAt) return false;
+    return new Date(form.callEndedAt).getTime() <= new Date(form.callStartedAt).getTime();
+  }, [form.callEndedAt, form.callStartedAt]);
+
   const isValid =
     form.accountId &&
     form.company &&
     form.interviewerName.trim() &&
     form.callStartedAt &&
     form.callerId &&
-    form.salaryFrom > 0;
+    form.salaryFrom > 0 &&
+    !hasEndBeforeStart &&
+    (!isAdmin || !!salesId);
+
+  function handleSalesSelect(id: string) {
+    setSalesId(id);
+    setSalesOpen(false);
+    setForm((f) =>
+      f.accountId && accounts?.find((a) => a.id === f.accountId)?.ownerId !== id
+        ? { ...f, accountId: "" }
+        : f,
+    );
+  }
 
   function resetDuplicateState() {
     setDuplicateWarning(null);
@@ -139,26 +179,77 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
       return;
     }
 
-    onSubmit(form);
+    onSubmit(buildPayload());
     resetDuplicateState();
   }
 
+  function buildPayload(): CreateCallInput {
+    return {
+      ...form,
+      callEndedAt:
+        form.callEndedAt && form.callStartedAt
+          ? normalizeEndByStart(form.callStartedAt, form.callEndedAt)
+          : form.callEndedAt || undefined,
+      ...(isAdmin && salesId ? { createdById: salesId } : {}),
+    };
+  }
+
   function handleForceCreate() {
-    onSubmit(form);
+    onSubmit(buildPayload());
     resetDuplicateState();
   }
 
   return (
     <div className="grid min-w-0 gap-3 py-4">
+      {isAdmin && (
+        <Popover modal={false} open={salesOpen} onOpenChange={setSalesOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className="w-full justify-between font-normal">
+              {selectedSales
+                ? `${selectedSales.firstName} ${selectedSales.lastName}`
+                : "Оберіть сейла"}
+              <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Пошук сейла..." />
+              <CommandList>
+                <CommandEmpty>Не знайдено</CommandEmpty>
+                <CommandGroup>
+                  {sortedSalesUsers.map((sales) => (
+                    <CommandItem
+                      key={sales.id}
+                      value={`${sales.firstName} ${sales.lastName} ${sales.email}`}
+                      data-checked={salesId === sales.id}
+                      onSelect={() => handleSalesSelect(sales.id)}
+                    >
+                      <ManagerBadge
+                        name={`${sales.firstName} ${sales.lastName}`}
+                        bgColor={sales.badgeBgColor}
+                        textColor={sales.badgeTextColor}
+                      />
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+      )}
+
       <Popover modal={false} open={accountOpen} onOpenChange={setAccountOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className="w-full justify-between font-normal"
+            disabled={isAdmin && !salesId}
           >
             {selectedAccount
               ? `${selectedAccount.account} (${selectedAccount.type})`
-              : "Оберіть акаунт"}
+              : isAdmin && !salesId
+                ? "Спочатку оберіть сейла"
+                : "Оберіть акаунт"}
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -176,13 +267,16 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
                 <>
                   <CommandEmpty>Не знайдено</CommandEmpty>
                   <CommandGroup>
-                    {accounts?.map((a) => (
+                    {visibleAccounts.map((a) => (
                       <CommandItem
                         key={a.id}
                         value={`${a.account} ${a.type}`}
                         data-checked={form.accountId === a.id}
                         onSelect={() => {
                           setForm((f) => ({ ...f, accountId: a.id }));
+                          if (isAdmin && a.ownerId) {
+                            setSalesId(a.ownerId);
+                          }
                           setAccountOpen(false);
                         }}
                       >
@@ -265,9 +359,44 @@ export function CallCreateForm({ isPending, onSubmit }: CallCreateFormProps) {
         <label className="mb-1 block text-xs text-muted-foreground">Дата та час дзвінка</label>
         <DateTimePicker
           value={form.callStartedAt}
-          onChange={(v) => setForm((f) => ({ ...f, callStartedAt: v }))}
+          onChange={(v) =>
+            setForm((f) => {
+              const next = { ...f, callStartedAt: v };
+              if (v) {
+                if (next.callEndedAt) {
+                  next.callEndedAt = normalizeEndByStart(v, next.callEndedAt);
+                } else {
+                  next.callEndedAt = new Date(
+                    new Date(v).getTime() + DEFAULT_PLANNED_DURATION_MS,
+                  ).toISOString();
+                }
+              }
+              return next;
+            })
+          }
           placeholder="Оберіть дату та час"
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs text-muted-foreground">
+          Орієнтовне завершення
+        </label>
+        <DateTimePicker
+          value={form.callEndedAt ?? ""}
+          onChange={(v) =>
+            setForm((f) => ({
+              ...f,
+              callEndedAt: f.callStartedAt ? normalizeEndByStart(f.callStartedAt, v) : v,
+            }))
+          }
+          placeholder="За замовчуванням +30 хвилин"
+        />
+        {hasEndBeforeStart && (
+          <p className="mt-1 text-xs text-destructive">
+            Час завершення має бути пізніше за час початку.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">

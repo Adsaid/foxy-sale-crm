@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getApiUser } from "@/lib/api-auth";
 import { createNotification } from "@/lib/notifications";
 import {
-  callEndedAtOneHourAfterStart,
   isCallStartedBeforeTodayKyiv,
+  resolveBackdatedCallEndedAt,
 } from "@/lib/call-completion-time";
 import {
   callTypeLabelUk,
@@ -31,7 +31,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (call.callEndedAt) {
+  if (call.status === "COMPLETED") {
     return NextResponse.json({ error: "Already completed" }, { status: 400 });
   }
 
@@ -41,7 +41,7 @@ export async function PATCH(
   }
 
   const endedAt = isCallStartedBeforeTodayKyiv(call.callStartedAt)
-    ? callEndedAtOneHourAfterStart(call.callStartedAt)
+    ? resolveBackdatedCallEndedAt(call.callStartedAt, call.callEndedAt)
     : now;
 
   const updated = await prisma.callEvent.update({

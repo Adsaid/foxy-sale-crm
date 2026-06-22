@@ -14,17 +14,21 @@ import {
   notifVerbPast,
 } from "@/lib/notification-copy";
 import {
-  callEndedAtOneHourAfterStart,
   isCallStartedBeforeTodayKyiv,
+  resolveBackdatedCallEndedAt,
 } from "@/lib/call-completion-time";
 import { appendTransferEntry, buildCallTransferInfo } from "@/lib/transfer-history";
 import {
-  CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
   findDevDailyCallConflict,
   formatDailyCallConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import {
+  resolvePlannedEnd,
+  shiftPlannedEndByStartChange,
+  validatePlannedEnd,
+} from "@/lib/call-planned-end";
 import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
 import { teamGuardResponse } from "@/lib/team-scope";
 
@@ -164,8 +168,44 @@ export async function PATCH(
     body.callStartedAt !== undefined &&
     effectiveStart.getTime() !== existing.callStartedAt.getTime();
 
-  if (callerChanged || startChanged) {
-    const rangeEnd = new Date(effectiveStart.getTime() + CALL_SLOT_MS);
+  if (
+    body.callEndedAt !== undefined &&
+    existing.status !== "SCHEDULED"
+  ) {
+    return NextResponse.json(
+      { error: "Орієнтовний час завершення можна змінити лише для запланованого дзвінка" },
+      { status: 400 },
+    );
+  }
+
+  let effectivePlannedEnd = resolvePlannedEnd(effectiveStart, existing.callEndedAt);
+  if (existing.status === "SCHEDULED") {
+    if (body.callEndedAt !== undefined) {
+      effectivePlannedEnd = resolvePlannedEnd(effectiveStart, body.callEndedAt);
+    } else if (startChanged) {
+      effectivePlannedEnd = shiftPlannedEndByStartChange(
+        existing.callStartedAt,
+        effectiveStart,
+        existing.callEndedAt,
+      );
+    }
+  }
+
+  const plannedEndChanged =
+    existing.status === "SCHEDULED" &&
+    (body.callEndedAt !== undefined ||
+      startChanged ||
+      effectivePlannedEnd.getTime() !== (existing.callEndedAt?.getTime() ?? 0));
+
+  if (plannedEndChanged && !validatePlannedEnd(effectiveStart, effectivePlannedEnd)) {
+    return NextResponse.json(
+      { error: "Час завершення має бути пізніше за час початку" },
+      { status: 400 },
+    );
+  }
+
+  if (callerChanged || startChanged || plannedEndChanged) {
+    const rangeEnd = effectivePlannedEnd;
     const callerConflict = await findCallerConflictWithOtherSales(prisma, {
       callerId: effectiveCallerId,
       teamId: tg.teamId!,
@@ -216,7 +256,10 @@ export async function PATCH(
     statusAfter === "COMPLETED" && existing.status !== "COMPLETED";
   const callEndedAtForBackdatedCompletion =
     transitioningToCompleted && isCallStartedBeforeTodayKyiv(effectiveStart)
-      ? callEndedAtOneHourAfterStart(effectiveStart)
+      ? resolveBackdatedCallEndedAt(
+          effectiveStart,
+          existing.status === "SCHEDULED" ? existing.callEndedAt : null,
+        )
       : undefined;
 
   const normalizedCallLink =
@@ -232,6 +275,9 @@ export async function PATCH(
         ? { outcome: "CANCELLED" as const }
         : body.outcome !== undefined && { outcome: body.outcome }),
       ...(body.callStartedAt !== undefined && { callStartedAt: new Date(body.callStartedAt) }),
+      ...(existing.status === "SCHEDULED" && plannedEndChanged && {
+        callEndedAt: effectivePlannedEnd,
+      }),
       ...(body.movingToNextStage !== undefined && { movingToNextStage: body.movingToNextStage }),
       ...(body.nextStep !== undefined && { nextStep: body.nextStep }),
       ...(body.nextStepDate !== undefined && { nextStepDate: body.nextStepDate ? new Date(body.nextStepDate) : null }),

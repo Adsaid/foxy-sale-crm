@@ -5,12 +5,15 @@ import { isCallAssigneeRole, isSalesLike } from "@/lib/roles";
 import { teamGuardResponse } from "@/lib/team-scope";
 import { notifyCallAssignedToDevAndAdmins } from "@/lib/call-assigned-notifications";
 import {
-  CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
   findDevDailyCallConflict,
   formatDailyCallConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import {
+  resolvePlannedEnd,
+  validatePlannedEnd,
+} from "@/lib/call-planned-end";
 import { normalizeCallLinkForSave } from "@/lib/normalize-call-link";
 
 export async function GET(request: Request) {
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
   if (tg.error) return tg.error;
 
   const body = await request.json();
-  const { accountId, company, interviewerName, callType, callStartedAt, callerId, salaryFrom, salaryTo, callLink, description } = body;
+  const { accountId, company, interviewerName, callType, callStartedAt, callEndedAt, callerId, salaryFrom, salaryTo, callLink, description, createdById: createdByIdFromBody } = body;
 
   if (!accountId || !company || !interviewerName || !callType || !callStartedAt || !callerId) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -88,11 +91,47 @@ export async function POST(request: Request) {
     );
   }
 
-  const createdById =
-    user!.role === "ADMIN" || user!.role === "SUPER_ADMIN" ? account.ownerId : user!.id;
+  const isAdmin = user!.role === "ADMIN" || user!.role === "SUPER_ADMIN";
+
+  let createdById: string;
+  if (isAdmin) {
+    const requestedCreatedById =
+      typeof createdByIdFromBody === "string" && createdByIdFromBody.trim()
+        ? createdByIdFromBody.trim()
+        : null;
+    if (!requestedCreatedById) {
+      return NextResponse.json({ error: "Оберіть сейла" }, { status: 400 });
+    }
+    const salesUser = await prisma.user.findUnique({
+      where: { id: requestedCreatedById },
+      select: { id: true, role: true, teamId: true },
+    });
+    if (!salesUser || salesUser.role !== "SALES" || salesUser.teamId !== tg.teamId) {
+      return NextResponse.json(
+        { error: "Обраний сейл не знайдений або має неприпустиму роль" },
+        { status: 400 },
+      );
+    }
+    if (account.ownerId !== requestedCreatedById) {
+      return NextResponse.json(
+        { error: "Обраний акаунт не належить цьому сейлу" },
+        { status: 400 },
+      );
+    }
+    createdById = requestedCreatedById;
+  } else {
+    createdById = user!.id;
+  }
 
   const rangeStart = new Date(callStartedAt);
-  const rangeEnd = new Date(rangeStart.getTime() + CALL_SLOT_MS);
+  const plannedEnd = resolvePlannedEnd(rangeStart, callEndedAt);
+  if (!validatePlannedEnd(rangeStart, plannedEnd)) {
+    return NextResponse.json(
+      { error: "Час завершення має бути пізніше за час початку" },
+      { status: 400 },
+    );
+  }
+  const rangeEnd = plannedEnd;
   const callerConflict = await findCallerConflictWithOtherSales(prisma, {
     callerId,
     teamId: tg.teamId!,
@@ -128,6 +167,7 @@ export async function POST(request: Request) {
       interviewerName,
       callType,
       callStartedAt: new Date(callStartedAt),
+      callEndedAt: plannedEnd,
       callerId,
       createdById,
       salaryFrom,

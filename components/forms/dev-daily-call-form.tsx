@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { normalizeEndByStart } from "@/lib/call-planned-end";
 import type { CreateDevDailyCallInput, RecurrenceType } from "@/types/crm";
 
 const recurrenceLabels: Record<RecurrenceType, string> = {
@@ -26,21 +27,6 @@ interface DevDailyCallFormProps {
   initialValue?: Partial<CreateDevDailyCallInput>;
   submitLabel?: string;
   onSubmit: (data: CreateDevDailyCallInput) => void;
-}
-
-function normalizeEndByStart(startIso: string, endIso: string): string {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return endIso;
-
-  // If picker gave time on another day, keep the picked HH:mm but align date to start day.
-  if (start.toDateString() !== end.toDateString()) {
-    const aligned = new Date(start);
-    aligned.setHours(end.getHours(), end.getMinutes(), 0, 0);
-    return aligned.toISOString();
-  }
-
-  return endIso;
 }
 
 export function DevDailyCallForm({

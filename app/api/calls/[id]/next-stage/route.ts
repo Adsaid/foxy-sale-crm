@@ -4,10 +4,13 @@ import { getApiUser } from "@/lib/api-auth";
 import { canMutateCall } from "@/lib/roles";
 import type { CallStage, CallType } from "@prisma/client";
 import {
-  CALL_SLOT_MS,
   findCallerConflictWithOtherSales,
   formatCallerConflictMessageUk,
 } from "@/lib/call-caller-conflict";
+import {
+  defaultPlannedEnd,
+  validatePlannedEnd,
+} from "@/lib/call-planned-end";
 import { teamGuardResponse } from "@/lib/team-scope";
 
 export async function POST(
@@ -50,7 +53,20 @@ export async function POST(
   }
 
   const rangeStart = new Date(callStartedAt);
-  const rangeEnd = new Date(rangeStart.getTime() + CALL_SLOT_MS);
+  const previousDurationMs =
+    existing.callEndedAt && existing.callEndedAt.getTime() > existing.callStartedAt.getTime()
+      ? existing.callEndedAt.getTime() - existing.callStartedAt.getTime()
+      : null;
+  const plannedEnd = previousDurationMs
+    ? new Date(rangeStart.getTime() + previousDurationMs)
+    : defaultPlannedEnd(rangeStart);
+  if (!validatePlannedEnd(rangeStart, plannedEnd)) {
+    return NextResponse.json(
+      { error: "Час завершення має бути пізніше за час початку" },
+      { status: 400 },
+    );
+  }
+  const rangeEnd = plannedEnd;
   const callerConflict = await findCallerConflictWithOtherSales(prisma, {
     callerId: existing.callerId,
     teamId: tg.teamId!,
@@ -78,6 +94,7 @@ export async function POST(
       createdById: existing.createdById,
       callType,
       callStartedAt: new Date(callStartedAt),
+      callEndedAt: plannedEnd,
       status: "SCHEDULED",
       outcome: "PENDING",
       notes: existing.notes,
