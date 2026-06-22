@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAccounts } from "@/hooks/use-accounts";
 import { useDevs } from "@/hooks/use-devs";
 import { callService } from "@/services/call-service";
@@ -32,7 +32,11 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
-import { DEFAULT_PLANNED_DURATION_MS, normalizeEndByStart } from "@/lib/call-planned-end";
+import {
+  defaultPlannedDurationLabelUk,
+  resolveFormPlannedEndIso,
+  shiftPlannedEndByStartChange,
+} from "@/lib/call-planned-end";
 import { assigneeSpecLabelsUk } from "@/lib/roles";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +103,7 @@ export function CallCreateForm({ isPending, isAdmin = false, salesUsers, onSubmi
     null
   );
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const endManuallySetRef = useRef(false);
 
   const selectedSales = salesUsers?.find((s) => s.id === salesId);
 
@@ -186,10 +191,14 @@ export function CallCreateForm({ isPending, isAdmin = false, salesUsers, onSubmi
   function buildPayload(): CreateCallInput {
     return {
       ...form,
-      callEndedAt:
-        form.callEndedAt && form.callStartedAt
-          ? normalizeEndByStart(form.callStartedAt, form.callEndedAt)
-          : form.callEndedAt || undefined,
+      callEndedAt: form.callStartedAt
+        ? resolveFormPlannedEndIso(
+            form.callStartedAt,
+            form.callEndedAt,
+            form.callType,
+            endManuallySetRef.current,
+          )
+        : form.callEndedAt || undefined,
       ...(isAdmin && salesId ? { createdById: salesId } : {}),
     };
   }
@@ -359,21 +368,22 @@ export function CallCreateForm({ isPending, isAdmin = false, salesUsers, onSubmi
         <label className="mb-1 block text-xs text-muted-foreground">Дата та час дзвінка</label>
         <DateTimePicker
           value={form.callStartedAt}
-          onChange={(v) =>
+          onChange={(v) => {
             setForm((f) => {
               const next = { ...f, callStartedAt: v };
-              if (v) {
-                if (next.callEndedAt) {
-                  next.callEndedAt = normalizeEndByStart(v, next.callEndedAt);
-                } else {
-                  next.callEndedAt = new Date(
-                    new Date(v).getTime() + DEFAULT_PLANNED_DURATION_MS,
-                  ).toISOString();
-                }
+              if (v && endManuallySetRef.current && f.callEndedAt && f.callStartedAt) {
+                next.callEndedAt = shiftPlannedEndByStartChange(
+                  new Date(f.callStartedAt),
+                  new Date(v),
+                  new Date(f.callEndedAt),
+                  next.callType,
+                ).toISOString();
+              } else if (!endManuallySetRef.current) {
+                next.callEndedAt = "";
               }
               return next;
-            })
-          }
+            });
+          }}
           placeholder="Оберіть дату та час"
         />
       </div>
@@ -384,13 +394,11 @@ export function CallCreateForm({ isPending, isAdmin = false, salesUsers, onSubmi
         </label>
         <DateTimePicker
           value={form.callEndedAt ?? ""}
-          onChange={(v) =>
-            setForm((f) => ({
-              ...f,
-              callEndedAt: f.callStartedAt ? normalizeEndByStart(f.callStartedAt, v) : v,
-            }))
-          }
-          placeholder="За замовчуванням +30 хвилин"
+          onChange={(v) => {
+            endManuallySetRef.current = true;
+            setForm((f) => ({ ...f, callEndedAt: v }));
+          }}
+          placeholder={`За замовчуванням ${defaultPlannedDurationLabelUk(form.callType)}`}
         />
         {hasEndBeforeStart && (
           <p className="mt-1 text-xs text-destructive">

@@ -59,7 +59,7 @@ export async function POST(
       : null;
   const plannedEnd = previousDurationMs
     ? new Date(rangeStart.getTime() + previousDurationMs)
-    : defaultPlannedEnd(rangeStart);
+    : defaultPlannedEnd(rangeStart, callType);
   if (!validatePlannedEnd(rangeStart, plannedEnd)) {
     return NextResponse.json(
       { error: "Час завершення має бути пізніше за час початку" },

@@ -41,7 +41,7 @@ export async function PATCH(
   }
 
   const endedAt = isCallStartedBeforeTodayKyiv(call.callStartedAt)
-    ? resolveBackdatedCallEndedAt(call.callStartedAt, call.callEndedAt)
+    ? resolveBackdatedCallEndedAt(call.callStartedAt, call.callEndedAt, call.callType)
     : now;
 
   const updated = await prisma.callEvent.update({

@@ -18,9 +18,9 @@ import type { CallEvent } from "@/types/crm";
 import type { ExpandedDailyEvent } from "@/lib/dev-daily-call-expand-client";
 import { assigneeFieldLabelEn } from "@/lib/roles";
 
-import { DEFAULT_PLANNED_DURATION_MS } from "@/lib/call-planned-end";
+import { plannedDurationMsForCallType } from "@/lib/call-planned-end";
 
-const DEFAULT_DURATION_MS = DEFAULT_PLANNED_DURATION_MS;
+const DEFAULT_DAILY_DURATION_MS = 30 * 60 * 1000;
 
 const callTypeShort: Record<string, string> = {
   HR: "HR",
@@ -96,15 +96,16 @@ function buildEventTitle(call: CallEvent): string {
 
 function toEvent(call: CallEvent): EventInput {
   const start = new Date(call.callStartedAt);
+  const fallbackDurationMs = plannedDurationMsForCallType(call.callType);
   const end = call.callEndedAt
     ? new Date(call.callEndedAt)
-    : new Date(start.getTime() + DEFAULT_DURATION_MS);
+    : new Date(start.getTime() + fallbackDurationMs);
 
   return {
     id: call.id,
     title: buildEventTitle(call),
     start,
-    end: end > start ? end : new Date(start.getTime() + DEFAULT_DURATION_MS),
+    end: end > start ? end : new Date(start.getTime() + fallbackDurationMs),
     backgroundColor: getSalesBackgroundColor(call),
     borderColor: "transparent",
     extendedProps: { call },
@@ -117,7 +118,7 @@ function dailyEventToEvent(de: ExpandedDailyEvent): EventInput {
   const start = new Date(de.callStartedAt);
   const end = de.callEndedAt
     ? new Date(de.callEndedAt)
-    : new Date(start.getTime() + DEFAULT_DURATION_MS);
+    : new Date(start.getTime() + DEFAULT_DAILY_DURATION_MS);
 
   const devLabel = de.caller
     ? `${de.caller.firstName} ${de.caller.lastName?.charAt(0) ?? ""}.`
@@ -130,7 +131,7 @@ function dailyEventToEvent(de: ExpandedDailyEvent): EventInput {
     id: de.id,
     title: parts.join(" · "),
     start,
-    end: end > start ? end : new Date(start.getTime() + DEFAULT_DURATION_MS),
+    end: end > start ? end : new Date(start.getTime() + DEFAULT_DAILY_DURATION_MS),
     backgroundColor: DAILY_EVENT_BG,
     borderColor: "transparent",
     extendedProps: { dailyEvent: de },

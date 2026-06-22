@@ -32,10 +32,15 @@ import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { Building2, User, Clock, MessageSquare, ChevronsUpDown } from "lucide-react";
 import type { CallEvent, CallStatus, CallOutcome, UpdateCallInput } from "@/types/crm";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDevs } from "@/hooks/use-devs";
 import { assigneeSpecLabelsUk } from "@/lib/roles";
-import { DEFAULT_PLANNED_DURATION_MS, normalizeEndByStart } from "@/lib/call-planned-end";
+import {
+  defaultPlannedDurationLabelUk,
+  defaultPlannedEndIso,
+  resolveFormPlannedEndIso,
+  shiftPlannedEndByStartChange,
+} from "@/lib/call-planned-end";
 import { AssigneeOptionContent } from "@/components/ui/assignee-option-content";
 
 const callTypeLabels: Record<string, string> = {
@@ -66,17 +71,17 @@ interface CallEditFormProps {
 }
 
 export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
+  const initialEndManuallySet =
+    !!call.callEndedAt &&
+    !!call.callStartedAt &&
+    new Date(call.callEndedAt).getTime() !==
+      new Date(defaultPlannedEndIso(call.callStartedAt, call.callType)).getTime();
+
   const [form, setForm] = useState({
     status: call.status,
     outcome: call.outcome,
     callStartedAt: call.callStartedAt,
-    callEndedAt:
-      call.callEndedAt ??
-      (call.callStartedAt
-        ? new Date(
-            new Date(call.callStartedAt).getTime() + DEFAULT_PLANNED_DURATION_MS,
-          ).toISOString()
-        : ""),
+    callEndedAt: initialEndManuallySet ? (call.callEndedAt ?? "") : "",
     expectedFeedbackDate: call.expectedFeedbackDate ?? "",
     notes: call.notes ?? "",
     salaryFrom: call.salaryFrom ?? 0,
@@ -95,6 +100,7 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
 
   const [markTransferred, setMarkTransferred] = useState(false);
   const [transferredReason, setTransferredReason] = useState("");
+  const endManuallySetRef = useRef(initialEndManuallySet);
 
   const isRescheduled = useMemo(() => {
     const prev = new Date(call.callStartedAt).getTime();
@@ -137,9 +143,14 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
       status: form.status,
       outcome: form.outcome,
       callStartedAt: form.callStartedAt,
-      ...(isScheduled && form.callEndedAt
+      ...(isScheduled && form.callStartedAt
         ? {
-            callEndedAt: normalizeEndByStart(form.callStartedAt, form.callEndedAt),
+            callEndedAt: resolveFormPlannedEndIso(
+              form.callStartedAt,
+              form.callEndedAt,
+              call.callType,
+              endManuallySetRef.current,
+            ),
           }
         : {}),
       expectedFeedbackDate: form.expectedFeedbackDate || null,
@@ -265,15 +276,24 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
         <label className="mb-1.5 block text-sm font-medium">Дата та час дзвінка</label>
         <DateTimePicker
           value={form.callStartedAt}
-          onChange={(v) =>
+          onChange={(v) => {
             setForm((f) => {
               const next = { ...f, callStartedAt: v };
-              if (isScheduled && v && next.callEndedAt) {
-                next.callEndedAt = normalizeEndByStart(v, next.callEndedAt);
+              if (isScheduled) {
+                if (v && endManuallySetRef.current && f.callEndedAt && f.callStartedAt) {
+                  next.callEndedAt = shiftPlannedEndByStartChange(
+                    new Date(f.callStartedAt),
+                    new Date(v),
+                    new Date(f.callEndedAt),
+                    call.callType,
+                  ).toISOString();
+                } else if (!endManuallySetRef.current) {
+                  next.callEndedAt = "";
+                }
               }
               return next;
-            })
-          }
+            });
+          }}
         />
       </div>
 
@@ -282,13 +302,11 @@ export function CallEditForm({ call, isPending, onSubmit }: CallEditFormProps) {
           <label className="mb-1.5 block text-sm font-medium">Орієнтовне завершення</label>
           <DateTimePicker
             value={form.callEndedAt}
-            onChange={(v) =>
-              setForm((f) => ({
-                ...f,
-                callEndedAt: f.callStartedAt ? normalizeEndByStart(f.callStartedAt, v) : v,
-              }))
-            }
-            placeholder="За замовчуванням +30 хвилин"
+            onChange={(v) => {
+              endManuallySetRef.current = true;
+              setForm((f) => ({ ...f, callEndedAt: v }));
+            }}
+            placeholder={`За замовчуванням ${defaultPlannedDurationLabelUk(call.callType)}`}
           />
           {hasEndBeforeStart && (
             <p className="mt-1 text-xs text-destructive">

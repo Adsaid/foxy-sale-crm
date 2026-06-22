@@ -1,18 +1,23 @@
 import type { PrismaClient } from "@prisma/client";
 import { formatCallTableDateTime } from "@/lib/date-kyiv";
-import { DEFAULT_PLANNED_DURATION_MS } from "@/lib/call-planned-end";
+import { plannedDurationMsForCallType } from "@/lib/call-planned-end";
 import {
   hasOccurrenceOverlap,
   findFirstOverlappingOccurrence,
   type DevDailyCallRecord,
 } from "@/lib/dev-daily-call-recurrence";
+import type { CallType } from "@/types/crm";
 
-/** Тривалість «слоту» дзвінка для перевірки зайнятості (fallback, як у календарі). */
-export const CALL_SLOT_MS = DEFAULT_PLANNED_DURATION_MS;
+/** Максимальна fallback-тривалість слоту, якщо тип дзвінка невідомий. */
+export const CALL_SLOT_MS = 60 * 60 * 1000;
 
-export function getCallOccupiedEnd(start: Date, callEndedAt: Date | null): Date {
+export function getCallOccupiedEnd(
+  start: Date,
+  callEndedAt: Date | null,
+  callType?: CallType | null,
+): Date {
   if (callEndedAt) return callEndedAt;
-  return new Date(start.getTime() + CALL_SLOT_MS);
+  return new Date(start.getTime() + (callType ? plannedDurationMsForCallType(callType) : CALL_SLOT_MS));
 }
 
 function intervalsOverlap(
@@ -64,6 +69,7 @@ export async function findCallerConflictWithOtherSales(
     select: {
       id: true,
       company: true,
+      callType: true,
       callStartedAt: true,
       callEndedAt: true,
       createdBy: {
@@ -74,7 +80,7 @@ export async function findCallerConflictWithOtherSales(
 
   for (const o of others) {
     const oStart = o.callStartedAt;
-    const oEnd = getCallOccupiedEnd(o.callStartedAt, o.callEndedAt);
+    const oEnd = getCallOccupiedEnd(o.callStartedAt, o.callEndedAt, o.callType);
     if (intervalsOverlap(rangeStart, rangeEnd, oStart, oEnd)) {
       const salesName = `${o.createdBy?.firstName ?? ""} ${o.createdBy?.lastName ?? ""}`.trim();
       return {

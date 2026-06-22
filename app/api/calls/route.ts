@@ -124,7 +124,7 @@ export async function POST(request: Request) {
   }
 
   const rangeStart = new Date(callStartedAt);
-  const plannedEnd = resolvePlannedEnd(rangeStart, callEndedAt);
+  const plannedEnd = resolvePlannedEnd(rangeStart, callEndedAt, callType);
   if (!validatePlannedEnd(rangeStart, plannedEnd)) {
     return NextResponse.json(
       { error: "Час завершення має бути пізніше за час початку" },

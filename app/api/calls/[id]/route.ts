@@ -117,6 +117,7 @@ export async function PATCH(
   }
 
   const statusAfter = (body.status ?? existing.status) as typeof existing.status;
+  const effectiveCallType = body.callType ?? existing.callType;
 
   let effectiveCallerId = existing.callerId;
   if (Object.prototype.hasOwnProperty.call(body, "callerId")) {
@@ -178,15 +179,20 @@ export async function PATCH(
     );
   }
 
-  let effectivePlannedEnd = resolvePlannedEnd(effectiveStart, existing.callEndedAt);
+  let effectivePlannedEnd = resolvePlannedEnd(
+    effectiveStart,
+    existing.callEndedAt,
+    effectiveCallType,
+  );
   if (existing.status === "SCHEDULED") {
     if (body.callEndedAt !== undefined) {
-      effectivePlannedEnd = resolvePlannedEnd(effectiveStart, body.callEndedAt);
+      effectivePlannedEnd = resolvePlannedEnd(effectiveStart, body.callEndedAt, effectiveCallType);
     } else if (startChanged) {
       effectivePlannedEnd = shiftPlannedEndByStartChange(
         existing.callStartedAt,
         effectiveStart,
         existing.callEndedAt,
+        effectiveCallType,
       );
     }
   }
@@ -259,6 +265,7 @@ export async function PATCH(
       ? resolveBackdatedCallEndedAt(
           effectiveStart,
           existing.status === "SCHEDULED" ? existing.callEndedAt : null,
+          effectiveCallType,
         )
       : undefined;
 
