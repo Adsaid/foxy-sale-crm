@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType, ReactNode } from "react";
+import { useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 import {
   Sheet,
   SheetContent,
@@ -8,10 +8,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AccountTypeBadge } from "@/components/ui/account-type-badge";
 import { ManagerBadge } from "@/components/ui/manager-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, Users, CalendarClock, Link2, FileText, Globe, StickyNote, MessageSquare } from "lucide-react";
+import { ExternalLink, Users, CalendarClock, Link2, FileText, Globe, StickyNote, MessageSquare, Copy, Check } from "lucide-react";
 import type { CallEvent } from "@/types/crm";
 import { cn } from "@/lib/utils";
 import {
@@ -145,6 +146,36 @@ function DetailRow({
 
 const badgeSheet = "h-7 px-3 text-sm font-medium";
 
+function CopyAccountNameButton({ name }: { name: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy(e: MouseEvent<HTMLButtonElement>) {
+    e.stopPropagation();
+    e.preventDefault();
+    try {
+      await navigator.clipboard.writeText(name);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
+      onClick={handleCopy}
+      title="Копіювати ім'я акаунта"
+      aria-label="Копіювати ім'я акаунта"
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </Button>
+  );
+}
+
 export function CallDetailSheet({
   call,
   open,
@@ -228,7 +259,10 @@ export function CallDetailSheet({
                             Акаунт
                           </span>
                           <span className="inline-flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 text-base font-medium text-foreground">
-                            {call.account.account}
+                            <span className="inline-flex items-center gap-0.5">
+                              {call.account.account}
+                              <CopyAccountNameButton name={call.account.account} />
+                            </span>
                             <AccountTypeBadge type={call.account.type} />
                           </span>
                         </div>
