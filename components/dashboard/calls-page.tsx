@@ -219,10 +219,14 @@ function TodayCallCard({
   );
   const cardStyle =
     !isCompleted && !isCancelled && call.createdBy && showCreatedBy
-      ? {
-          backgroundColor: salesBadgeCardBackground(accentBg, chartTheme, 0.4),
-          borderColor: rgbaFromHex(accentText, chartTheme === "dark" ? 0.55 : 0.7),
-        }
+      ? chartTheme === "dark"
+        ? {
+            borderColor: rgbaFromHex(accentText, 0.55),
+          }
+        : {
+            backgroundColor: salesBadgeCardBackground(accentBg, chartTheme, 0.4),
+            borderColor: rgbaFromHex(accentText, 0.7),
+          }
       : undefined;
 
   const linkHref = call.callLink?.trim() ? ensureUrlProtocol(call.callLink.trim()) : undefined;
