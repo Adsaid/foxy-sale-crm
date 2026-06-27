@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
 import { effectiveAccountStatus } from "@/lib/account-status";
 import { effectiveTeamStatus } from "@/lib/team-status";
+import { getDefaultDashboardPath } from "@/lib/default-dashboard-route";
 
 export async function requireUser(allowedRoles?: Role[]) {
   const userId = await getCurrentUserId();
@@ -17,7 +18,7 @@ export async function requireUser(allowedRoles?: Role[]) {
   if (!user) redirect("/login");
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    redirect("/dashboard");
+    redirect(getDefaultDashboardPath(user.role));
   }
 
   if (user.role !== "SUPER_ADMIN" && !user.teamId) {

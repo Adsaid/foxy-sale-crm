@@ -54,7 +54,8 @@ export async function POST(request: Request) {
     const teamStatus = effectiveTeamStatus(team);
     const pendingApproval =
       effectiveAccountStatus(user) === "PENDING" ||
-      (user.role !== "SUPER_ADMIN" && teamStatus === "PENDING");
+      (user.role !== "SUPER_ADMIN" &&
+        (teamStatus === "PENDING" || !user.teamId));
 
     return NextResponse.json({
       user: {

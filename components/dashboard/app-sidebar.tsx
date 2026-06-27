@@ -44,6 +44,7 @@ import { FOX_LOGO_SRC } from "@/components/auth/auth-fox-logo";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { teamService } from "@/services/team-service";
 import { useActiveTeamId } from "@/hooks/use-active-team";
+import { getDefaultDashboardPath } from "@/lib/default-dashboard-route";
 
 interface NavItem {
   title: string;
@@ -170,7 +171,10 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/dashboard" onClick={closeMobileSidebar}>
+              <Link
+                href={user ? getDefaultDashboardPath(user.role) : "/dashboard"}
+                onClick={closeMobileSidebar}
+              >
                 <div
                   className="relative flex size-9 shrink-0 overflow-hidden rounded-lg bg-muted/40"
                   onClick={handleLogoEasterEggClick}

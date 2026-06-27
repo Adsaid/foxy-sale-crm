@@ -3,10 +3,10 @@ import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { effectiveAccountStatus } from "@/lib/account-status";
 import { effectiveTeamStatus } from "@/lib/team-status";
-import { redirectAuthenticatedHome } from "@/lib/authenticated-home-redirect";
-import { PendingApprovalContent } from "@/components/auth/pending-approval-content";
+import { getDefaultDashboardPath } from "@/lib/default-dashboard-route";
 
-export default async function PendingApprovalPage() {
+/** Редірект залогіненого користувача на домашню сторінку за роллю (або pending / login). */
+export async function redirectAuthenticatedHome(): Promise<never> {
   const userId = await getCurrentUserId();
   if (!userId) redirect("/login");
 
@@ -22,9 +22,13 @@ export default async function PendingApprovalPage() {
   const waitingForTeamApproval =
     user.role !== "SUPER_ADMIN" && effectiveTeamStatus(team) === "PENDING";
 
-  if (effectiveAccountStatus(user) === "APPROVED" && !waitingForTeamApproval) {
-    await redirectAuthenticatedHome();
+  if (user.role !== "SUPER_ADMIN" && !user.teamId) {
+    redirect("/pending-approval");
   }
 
-  return <PendingApprovalContent email={user.email} />;
+  if (effectiveAccountStatus(user) === "PENDING" || waitingForTeamApproval) {
+    redirect("/pending-approval");
+  }
+
+  redirect(getDefaultDashboardPath(user.role));
 }

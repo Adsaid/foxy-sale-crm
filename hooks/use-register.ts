@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { authService } from "@/services/auth-service";
+import { getDefaultDashboardPath } from "@/lib/default-dashboard-route";
 import type { RegisterInput } from "@/lib/validations/auth";
 import type { AuthResponse } from "@/types/auth";
 
@@ -16,8 +17,15 @@ export function useRegister() {
     onSuccess: (data: AuthResponse) => {
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       toast.success("Реєстрація успішна!");
-      const pending = data.user.pendingApproval ?? ((data.user.accountStatus ?? "APPROVED") === "PENDING");
-      router.push(pending ? "/pending-approval" : "/dashboard");
+      const pending = Boolean(
+        data.user.pendingApproval ||
+          (data.user.accountStatus ?? "APPROVED") === "PENDING" ||
+          (data.user.role !== "SUPER_ADMIN" &&
+            (data.user.teamStatus === "PENDING" || !data.user.teamId)),
+      );
+      router.push(
+        pending ? "/pending-approval" : getDefaultDashboardPath(data.user.role),
+      );
     },
     onError: (err: unknown) => {
       const message =
